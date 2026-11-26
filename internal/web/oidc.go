@@ -57,9 +57,9 @@ func validateOIDCCallbackParams(p OIDCCallbackParams) error {
 	return nil
 }
 
-func (h *Handler) oidcLogin(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) oidcLogin(request *http.Request) (result authPageOutput) {
 	if h.oidc == nil {
-		h.renderError(writer, http.StatusNotFound)
+		result.status = http.StatusNotFound
 		return
 	}
 	browserSession := cookieValue(request, "oidc_browser")
@@ -67,29 +67,25 @@ func (h *Handler) oidcLogin(writer http.ResponseWriter, request *http.Request) {
 		var err error
 		browserSession, err = id.New()
 		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
+			result.status = http.StatusInternalServerError
 			return
 		}
-		h.setCookie(writer, "oidc_browser", browserSession, timeNow().Add(10*time.Minute), true)
+		result.oidcBrowser = browserSession
 	}
 	transaction, loginURL, err := h.oidc.Begin(
 		request.Context(), h.identity, request.PathValue("providerId"), browserSession,
 	)
 	if err != nil {
-		h.renderError(writer, http.StatusNotFound)
+		result.status = http.StatusNotFound
 		return
 	}
-	h.setOIDCCookies(writer, "login", transaction)
-	h.redirectURL(writer, request, loginURL)
+	result.kind, result.oidcTransaction, result.target = authPageOIDCBegin, transaction, loginURL
+	return
 }
 
-func (h *Handler) handleOIDCCallback(writer http.ResponseWriter, request *http.Request) {
-	h.oidcCallback(writer, request)
-}
-
-func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) oidcCallback(request *http.Request) (result authPageOutput) {
 	if h.oidc == nil {
-		h.renderError(writer, http.StatusNotFound)
+		result.status = http.StatusNotFound
 		return
 	}
 	flow := cookieValue(request, "oidc_flow")
@@ -97,7 +93,7 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 	if flow == "link" {
 		session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 		if err != nil {
-			h.oidcError(writer, request)
+			result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 			return
 		}
 		browserSession = session.ID
@@ -115,12 +111,12 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 	}
 	if err := validateOIDCCallbackParams(params); err != nil {
 		h.logger.WarnContext(request.Context(), "oidc callback validation failed", "error", err)
-		h.oidcError(writer, request)
+		result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 		return
 	}
 	redirectURI, ok := h.oidc.RedirectURL(request.PathValue("providerId"))
 	if !ok {
-		h.oidcError(writer, request)
+		result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 		return
 	}
 	completion, err := h.oidc.CompleteFlow(
@@ -129,71 +125,66 @@ func (h *Handler) oidcCallback(writer http.ResponseWriter, request *http.Request
 		cookieValue(request, "oidc_nonce"), redirectURI, request.URL.Query().Get("code"),
 	)
 	if err != nil {
-		h.clearOIDCCookies(writer)
-		h.oidcError(writer, request)
+		result.clearOIDC = true
+		result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 		return
 	}
-	h.clearOIDCCookies(writer)
+	result.clearOIDC = true
 	if completion.Purpose == identity.OIDCPurposeLink {
 		session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session"))
 		if err != nil || session.UserID != completion.UserID {
-			h.oidcError(writer, request)
+			result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 			return
 		}
 		if err := h.identity.LinkOIDCIdentity(request.Context(), identity.Principal{
 			UserID: session.UserID, AuthMethod: session.AuthMethod,
 		}, completion.Claims, true, auditContext(request)); err != nil {
-			h.oidcError(writer, request)
+			result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 			return
 		}
-		h.redirect(writer, request, "/security")
+		result.kind, result.target = authPageRedirect, "/security"
 		return
 	}
 	userID, err := h.identity.AuthenticateOIDC(request.Context(), completion.Claims, auditContext(request))
 	if err != nil {
-		h.oidcError(writer, request)
+		result.kind, result.status, result.data = authPageLogin, http.StatusUnauthorized, h.oidcErrorData()
 		return
 	}
 	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
+		result.status = http.StatusInternalServerError
 		return
 	}
 	if mfaEnrolled {
 		challenge, err := h.identity.BeginMFALoginWithMethod(request.Context(), userID, "oidc", completion.Claims.ProviderID, auditContext(request))
 		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
+			result.status = http.StatusInternalServerError
 			return
 		}
 		returnTo := "/"
 		if h.invitationReturnActive(request) {
 			returnTo = invitationContinuePath
 		}
-		h.setMFAChallengeCookies(writer, challenge, returnTo)
-		h.clearCookie(writer, "oidc_browser")
-		h.redirect(writer, request, "/mfa")
+		result.kind, result.challenge, result.target = authPageOIDCMFA, challenge, returnTo
 		return
 	}
 	session, err := h.identity.CreateSession(request.Context(), userID, "oidc", completion.Claims.ProviderID, 0, auditContext(request))
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
+		result.status = http.StatusInternalServerError
 		return
 	}
-	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
-	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-	h.clearCookie(writer, "oidc_browser")
+	result.kind, result.session, result.target = authPageOIDCSignedIn, session, "/"
 	if h.invitationReturnActive(request) {
-		h.redirect(writer, request, invitationContinuePath)
-		return
+		result.target = invitationContinuePath
 	}
-	h.redirect(writer, request, "/")
+	return
 }
 
-func (h *Handler) oidcError(writer http.ResponseWriter, request *http.Request) {
-	h.render(writer, http.StatusUnauthorized, "login.html", viewmodel.PageData{
+func (h *Handler) oidcErrorData() viewmodel.PageData {
+	return viewmodel.PageData{
 		Title: "Sign in", Error: "The identity provider sign-in could not be completed.",
 		OIDCProviders: h.providers(),
-	})
+	}
 }
 
 func (h *Handler) clearOIDCCookies(writer http.ResponseWriter) {

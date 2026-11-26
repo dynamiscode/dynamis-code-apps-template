@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
@@ -13,10 +12,10 @@ import (
 )
 
 templ webhooksPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
-			<p><a href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
+			@molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks", data.T("webhooks.back_to_webhooks"))
 			<h1>{ data.SelectedWebhook.Name }</h1>
 			<h2>{ data.T("webhooks.delivery_history") }</h2>
 			if len(data.WebhookDeliveries) > 0 {
@@ -107,7 +106,7 @@ templ webhooksPage(data viewmodel.PageData) {
 										<li><code>{ event }</code></li>
 									}
 								</ul>
-								<p><a class="webhook-history-link inline-block min-h-11 content-center" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() + "/deliveries" }>{ data.T("webhooks.view_deliveries") }</a></p>
+								<p><a class="webhook-history-link btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() + "/deliveries" }>{ data.T("webhooks.view_deliveries") }</a></p>
 								if data.CanManage {
 									<div class="actions">
 										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -118,7 +117,7 @@ templ webhooksPage(data viewmodel.PageData) {
 										}
 										</form>
 										<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks/" + webhook.ID.String() } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>
-											@atoms.Checkbox(atoms.CheckboxProps{Name: "confirm_delete", After: data.T("webhooks.delete_confirm"), Attrs: templ.Attributes{"value": "yes", "required": true}})
+											@atoms.PlainCheckbox(atoms.CheckboxProps{Name: "confirm_delete", After: data.T("webhooks.delete_confirm"), Attrs: templ.Attributes{"value": "yes", "required": true}})
 											@atoms.Button(atoms.ButtonProps{Class: "btn-error danger", Label: data.T("webhooks.delete"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete"}})</form>
 									</div>
 								}
@@ -136,11 +135,12 @@ templ webhooksPage(data viewmodel.PageData) {
 
 // webhookEventCheckbox renders one event toggle with its code-formatted event name.
 templ webhookEventCheckbox(event string) {
-	@atoms.Checkbox(atoms.CheckboxProps{
+	@atoms.CheckboxWithLabel(atoms.CheckboxProps{
 		Name:    "events",
 		Attrs:   templ.Attributes{"value": event},
-		Content: webhookEventCode(event),
-	})
+	}) {
+		@webhookEventCode(event)
+	}
 }
 
 templ webhookEventCode(event string) {

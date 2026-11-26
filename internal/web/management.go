@@ -385,29 +385,27 @@ func scimEndpoint(publicURL string, secure bool, request *http.Request, workspac
 	return base + "/scim/v2/" + url.PathEscape(workspaceID.String())
 }
 
-func (h *Handler) sessionsPage(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.session(writer, request)
+func (h *Handler) sessionsPage(request *http.Request) authPageOutput {
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	sessions, err := h.identity.ListSessions(request.Context(), session.UserID)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.render(writer, http.StatusOK, "sessions-page", viewmodel.PageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"})
+	return authPageOutput{kind: authPageSessions, data: viewmodel.PageData{Title: "Sessions", NavPage: "sessions", CSRF: csrf, Sessions: sessions, CurrentSessionID: session.ID, Saved: request.URL.Query().Get("revoked") == "1"}}
 }
 
-func (h *Handler) sessionMutation(writer http.ResponseWriter, request *http.Request) {
-	session, ok := h.validCSRFSession(writer, request)
-	if !ok {
-		return
+func (h *Handler) sessionMutation(request *http.Request) authPageOutput {
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
 	if _, err := h.identity.RevokeSession(request.Context(), session.UserID, request.PathValue("sessionId"), auditContext(request)); err != nil {
-		h.renderError(writer, http.StatusConflict)
-		return
+		return authPageOutput{status: http.StatusConflict}
 	}
-	h.redirect(writer, request, "/sessions?revoked=1")
+	return authPageOutput{kind: authPageRedirect, target: "/sessions?revoked=1"}
 }
 
 func (h *Handler) exportPage(writer http.ResponseWriter, request *http.Request) {
@@ -512,55 +510,48 @@ func (h *Handler) exportWorkspace(writer http.ResponseWriter, request *http.Requ
 	_, _ = writer.Write(encoded)
 }
 
-func (h *Handler) securityPage(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.session(writer, request)
+func (h *Handler) securityPage(request *http.Request) authPageOutput {
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	status, _ := h.identity.MFAStatus(request.Context(), session.UserID)
 	passkeys, _ := h.identity.ListPasskeys(request.Context(), session.UserID)
-	h.render(writer, http.StatusOK, "security-page", viewmodel.PageData{
+	return authPageOutput{kind: authPageSecurity, status: http.StatusOK, data: viewmodel.PageData{
 		Title: "Security", NavPage: "security", CSRF: csrf, OIDCProviders: h.providers(),
 		Error: request.URL.Query().Get("error"), Email: session.UserID.String(), MFAStatus: status, Passkeys: passkeys,
-	})
+	}}
 }
 
-func (h *Handler) securityMutation(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) securityMutation(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, _, ok := h.session(writer, request)
+	session, _, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return authPageOutput{status: http.StatusForbidden}
 	}
 	if h.oidc == nil || len(h.providers()) == 0 || request.FormValue("provider") == "" {
-		h.render(writer, http.StatusUnprocessableEntity, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."})
-		return
+		return authPageOutput{kind: authPageSecurity, status: http.StatusUnprocessableEntity, data: viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), Error: "No OIDC provider is configured."}}
 	}
 	if err := h.identity.ReauthenticateLocal(request.Context(), session.UserID, request.FormValue("password")); err != nil {
-		h.render(writer, http.StatusUnauthorized, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."})
-		return
+		return authPageOutput{kind: authPageSecurity, status: http.StatusUnauthorized, data: viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "Reauthentication failed."}}
 	}
 	transaction, loginURL, err := h.oidc.BeginLink(request.Context(), h.identity, request.FormValue("provider"), session.ID, session.UserID)
 	if err != nil {
-		h.render(writer, http.StatusUnprocessableEntity, "security-page", viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."})
-		return
+		return authPageOutput{kind: authPageSecurity, status: http.StatusUnprocessableEntity, data: viewmodel.PageData{Title: "Security", NavPage: "security", CSRF: request.FormValue("csrf"), OIDCProviders: h.providers(), Error: "The OIDC link could not be started."}}
 	}
-	h.setOIDCCookies(writer, "link", transaction)
-	h.redirectURL(writer, request, loginURL)
+	return authPageOutput{kind: authPageOIDCLink, target: loginURL, oidcTransaction: transaction}
 }
 
-func (h *Handler) invitationPage(writer http.ResponseWriter, request *http.Request) {
-	setInvitationSecurityHeaders(writer)
-	h.renderInvitationPage(writer, request, http.StatusOK, "")
+func (h *Handler) invitationPage(request *http.Request) invitationOutput {
+	return h.invitationPageResult(request, http.StatusOK, "")
 }
 
-func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http.Request, status int, errorKey string) {
+func (h *Handler) invitationPageResult(request *http.Request, status int, errorKey string) invitationOutput {
 	secret := request.PathValue("secret")
 	invitation, err := h.identity.InvitationForSecret(request.Context(), secret)
 	if err != nil {
@@ -571,12 +562,12 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 		if errorKey == "" {
 			errorKey = "invitations.unavailable"
 		}
-		h.renderInvitationComponent(writer, request, status, viewmodel.PageData{
+		return invitationOutput{kind: invitationPageMarkup, status: status, data: viewmodel.PageData{
 			Title: "Workspace invitation", InvitationSecret: secret,
 			ErrorKey: errorKey,
-		}, invitationView)
-		return
+		}}
 	}
+	newCSRF := ""
 	csrf := ""
 	authenticated := false
 	if session, err := h.identity.AuthenticateSession(request.Context(), cookieValue(request, "session")); err == nil {
@@ -588,57 +579,49 @@ func (h *Handler) renderInvitationPage(writer http.ResponseWriter, request *http
 		if csrf == "" {
 			csrf, err = id.New()
 			if err != nil {
-				h.renderError(writer, http.StatusInternalServerError)
-				return
+				return invitationOutput{status: http.StatusInternalServerError}
 			}
-			h.setCookie(writer, "invitation_csrf", csrf, time.Now().Add(10*time.Minute), true)
+			newCSRF = csrf
 		}
 	}
-	h.renderInvitationComponent(writer, request, status, viewmodel.PageData{
+	return invitationOutput{kind: invitationPageMarkup, status: status, newCSRF: newCSRF, data: viewmodel.PageData{
 		Title: "Workspace invitation", CSRF: csrf, Invitation: invitation,
 		InvitationSecret: secret, InvitationAuthenticated: authenticated,
 		ErrorKey: errorKey,
-	}, invitationView)
+	}}
 }
 
-func (h *Handler) invitationPost(writer http.ResponseWriter, request *http.Request) {
-	setInvitationSecurityHeaders(writer)
+func (h *Handler) invitationPost(request *http.Request) invitationOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return invitationOutput{status: http.StatusBadRequest}
 	}
 	secret := request.PathValue("secret")
 	if request.FormValue("action") == "register" {
 		if !sameValue(cookieValue(request, "invitation_csrf"), request.FormValue("csrf")) {
-			h.renderError(writer, http.StatusForbidden)
-			return
+			return invitationOutput{status: http.StatusForbidden}
 		}
 		userID, workspaceID, err := h.identity.CreateInvitedLocalUser(request.Context(), secret, request.FormValue("password"), auditContext(request))
 		if err != nil {
-			h.renderInvitationPage(writer, request, http.StatusUnprocessableEntity, "invitations.registration_failed")
-			return
+			return h.invitationPageResult(request, http.StatusUnprocessableEntity, "invitations.registration_failed")
 		}
 		session, err := h.identity.CreateSession(request.Context(), userID, "local", "", 0, auditContext(request))
 		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return invitationOutput{status: http.StatusInternalServerError}
 		}
-		h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
-		h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-		h.clearCookie(writer, "invitation_csrf")
-		h.redirect(writer, request, "/workspaces/"+workspaceID.String())
-		return
+		return invitationOutput{kind: invitationRegistered, session: session, target: "/workspaces/" + workspaceID.String()}
 	}
-	session, ok := h.validCSRFSession(writer, request)
-	if !ok {
-		return
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		if status == http.StatusSeeOther {
+			return invitationOutput{kind: invitationRedirect, target: "/login"}
+		}
+		return invitationOutput{status: status}
 	}
 	workspaceID, err := h.identity.AcceptInvitation(request.Context(), secret, session.UserID, auditContext(request))
 	if err != nil {
-		h.renderInvitationPage(writer, request, http.StatusUnprocessableEntity, "invitations.accept_failed")
-		return
+		return h.invitationPageResult(request, http.StatusUnprocessableEntity, "invitations.accept_failed")
 	}
-	h.redirect(writer, request, "/workspaces/"+workspaceID.String())
+	return invitationOutput{kind: invitationRedirect, target: "/workspaces/" + workspaceID.String()}
 }
 
 func invitationFormLifetime(raw string) (time.Duration, bool) {

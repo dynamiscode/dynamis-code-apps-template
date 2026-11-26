@@ -9,6 +9,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
 func TestLinkLifecycle(t *testing.T) {
@@ -34,9 +35,21 @@ func TestLinkLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := NewService(db, config.SQLite, auth)
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
 	token, err := svc.Create(ctx, owner, boot.WorkspaceID, "Consent", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	var ciphertext string
+	var version int
+	if err := db.QueryRowContext(ctx, `SELECT encrypted_token, token_key_version FROM public_intake_links WHERE workspace_id = ?`, boot.WorkspaceID).Scan(&ciphertext, &version); err != nil || ciphertext == token || version != 1 {
+		t.Fatalf("encrypted storage: version=%d err=%v", version, err)
+	}
+	if got, err := svc.GetToken(ctx, owner, boot.WorkspaceID); err != nil || got != token {
+		t.Fatalf("retrieved token mismatch: %v", err)
+	}
+	if _, err := svc.GetToken(ctx, identity.Principal{}, boot.WorkspaceID); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("unauthorized retrieval: %v", err)
 	}
 	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, "Consent", identity.AuditContext{}); !errors.Is(err, ErrActive) {
 		t.Fatalf("duplicate create: %v", err)
@@ -51,6 +64,23 @@ func TestLinkLifecycle(t *testing.T) {
 	if _, consent, err := svc.Resolve(ctx, token); err != nil || consent != "New consent" {
 		t.Fatalf("updated consent: %q %v", consent, err)
 	}
+	if _, err := db.ExecContext(ctx, `UPDATE public_intake_links SET encrypted_token = NULL, token_key_version = NULL WHERE workspace_id = ?`, boot.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.GetToken(ctx, owner, boot.WorkspaceID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("legacy retrieval: %v", err)
+	}
+	if _, _, err := svc.Resolve(ctx, token); err != nil {
+		t.Fatalf("legacy link: %v", err)
+	}
+	svc.ConfigureEncryption(secretbox.New(nil, 0))
+	if _, err := svc.Rotate(ctx, owner, boot.WorkspaceID, "Updated", identity.AuditContext{}); !errors.Is(err, secretbox.ErrNoPrimaryKey) {
+		t.Fatalf("rotate without key: %v", err)
+	}
+	if _, _, err := svc.Resolve(ctx, token); err != nil {
+		t.Fatalf("failed rotation invalidated link: %v", err)
+	}
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
 	rotated, err := svc.Rotate(ctx, owner, boot.WorkspaceID, "Updated", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -61,6 +91,9 @@ func TestLinkLifecycle(t *testing.T) {
 	if _, _, err := svc.Resolve(ctx, rotated); err != nil {
 		t.Fatal(err)
 	}
+	if got, err := svc.GetToken(ctx, owner, boot.WorkspaceID); err != nil || got != rotated {
+		t.Fatalf("rotated retrieval: %v", err)
+	}
 	if err := svc.Disable(ctx, owner, boot.WorkspaceID, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
@@ -70,6 +103,11 @@ func TestLinkLifecycle(t *testing.T) {
 	if _, _, err := svc.Resolve(ctx, rotated); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("disabled token: %v", err)
 	}
+	svc.ConfigureEncryption(secretbox.New(nil, 0))
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, "Again", identity.AuditContext{}); !errors.Is(err, secretbox.ErrNoPrimaryKey) {
+		t.Fatalf("create without key: %v", err)
+	}
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
 	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, "Again", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +124,9 @@ func TestLinkLifecycle(t *testing.T) {
 	member, err := auth.Authorize(ctx, memberID, boot.WorkspaceID, identity.ResourcesRead)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := svc.GetToken(ctx, member, boot.WorkspaceID); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("member retrieval: %v", err)
 	}
 	if _, err := svc.GetSettings(ctx, member, boot.WorkspaceID); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member settings: %v", err)

@@ -3,6 +3,7 @@
 // form-drafts, form-wizard, or async-feedback skill.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -79,6 +80,66 @@ test("dirty check: dirty exactly when any field differs from its first value", (
   }
 });
 
+test("notes show unsaved feedback and warn only when leaving an unsaved form", () => {
+  const documentEvents = {}, windowEvents = {};
+  const status = { hidden: true };
+  class Element {}
+  class HTMLSelectElement extends Element {}
+  class HTMLFormElement extends Element {
+    constructor(rejected = false) {
+      super();
+      this.dataset = {};
+      this.rejected = rejected;
+      this.elements = [];
+    }
+    matches(selector) { return selector === "[data-dirty-track], [data-unsaved-warning]"; }
+    hasAttribute(name) { return name === "data-dirty-on-load" && this.rejected; }
+    querySelector(selector) { return selector === "[data-dirty-status]" ? status : null; }
+    querySelectorAll() { return []; }
+  }
+  const form = new HTMLFormElement();
+  const field = Object.assign(new Element(), {
+    form, tagName: "TEXTAREA", name: "notes", type: "textarea", value: "Saved notes",
+    dataset: {}, willValidate: false, getAttribute: () => null, matches: () => false
+  });
+  form.elements.push(field);
+  const document = {
+    querySelector: () => null,
+    querySelectorAll: (selector) => selector === "form" || selector === "form[data-unsaved-warning]" ? [form] : [],
+    addEventListener: (name, listener) => (documentEvents[name] ||= []).push(listener)
+  };
+  const window = {
+    sessionStorage: { setItem() {}, removeItem() {} },
+    addEventListener: (name, listener) => (windowEvents[name] ||= []).push(listener)
+  };
+  const module = { exports: {} };
+  const source = readFileSync(new URL("./alpine-components.js", import.meta.url), "utf8");
+  new Function("module", "window", "document", "Element", "HTMLFormElement", "HTMLSelectElement", "setTimeout", source)(
+    module, window, document, Element, HTMLFormElement, HTMLSelectElement, () => {}
+  );
+  module.exports.wireForms();
+  const fire = (listeners, name, event) => (listeners[name] || []).forEach((listener) => listener(event));
+  const leavesWithWarning = () => {
+    const event = { prevented: false, preventDefault() { this.prevented = true; } };
+    fire(windowEvents, "beforeunload", event);
+    return event.prevented;
+  };
+  assert.equal(status.hidden, true);
+  assert.equal(leavesWithWarning(), false);
+  field.value = "Changed notes";
+  fire(documentEvents, "input", { target: field });
+  assert.equal(status.hidden, false);
+  assert.equal(leavesWithWarning(), true);
+  field.value = "Saved notes";
+  fire(documentEvents, "input", { target: field });
+  assert.equal(status.hidden, true);
+  assert.equal(leavesWithWarning(), false);
+  field.value = "Changed notes";
+  fire(documentEvents, "input", { target: field });
+  fire(documentEvents, "submit", { target: form });
+  assert.equal(leavesWithWarning(), false);
+});
+
 test("wizard: never skips a step and moves forward only from a valid step", () => {
   for (let total = 1; total <= 6; total++) {
     for (let step = 0; step < total; step++) {
@@ -128,4 +189,76 @@ test("password reveal glyph: crossed eye only when shown", () => {
 	assert.ok(!shown.includes("<circle"));
 	assert.equal(forms.revealIconPaths(false), closed);
 	assert.equal(forms.revealIconPaths(true), shown);
+});
+
+test("confirmed selectors submit only after confirmation and restore canceled choices", () => {
+  const { wireConfirmSelects } = require("./alpine-components.js");
+  const control = () => ({
+    listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; },
+    fire(type, event = {}) { this.listeners[type]?.(event); },
+    focus() { this.focused = true; }
+  });
+  const select = Object.assign(control(), {
+    selectedIndex: 0, options: [{ value: "old", textContent: "Old" }, { value: "new", textContent: "New" }],
+    dispatchEvent(event) { this.lastEvent = event.type; }
+  });
+  Object.defineProperties(select, {
+    selectedOptions: { get() { return [this.options[this.selectedIndex]]; } },
+    value: { get() { return this.options[this.selectedIndex].value; } }
+  });
+  const cancel = control(), accept = control(), value = {};
+  const dialog = Object.assign(control(), {
+    querySelector(selector) {
+      return { "[data-confirm-select-value]": value, "[data-confirm-select-cancel]": cancel, "[data-confirm-select-accept]": accept }[selector];
+    },
+    showModal() { this.open = true; },
+    close() { this.open = false; this.fire("close"); }
+  });
+  const fallback = { hidden: false };
+  const form = {
+    dataset: {}, submits: 0,
+    querySelector(selector) {
+      return { select, "[data-confirm-select-dialog]": dialog, "[data-confirm-select-fallback]": fallback }[selector];
+    },
+    requestSubmit() { this.submits++; }
+  };
+  const root = { querySelectorAll: () => [form] };
+  wireConfirmSelects(root);
+  wireConfirmSelects(root);
+  assert.equal(fallback.hidden, true);
+  select.fire("change");
+  assert.equal(dialog.open, undefined);
+  select.selectedIndex = 1;
+  select.fire("change");
+  assert.equal(dialog.open, true);
+  assert.equal(value.textContent, "New");
+  assert.equal(cancel.focused, true);
+  cancel.fire("click");
+  assert.equal(select.selectedIndex, 0);
+  assert.equal(select.lastEvent, "input");
+  assert.equal(form.submits, 0);
+  select.selectedIndex = 1;
+  select.fire("change");
+  dialog.close(); // Escape closes the native dialog.
+  assert.equal(select.selectedIndex, 0);
+  select.selectedIndex = 1;
+  select.fire("change");
+  dialog.fire("click", { target: dialog });
+  assert.equal(select.selectedIndex, 0);
+  select.selectedIndex = 1;
+  select.fire("change");
+  accept.fire("click");
+  assert.equal(select.selectedIndex, 1);
+  assert.equal(form.submits, 1);
+  assert.equal(select.focused, true);
+
+  const unsupportedFallback = { hidden: false };
+  const unsupported = {
+    dataset: {},
+    querySelector(selector) {
+      return { select, "[data-confirm-select-dialog]": { querySelector: dialog.querySelector }, "[data-confirm-select-fallback]": unsupportedFallback }[selector];
+    }
+  };
+  wireConfirmSelects({ querySelectorAll: () => [unsupported] });
+  assert.equal(unsupportedFallback.hidden, false);
 });

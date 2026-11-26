@@ -154,6 +154,28 @@ func TestPriceOptions(t *testing.T) {
 	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, " ", nil); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("blank name: %v", err)
 	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Renamed", "Updated"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "", "45"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Stale", "Updated"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale name: %v", err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "30", "45"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale duration: %v", err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "duration_minutes", "0", ""); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("invalid duration: %v", err)
+	}
+	if err := s.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID+1, "name", "Missing", "Renamed"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing entry: %v", err)
+	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(entries) != 1 || entries[0].Name != "Renamed" || entries[0].DurationMinutes != nil {
+		t.Fatalf("partial edits = %+v, %v", entries, err)
+	}
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID+1, priceID, manual); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("wrong entry: %v", err)
 	}

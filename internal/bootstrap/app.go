@@ -148,6 +148,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	clientService := clients.NewService(db, cfg.Database.Driver, identityService, cfg.Data.ClientFieldsMaxPerWorkspace, webhookService)
 	engagementService := engagement.NewService(db, cfg.Database.Driver, identityService)
 	intakeService := intake.NewService(db, cfg.Database.Driver, identityService, clientService)
+	intakeService.ConfigureEncryption(secretbox.New(cfg.Encryption.Keys, cfg.Encryption.Primary))
 	intakeService.ConfigureNotifications(jobQueue, cfg.PublicURL)
 	portabilityService := portability.NewService(
 		db, cfg.Database.Driver, identityService,

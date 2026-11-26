@@ -52,7 +52,7 @@ templ ListFilterStrip(data viewmodel.PageData) {
 						</li>
 					}
 					<li class="list-filter-chip badge gap-1 py-1 pl-3">
-						<a class="list-filter-chip-edit link" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
+						<a class="list-filter-chip-edit link rounded-field border border-base-300 px-1" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
 							<span>
 								{ ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }&#32;{ data.T(chip.OpLabelKey) }&#32;
 								if chip.ValueKey != "" {
@@ -62,7 +62,7 @@ templ ListFilterStrip(data viewmodel.PageData) {
 								}
 							</span>
 						</a>
-						<a class="list-filter-chip-remove btn btn-ghost btn-xs" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
+						<a class="list-filter-chip-remove btn btn-xs" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
 					</li>
 				}
 			</ul>
@@ -83,7 +83,7 @@ templ ListFilterStrip(data viewmodel.PageData) {
 						},
 						Attrs: templ.Attributes{"data-autosubmit": "true"},
 					})
-					<button class="btn btn-ghost btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
+					<button class="btn btn-outline btn-xs" type="submit" data-submit-button="true">{ data.T("clients.apply") }</button>
 				</form>
 			}
 		</div>
@@ -100,12 +100,12 @@ templ ListFilterAddPanel(data viewmodel.PageData) {
 			<p id="list-field-heading" class="client-field-prompt">{ data.T("clients.choose_field") }</p>
 			<ul class="client-field-choices" aria-labelledby="list-field-heading">
 				for _, field := range data.Filter.Fields {
-					<li><a href={ templ.SafeURL(field.Href) }>{ ListLabel(data, field.LabelKey, field.Label) }</a></li>
+					<li><a class="border border-base-300" href={ templ.SafeURL(field.Href) }>{ ListLabel(data, field.LabelKey, field.Label) }</a></li>
 				}
 			</ul>
 		}
 		<div class="actions">
-			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(data.Filter.ClearHref) }>{ data.T("clients.clear_filters") }</a>
+			<a class="btn btn-xs" href={ templ.SafeURL(data.Filter.ClearHref) }>{ data.T("clients.clear_filters") }</a>
 		</div>
 	} else {
 		<form class="client-query client-add-step" method="get" action={ data.Filter.Path } data-dirty-track>
@@ -138,16 +138,16 @@ templ ListFilterAddPanel(data viewmodel.PageData) {
 					}}
 					@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
 				} else {
-					@atoms.Input(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
+					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
 				}
 			</div>
 			if data.Filter.Step.Range {
 				<div class="client-step-section" data-show-for-operator="between">
-					@atoms.Input(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
+					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
 				</div>
 			}
 			<div class="client-step-actions">
-				<a class="btn btn-ghost" href={ templ.SafeURL(data.Filter.BackHref) }>&lsaquo; { data.T("clients.back_to_fields") }</a>
+				<a class="btn" href={ templ.SafeURL(data.Filter.BackHref) }>&lsaquo; { data.T("clients.back_to_fields") }</a>
 				<button class="btn btn-primary" type="submit">{ data.T("clients.filter_add") }</button>
 			</div>
 		</form>

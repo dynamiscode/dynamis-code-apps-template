@@ -15,6 +15,8 @@ package atoms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type PopoverPanelProps struct {
 	// Align: "end", "center", "top", "top-end", "bottom", "bottom-end" ("" = bottom start)
 	Align        string
@@ -112,7 +114,7 @@ func Popover(props PopoverPanelProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "summary", props.TriggerAttrs)
+			templ_7745c5c3_Err = templruntime.RenderAttributes(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_ElementWriter, "summary", actionattrs.ScalarAttributes(props.TriggerAttrs))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -130,7 +132,7 @@ func Popover(props PopoverPanelProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = props.Trigger.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(props.Trigger).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

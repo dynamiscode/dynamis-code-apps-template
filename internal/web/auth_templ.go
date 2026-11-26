@@ -209,7 +209,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -222,7 +222,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -234,18 +234,18 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.sign_in"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("account.sign_in"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</form><p><a class=\"auth-recovery-link\" href=\"/password-reset\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</form><p><a class=\"auth-recovery-link btn btn-outline btn-sm\" href=\"/password-reset\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.forgot_password"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 58, Col: 93}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 58, Col: 116}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -274,14 +274,14 @@ func authLogin(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				for _, provider := range data.OIDCProviders {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a class=\"btn\" href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a class=\"btn btn-outline\" href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templruntime.NewAttributeExpression("/auth/oidc/" + provider.ID).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
@@ -294,7 +294,7 @@ func authLogin(data viewmodel.PageData) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.sign_in_with", map[string]any{"provider": provider.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 133}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 64, Col: 145}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -438,7 +438,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+				templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 					ID:        "setup-token",
 					Name:      "setup_token",
 					Label:     data.T("setup.setup_token"),
@@ -451,7 +451,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "email",
 				Name:      "email",
 				Label:     data.T("common.email"),
@@ -464,7 +464,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password",
 				Name:      "password",
 				Label:     data.T("common.password"),
@@ -477,7 +477,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "password-confirmation",
 				Name:      "password_confirmation",
 				Label:     data.T("setup.confirm_password"),
@@ -507,7 +507,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "workspace",
 				Name:      "workspace",
 				Label:     data.T("workspace.name"),
@@ -533,7 +533,7 @@ func authSetup(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("setup.create_owner"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("setup.create_owner"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -669,7 +669,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password",
 						Name:      "password",
 						Label:     data.T("account.new_password"),
@@ -682,7 +682,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password-confirmation",
 						Name:      "password_confirmation",
 						Label:     data.T("account.confirm_password"),
@@ -695,7 +695,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.reset_password"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("account.reset_password"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -734,7 +734,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+					templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-email",
 						Name:      "email",
 						Label:     data.T("common.email"),
@@ -746,7 +746,7 @@ func authPasswordReset(data viewmodel.PageData) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = molecules.SubmitButton(data.T("account.send_reset"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("account.send_reset"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -913,7 +913,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:        "totp-code",
 				Name:      "code",
 				Label:     data.T("security.mfa_authenticator_code"),
@@ -925,7 +925,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_verify_code"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("security.mfa_verify_code"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -972,7 +972,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{
 				ID:       "recovery-code",
 				Name:     "code",
 				Label:    data.T("security.mfa_recovery_code"),
@@ -982,7 +982,7 @@ func authMFA(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = molecules.SubmitButton(data.T("security.mfa_use_recovery"), templ.Attributes{"class": "w-full"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = molecules.SubmitButtonStyled(data.T("security.mfa_use_recovery"), "w-full", nil).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

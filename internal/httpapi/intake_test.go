@@ -9,6 +9,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 )
 
 func TestPublicIntakeSubmission(t *testing.T) {
@@ -31,6 +32,7 @@ func TestPublicIntakeSubmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	svc := intake.NewService(db, config.SQLite, auth)
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
 	token, err := svc.Create(ctx, actor, workspace, "Consent", identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

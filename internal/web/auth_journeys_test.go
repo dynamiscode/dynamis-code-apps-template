@@ -88,7 +88,7 @@ func TestAuthenticationPagesUseBrandAndOrdinaryFormPaths(t *testing.T) {
 						t.Fatalf("login missing marker %q", marker)
 					}
 				}
-				if !strings.Contains(body, `class="auth-recovery-link" href="/password-reset"`) {
+				if !strings.Contains(body, `class="auth-recovery-link btn btn-outline btn-sm" href="/password-reset"`) {
 					t.Fatal("login missing accessible password recovery target")
 				}
 			}
@@ -106,7 +106,7 @@ func TestConfiguredOIDCProviderChoiceIsOrdinaryLink(t *testing.T) {
 	if err := authLogin(data).Render(context.Background(), &body); err != nil {
 		t.Fatal(err)
 	}
-	for _, marker := range []string{`href="/auth/oidc/company"`, `Company SSO`, `class="btn"`, `aria-labelledby="auth-provider-heading"`} {
+	for _, marker := range []string{`href="/auth/oidc/company"`, `Company SSO`, `class="btn btn-outline"`, `aria-labelledby="auth-provider-heading"`} {
 		if !strings.Contains(body.String(), marker) {
 			t.Fatalf("provider choice missing marker %q", marker)
 		}

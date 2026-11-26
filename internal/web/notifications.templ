@@ -1,13 +1,12 @@
 package web
 
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ notificationsPage(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, templates.DashboardAccount) {
 		<div class="notification-center" x-data="notificationsLive" data-notification-cursor={ data.NotificationCursor }>
 				<div class="workspace-heading"><div>
 					<p class="eyebrow">{ data.T("common.account") }</p>
@@ -24,7 +23,7 @@ templ notificationsPage(data viewmodel.PageData) {
 					data-notification-live
 					data-updated={ data.T("notifications.live_updated") }
 					data-disconnected={ data.T("notifications.live_disconnected") }></p>
-				<p><a href="/notifications">{ data.T("notifications.refresh") }</a> · <a href="/account">{ data.T("notifications.manage_preferences") }</a></p>
+				<p><a class="btn btn-outline btn-sm" href="/notifications">{ data.T("notifications.refresh") }</a> <a class="btn btn-outline btn-sm" href="/account">{ data.T("notifications.manage_preferences") }</a></p>
 				if len(data.Notifications) > 0 {
 					@atoms.List(atoms.ListProps{Class: "notification-list"}) {
 						for _, notification := range data.Notifications {
@@ -39,7 +38,7 @@ templ notificationsPage(data viewmodel.PageData) {
 										}
 									</div>
 									if notification.NotificationType == "public_intake" {
-										<p><a class="link link-primary" href={ notification.Body }>{ data.T("intake.view_client") }</a></p>
+										<p><a class="btn btn-outline btn-sm" href={ notification.Body }>{ data.T("intake.view_client") }</a></p>
 									} else {
 										<p>{ notification.Body }</p>
 									}
@@ -48,7 +47,7 @@ templ notificationsPage(data viewmodel.PageData) {
 								if notification.ReadAt == nil {
 									<form class="inline" action={ "/notifications/" + notification.ID.String() } method="post">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("notifications.mark_read"), Attrs: templ.Attributes{"type": "submit"}})
+										@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("notifications.mark_read"), Attrs: templ.Attributes{"type": "submit"}})
 									</form>
 								}
 								}
@@ -58,7 +57,7 @@ templ notificationsPage(data viewmodel.PageData) {
 					<section class="notification-empty card mt-6 gap-2 border-l-4 border-primary p-5" aria-labelledby="notification-empty-title">
 						<h2 id="notification-empty-title">{ data.T("notifications.none") }</h2>
 						<p>{ data.T("notifications.empty_description") }</p>
-						<a href="/account">{ data.T("notifications.manage_preferences") }</a>
+						<a class="btn btn-outline btn-sm" href="/account">{ data.T("notifications.manage_preferences") }</a>
 					</section>
 				}
 		</div>

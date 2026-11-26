@@ -24,12 +24,12 @@ templ publicIntakePage(data viewmodel.PageData, consent string, submission intak
 					}
 					<form method="post">
 						<input type="text" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" class="hidden"/>
-						@atoms.Input(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}})
-						@atoms.Input(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}})
-						@atoms.Input(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}})
+						@atoms.PlainInput(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}})
 						@molecules.TextareaField("notes", data.T("public_intake.notes"), submission.Notes, templ.Attributes{"name": "notes", "maxlength": "2000"})
 						<div class="my-4">
-							<label class="label"><input class="checkbox" type="checkbox" name="consent" required if submission.Consent { checked }/><span>{ consent }</span></label>
+							<label class="label flex items-start gap-2 whitespace-normal"><input class="checkbox shrink-0" type="checkbox" name="consent" required if submission.Consent { checked }/><span class="min-w-0 wrap-anywhere">{ consent }</span></label>
 						</div>
 						<button class="btn btn-primary" type="submit">{ data.T("public_intake.submit") }</button>
 					</form>

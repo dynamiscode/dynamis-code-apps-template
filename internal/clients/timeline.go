@@ -111,7 +111,7 @@ func (s *Service) AddTimelineEntry(ctx context.Context, actor identity.Principal
 }
 
 func (s *Service) ListTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID) ([]TimelineEntry, error) {
-	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, 0, 0)
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, 0, 0, false)
 }
 
 // ListTimelineEntriesPage returns a bounded, 1-based page in timeline order.
@@ -119,10 +119,18 @@ func (s *Service) ListTimelineEntriesPage(ctx context.Context, actor identity.Pr
 	if limit < 1 || limit > 100 || page < 1 || page > 1000000 {
 		return nil, ErrInvalidInput
 	}
-	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit)
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, false)
 }
 
-func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, offset int) ([]TimelineEntry, error) {
+// ListTimelineEntriesNewestPage returns a bounded, 1-based page in newest-first order.
+func (s *Service) ListTimelineEntriesNewestPage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, page int) ([]TimelineEntry, error) {
+	if limit < 1 || limit > 100 || page < 1 || page > 1000000 {
+		return nil, ErrInvalidInput
+	}
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, true)
+}
+
+func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, offset int, newestFirst bool) ([]TimelineEntry, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return nil, err
@@ -134,8 +142,13 @@ func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Princi
 	if _, err = s.get(ctx, tx, workspaceID, clientID); err != nil {
 		return nil, err
 	}
-	query := `SELECT id, author_id, entry_type, channel, text, corrects_id, created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ? ORDER BY created_at, id`
+	query := `SELECT id, author_id, entry_type, channel, text, corrects_id, created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ?`
 	args := []any{workspaceID, clientID}
+	if newestFirst {
+		query += ` ORDER BY created_at DESC, id DESC`
+	} else {
+		query += ` ORDER BY created_at, id`
+	}
 	if limit > 0 {
 		query += ` LIMIT ? OFFSET ?`
 		args = append(args, limit, offset)

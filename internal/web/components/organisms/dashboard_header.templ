@@ -8,19 +8,44 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 // workspace context as the lead, so the drawer opens from the same row as the
 // account avatar, and the workspace name works as the switcher title.
 templ DashboardHeader(data viewmodel.PageData) {
+	@sharedHeader(data, false)
+}
+
+templ ThemeMenu(data viewmodel.PageData) {
+	<details class="dropdown dropdown-end">
+		<summary class="btn btn-sm">{ data.T("account.theme") }: { data.T("account.theme_" + data.Theme) }</summary>
+		<ul class="menu dropdown-content z-50 w-40 rounded-box bg-base-100 p-2 shadow-lg">
+			for _, theme := range []string{"system", "light", "dark"} {
+				<li>
+					<form class="!flex w-full !p-0" method="post" action="/account/theme">
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="return_to" value={ data.ReturnPath }/>
+						<button class="btn btn-outline w-full justify-start" type="submit" name="theme" value={ theme } aria-current={ currentPage(data.Theme == theme) }>{ data.T("account.theme_" + theme) }</button>
+					</form>
+				</li>
+			}
+		</ul>
+	</details>
+}
+
+templ sharedHeader(data viewmodel.PageData, account bool) {
 	<header class="navbar sticky top-0 z-30 flex-nowrap gap-4 border-b border-base-200 bg-base-100 px-4">
 		<div class="navbar-start min-w-0 gap-3">
-			if data.Workspace.ID != 0 {
-				<button type="button" class="btn btn-ghost btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-				<a class="workspace-name" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
+			if account {
+				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+				<a class="workspace-name border border-base-300 rounded-field" href="/account">{ data.T("common.account") }</a>
+			} else if data.Workspace.ID != 0 {
+				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
+				<a class="workspace-name border border-base-300 rounded-field" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
 			} else {
-				<a class="brand inline-flex items-center gap-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
+				<a class="brand inline-flex items-center gap-2 rounded-field border border-base-300 px-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
 					@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: molecules.HomeCrumbItems(data)})
 				</div>
 			}
 		</div>
 		<div class="navbar-end">
+			@ThemeMenu(data)
 			@AccountMenu(data)
 		</div>
 	</header>

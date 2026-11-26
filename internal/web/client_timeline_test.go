@@ -44,7 +44,7 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatalf("correction = %d", corrected.Code)
 	}
 	page = request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(page, "#timeline-"+entryID) || strings.Index(page, "First contact") > strings.Index(page, "Correction") {
+	if !strings.Contains(page, "#timeline-"+entryID) || strings.Index(page, "First contact") < strings.Index(page, "Correction") {
 		t.Fatal("correction reference or ordering missing")
 	}
 	for _, tc := range []struct{ typ, text, message string }{{"note", "", "Text is required"}, {"note", strings.Repeat("a", 2001), "2,000"}, {"invalid", "draft text", "entry type"}} {
@@ -98,10 +98,10 @@ func TestClientTimelinePagination(t *testing.T) {
 	}
 	first := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
 	second := request(env.routes, http.MethodGet, detail+"?timeline_page=2", nil, env.viewerCookies, nil).Body.String()
-	if !strings.Contains(first, "entry-00") || strings.Contains(first, "entry-50") || !strings.Contains(first, "timeline_page=2") {
+	if !strings.Contains(first, "entry-50") || strings.Contains(first, "entry-00") || !strings.Contains(first, "timeline_page=2") {
 		t.Fatal("first page or next link incorrect")
 	}
-	if !strings.Contains(second, "entry-50") || strings.Contains(second, "entry-00") || !strings.Contains(second, "timeline_page=1") {
+	if !strings.Contains(second, "entry-00") || strings.Contains(second, "entry-50") || !strings.Contains(second, "timeline_page=1") {
 		t.Fatal("second page or previous link incorrect")
 	}
 }

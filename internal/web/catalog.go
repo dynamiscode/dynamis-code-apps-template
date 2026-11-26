@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,8 @@ import (
 type catalogForm struct {
 	kind, entryID, priceID string
 	name, duration         string
+	field, value, version  string
+	conflict               bool
 	price                  catalog.PriceOption
 }
 
@@ -55,7 +58,14 @@ func (h *Handler) catalogCreate(writer http.ResponseWriter, request *http.Reques
 	if variant == "" {
 		variant = "Standard"
 	}
-	price := catalog.PriceOption{Mode: request.FormValue("mode"), Amount: amount, Currency: request.FormValue("currency"), Variant: variant, Eligibility: request.FormValue("eligibility")}
+	mode := request.FormValue("mode")
+	if mode == "" {
+		mode = "manual"
+		if amount != nil {
+			mode = "fixed"
+		}
+	}
+	price := catalog.PriceOption{Mode: mode, Amount: amount, Currency: request.FormValue("currency"), Variant: variant, Eligibility: request.FormValue("eligibility")}
 	_, err := h.catalogService.Create(request.Context(), principal, workspaceID, request.FormValue("name"), duration, []catalog.PriceOption{price})
 	switch {
 	case errors.Is(err, catalog.ErrInvalidInput):
@@ -149,6 +159,30 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		}
 	}
 	entries = filtered
+	sortField := request.URL.Query().Get("sort")
+	descending := request.URL.Query().Get("direction") == "desc"
+	if sortField == "name" || sortField == "duration" {
+		sort.SliceStable(entries, func(i, j int) bool {
+			comparison := 0
+			if sortField == "name" {
+				comparison = strings.Compare(strings.ToLower(entries[i].Name), strings.ToLower(entries[j].Name))
+			} else if entries[i].DurationMinutes == nil && entries[j].DurationMinutes != nil {
+				comparison = -1
+			} else if entries[i].DurationMinutes != nil && entries[j].DurationMinutes == nil {
+				comparison = 1
+			} else if entries[i].DurationMinutes != nil && entries[j].DurationMinutes != nil {
+				if *entries[i].DurationMinutes < *entries[j].DurationMinutes {
+					comparison = -1
+				} else if *entries[i].DurationMinutes > *entries[j].DurationMinutes {
+					comparison = 1
+				}
+			}
+			if descending {
+				return comparison > 0
+			}
+			return comparison < 0
+		})
+	}
 	currencies, err := h.catalogService.ListCurrencies(request.Context(), principal, workspaceID)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
@@ -159,17 +193,56 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "workspace", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled, ListLive: true}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspaceID), Workspaces: workspaces, NavPage: "catalog", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled, ListLive: true}
+	data.ListLive = false
+	listPath := "/workspaces/" + workspaceID.String() + "/catalog"
+	query := request.URL.Query()
+	query.Del("entry")
+	query.Del("create")
+	data.Filter.Path = listPath
+	for name, values := range query {
+		if name != "includeArchived" {
+			for _, value := range values {
+				data.Filter.Preserved = append(data.Filter.Preserved, viewmodel.ClientHiddenField{Name: name, Value: value})
+			}
+		}
+	}
+	if encoded := query.Encode(); encoded != "" {
+		data.ClientQuerySuffix = "?" + encoded
+	}
+	for _, column := range []viewmodel.ListColumn{{Key: "name", LabelKey: "catalog.name", Visible: true}, {Key: "duration", LabelKey: "catalog.duration_label", Visible: true}, {Key: "prices", LabelKey: "catalog.prices", Visible: true}} {
+		if column.Key != "prices" {
+			direction := "asc"
+			if sortField == column.Key {
+				column.SortDirection = "ascending"
+				if !descending {
+					direction = "desc"
+				} else {
+					column.SortDirection = "descending"
+				}
+			}
+			query.Set("sort", column.Key)
+			query.Set("direction", direction)
+			column.SortHref = listPath + "?" + query.Encode()
+		}
+		data.ListColumns = append(data.ListColumns, column)
+	}
 	h.localizePage(writer, &data)
 	data.Title = data.T("catalog.title")
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
 	form := catalogForm{}
-	if status == http.StatusUnprocessableEntity && request.Method == http.MethodPost {
+	if request.Method == http.MethodPost && (status == http.StatusUnprocessableEntity || (status == http.StatusConflict && request.FormValue("field") != "")) {
+		form.field = request.FormValue("field")
+		form.value = request.FormValue("value")
+		form.version = request.FormValue("version")
+		form.conflict = status == http.StatusConflict && form.field != ""
 		form.entryID = request.PathValue("entryId")
 		form.priceID = request.PathValue("priceId")
 		switch {
+		case form.field != "":
+			form.kind = "inline"
 		case form.entryID == "":
 			form.kind = "create"
 		case form.priceID != "":
@@ -182,15 +255,21 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 		form.name, form.duration = request.FormValue("name"), request.FormValue("duration_minutes")
 		amount := request.FormValue("amount")
 		form.price = catalog.PriceOption{Mode: request.FormValue("mode"), Amount: &amount, Currency: request.FormValue("currency"), Variant: request.FormValue("variant"), Eligibility: request.FormValue("eligibility")}
-		if form.kind == "create" && strings.TrimSpace(form.price.Variant) == "" {
-			form.price.Variant = "Standard"
-		}
 	}
+	inUse := status == http.StatusConflict && form.kind != "inline"
 	if request.Header.Get("HX-Request") == "true" && request.Header.Get("HX-History-Restore-Request") != "true" && request.Method == http.MethodGet {
-		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, entryID, false, form).Render(request.Context(), writer)
+		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, entryID, false, form).Render(request.Context(), writer)
 		return
 	}
-	_ = catalogPage(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, status == http.StatusConflict, includeArchived, entryID, request.URL.Query().Get("create") == "true", form).Render(request.Context(), writer)
+	_ = catalogPage(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, entryID, request.URL.Query().Get("create") == "true", form).Render(request.Context(), writer)
+}
+
+func catalogEntryHref(data viewmodel.PageData, entryID string) string {
+	href := data.Filter.Path + "?entry=" + entryID
+	if data.ClientQuerySuffix != "" {
+		href += "&" + strings.TrimPrefix(data.ClientQuerySuffix, "?")
+	}
+	return href
 }
 
 func catalogDuration(value *int) string {
@@ -221,6 +300,19 @@ func (h *Handler) catalogEdit(writer http.ResponseWriter, request *http.Request)
 		return
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	if field := request.FormValue("field"); strings.HasSuffix(request.URL.Path, "/field") || field != "" {
+		if (field != "name" && field != "duration_minutes") || !request.PostForm.Has("value") || !request.PostForm.Has("version") {
+			h.renderError(writer, http.StatusBadRequest)
+			return
+		}
+		err := h.catalogService.UpdateField(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), field, request.FormValue("value"), request.FormValue("version"))
+		if errors.Is(err, catalog.ErrConflict) {
+			h.renderCatalog(writer, request, http.StatusConflict, false)
+			return
+		}
+		h.catalogEditResult(writer, request, workspaceID, err)
+		return
+	}
 	var duration *int
 	if raw := request.FormValue("duration_minutes"); raw != "" {
 		value, err := strconv.Atoi(raw)

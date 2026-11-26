@@ -1,14 +1,13 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, newCode, newDecimals, message string, newDefault, canWrite bool) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
-			<a class="link" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" }>{ data.T("currency.back") }</a>
+			<a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" }>{ data.T("currency.back") }</a>
 			@molecules.PageHeading(data.T("currency.title"), data.T("navigation.settings_setup"))
 			<p>{ data.T("currency.intro") }</p>
 			if data.Saved {

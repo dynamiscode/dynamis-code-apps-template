@@ -19,28 +19,44 @@ templ clientList(data viewmodel.PageData) {
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
 		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
-		if data.CanEditClients {
-			<p class="status-line">{ data.T("clients.create_engagement_instruction") }</p>
-		}
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
 		<div class="client-results" id="client-results">
 			@clientListView(data)
 		</div>
+		if data.CanEditClients {
+			<dialog class="modal" aria-labelledby="client-create-title" data-client-dialog>
+				<div class="modal-box w-full max-w-lg">
+					<div class="flex items-center justify-between gap-4">
+						<h2 id="client-create-title" class="text-xl font-bold">{ data.T("clients.new_client") }</h2>
+						<button class="btn btn-outline btn-sm btn-circle" type="button" data-client-close aria-label={ data.T("ui.close") }>×</button>
+					</div>
+					<div id="client-create-content">@clientCreateContent(data, true)</div>
+				</div>
+			</dialog>
+		}
 	</section>
 }
 
 templ clientListView(data viewmodel.PageData) {
-	@organisms.ListScreen(data, "clients.search", clientListTools(data), clientResults(data))
+	<div class="list-toolbar">
+		if data.ListHasContent() {
+			@molecules.ListSearch(data, "clients.search", data.ListSearch)
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
+			@organisms.ListViewSwitcher(data)
+		}
+		@organisms.ListAddFilter(data)
+		@clientListTools(data)
+	</div>
+	@organisms.ListFilterBar(data)
+	@clientResults(data)
 }
 
 // clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
 // menu, and the live status.
 templ clientListTools(data viewmodel.PageData) {
-	<div id="client-list-scope">
-		@clientScope(data)
-	</div>
 	if data.ListHasContent() {
 		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
 		if data.ListSelectable {
@@ -67,14 +83,16 @@ templ clientNotice(data viewmodel.PageData) {
 // clientResults is the results region: the table or cards, the empty state, and the footer. A sort, filter, or
 // search swaps this region alone.
 templ clientResults(data viewmodel.PageData) {
-	@organisms.ListResults(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes), data.ClientQuerySuffix, clientBody(data), templ.NopComponent)
+	<div id="list-results">
+		@clientBody(data)
+		@organisms.ListFooter(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes)) {
+			@molecules.ListPager(data)
+		}
+	</div>
 	if data.ListFragment {
-		<div id="client-list-scope" hx-swap-oob="true">@clientScope(data)</div>
+		@organisms.ListFilterBarOOB(data)
+		@molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
 	}
-}
-
-templ clientScope(data viewmodel.PageData) {
-	@molecules.ListScope(data.T("clients.archived_legend"), data.T("catalog.active"), data.T("catalog.archived"), clientScopeHref(data, "active"), clientScopeHref(data, "archived"), "#client-list", data.ClientQuery.Archived == "archived")
 }
 
 // clientBody is the client list's rows: the table or cards, and the empty state.
@@ -119,33 +137,70 @@ templ clientBody(data viewmodel.PageData) {
 		} else if data.ClientQuery.Archived == "archived" {
 			@molecules.EmptyState(data.T("clients.no_archived"))
 		} else {
-			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description"), CTA: clientEmptyCTA(data)})
+			@molecules.EmptyStateCardBody(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description")}) { @clientEmptyCTA(data) }
 		}
 	}
 }
 
-// clientEmptyCTA gives a pristine list one way to create: it opens the create
-// page, so no form is loaded on a list that has nothing to show yet.
+// clientEmptyCTA provides a create link that also works without JavaScript.
 templ clientEmptyCTA(data viewmodel.PageData) {
 	if data.CanEditClients {
-		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
+		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") } data-client-create>{ data.T("clients.new_client") }</a>
 	}
 	if data.CanManageFields && data.ClientQuery.Archived != "archived" {
 		<p class="mt-4">{ data.T("intake.description") }</p>
-		<a class="link link-primary" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
 	}
 }
 
-// clientCreateForm is the client create form, rendered only by the create page.
-templ clientCreateForm(data viewmodel.PageData, action string) {
-	<form class="create" action={ templ.SafeURL(action) } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) }>
+templ clientCreateContent(data viewmodel.PageData, modal bool) {
+	if data.ErrorKey != "" {
+		@molecules.ErrorAlert(data.T(data.ErrorKey))
+	}
+	@clientCreateForm(data, data.CurrentPath+"/new", modal)
+}
+
+templ clientCreateForm(data viewmodel.PageData, action string, modal bool) {
+	<form class="create" action={ templ.SafeURL(action) } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) } { templ.Attributes{"hx-post": templ.KV(action, modal), "hx-target": templ.KV("#client-create-content", modal), "hx-swap": templ.KV("innerHTML", modal)}... }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		if modal {
+			<input type="hidden" name="client_modal" value="1"/>
+		}
 		@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{"name": "display_name", "required": true, "maxlength": "200", "value": data.ClientDraft.DisplayName, "data-trim": ""})
 		@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email})
 		@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone})
 		@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{"name": "notes", "maxlength": "5000"})
-		<div class="actions">@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.add"), Attrs: templ.Attributes{"type": "submit"}})</div>
+		<div class="actions">
+			@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.create"), Attrs: templ.Attributes{"type": "submit"}})
+		</div>
 	</form>
+}
+
+templ clientIntakeMenu(data viewmodel.PageData) {
+	<details class="dropdown dropdown-end">
+		<summary class="btn btn-outline btn-xs">{ data.T("intake.share") }</summary>
+		<div class="dropdown-content z-50 flex w-80 max-w-[90vw] flex-col items-start gap-2 rounded-box bg-base-100 p-4 shadow-lg">
+			if !data.IntakeActive {
+				<p>{ data.T("intake.disabled") }</p>
+			} else if !data.IntakeReady {
+				<p>{ data.T("intake.no_open_stage") }</p>
+				<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
+			} else if data.IntakeUnavailable {
+				<p>{ data.T("intake.share_unavailable") }</p>
+			} else if data.IntakeLink != "" {
+				<p>{ data.T("intake.active") }</p>
+				<input id="client-intake-link" class="input input-bordered w-full" aria-label={ data.T("intake.link") } readonly value={ data.IntakeLink }/>
+				<div>
+					<button type="button" class="btn btn-primary btn-sm" data-copy-target="client-intake-link" data-copy-success={ data.T("intake.copied") }>{ data.T("intake.copy_button") }</button>
+					<span role="status" aria-live="polite" data-copy-status></span>
+				</div>
+				<a class="btn btn-outline btn-sm" href={ templ.SafeURL(data.IntakeLink) } target="_blank" rel="noopener noreferrer">{ data.T("intake.test_link") }</a>
+			} else {
+				<p>{ data.T("intake.share_unavailable") }</p>
+			}
+			<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.configure") }</a>
+		</div>
+	</details>
 }
 
 // clientCreateMenu is the toolbar's "New client" action: a link to the create page.
@@ -153,19 +208,29 @@ templ clientCreateForm(data viewmodel.PageData, action string) {
 // second primary action because its empty-state card already offers this one.
 templ clientCreateMenu(data viewmodel.PageData) {
 	<div class="list-create">
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements") }>{ data.T("engagement.list") }</a>
-		if data.CanManageFields {
-			<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		if data.CanManageFields && data.IntakeEnabled {
+			@clientIntakeMenu(data)
 		}
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagement-stages") }>{ data.T("engagement.stages") }</a>
-		<a class="btn btn-ghost btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
-			if data.CanManageFields {
-				<a class="btn btn-ghost btn-xs" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
-			}
+		<a class="btn btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
 		if !data.CanEditClients {
 			<p class="status-line">{ data.T("clients.read_only") }</p>
 		} else {
-			<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") }>{ data.T("clients.new_client") }</a>
+			<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") } data-client-create>{ data.T("clients.new_client") }</a>
+		}
+		if data.CanManageFields {
+			@clientManageMenu(data)
 		}
 	</div>
+}
+
+templ clientManageMenu(data viewmodel.PageData) {
+	<details class="dropdown dropdown-end">
+		<summary class="btn btn-outline">{ data.T("clients.manage_menu") }</summary>
+		<div class="dropdown-content z-50 grid w-80 max-w-[90vw] gap-2 rounded-box bg-base-100 p-4 shadow-lg">
+			if data.IntakeEnabled {
+				<a class="btn btn-outline" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("clients.manage_form") }</a>
+			}
+			<a class="btn btn-outline" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
+		</div>
+	</details>
 }

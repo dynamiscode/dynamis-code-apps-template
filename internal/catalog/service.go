@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ type PriceOption struct {
 var ErrNotFound = errors.New("catalog entry not found")
 var ErrInUse = errors.New("catalog entry is in use; archive it instead")
 var ErrLastPrice = errors.New("catalog entry must have at least one price")
+var ErrConflict = errors.New("catalog entry changed")
 
 type EntryID int64
 
@@ -162,6 +164,73 @@ func (s *Service) Update(ctx context.Context, actor identity.Principal, workspac
 		}
 		return tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1, duration_minutes = $2 WHERE workspace_id = $3 AND id = $4`, name, duration, workspaceID, entryID)
 	})
+}
+
+func (s *Service) UpdateField(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, field, value, expected string) error {
+	return retrySerialization(ctx, func() error {
+		return s.updateField(ctx, actor, workspaceID, entryID, field, value, expected)
+	})
+}
+
+func (s *Service) updateField(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, field, value, expected string) error {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	principal, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		return err
+	}
+	if !identity.CanWriteCatalog(principal) {
+		return identity.ErrForbidden
+	}
+	var result sql.Result
+	switch field {
+	case "name":
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return ErrInvalidInput
+		}
+		result, err = tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1 WHERE workspace_id = $2 AND id = $3 AND name = $4`, value, workspaceID, entryID, expected)
+	case "duration_minutes":
+		var duration, oldDuration *int
+		if value != "" {
+			n, parseErr := strconv.Atoi(value)
+			if parseErr != nil || n <= 0 {
+				return ErrInvalidInput
+			}
+			duration = &n
+		}
+		if expected != "" {
+			n, parseErr := strconv.Atoi(expected)
+			if parseErr != nil || n <= 0 {
+				return ErrInvalidInput
+			}
+			oldDuration = &n
+		}
+		result, err = tx.ExecContext(ctx, `UPDATE catalog_entries SET duration_minutes = $1 WHERE workspace_id = $2 AND id = $3 AND (duration_minutes = $4 OR (duration_minutes IS NULL AND $4 IS NULL))`, duration, workspaceID, entryID, oldDuration)
+	default:
+		return ErrInvalidInput
+	}
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		var exists bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM catalog_entries WHERE workspace_id = $1 AND id = $2)`, workspaceID, entryID).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return ErrNotFound
+		}
+		return ErrConflict
+	}
+	return tx.Commit()
 }
 
 func (s *Service) UpdatePrice(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, priceID PriceID, option PriceOption) error {

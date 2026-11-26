@@ -11,6 +11,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
+	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -68,7 +69,9 @@ func newClientsTestEnv(t *testing.T) clientsTestEnv {
 	handler.EnableClients(clients.NewService(db, cfg.Database.Driver, auth, cfg.Data.ClientFieldsMaxPerWorkspace),
 		listprefs.NewService(db, cfg.Database.Driver, auth))
 	handler.EnableEngagement(engagement.NewService(db, cfg.Database.Driver, auth))
-	handler.EnableIntake(intake.NewService(db, cfg.Database.Driver, auth))
+	intakeService := intake.NewService(db, cfg.Database.Driver, auth)
+	intakeService.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
+	handler.EnableIntake(intakeService)
 	handler.EnableListViews(listviews.NewService(db, cfg.Database.Driver, auth))
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -195,11 +198,12 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	if emptyCard < 0 || createLink < 0 || createLink > emptyCard {
 		t.Fatalf("pristine list must link to the create page from its toolbar: %s", body)
 	}
-	if strings.Contains(body, `name="display_name"`) || strings.Contains(body, `aria-label="Filter"`) {
-		t.Fatalf("pristine list loads the create form or offers filters: %s", body)
+	if !strings.Contains(body, `data-client-dialog`) || !strings.Contains(body, `name="display_name"`) ||
+		!strings.Contains(body, `filter_field=archiveStatus`) {
+		t.Fatalf("pristine list lacks the create dialog or archive filter: %s", body)
 	}
 
-	// With a row present the toolbar regains both, before the results region.
+	// With a row present the toolbar retains both controls before the results region.
 	env.seedClient(t, "Ada")
 	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	results := strings.Index(body, `id="client-results"`)
@@ -212,7 +216,8 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	}
 	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	body = viewer.Body.String()
-	if viewer.Code != http.StatusOK || strings.Contains(body, `href="`+env.listPath()+`/new"`) {
+	if viewer.Code != http.StatusOK || strings.Contains(body, `href="`+env.listPath()+`/new"`) ||
+		strings.Contains(body, `data-client-dialog`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
 	}
 }
@@ -254,11 +259,11 @@ func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.
 	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
 		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app < 0 ||
 		!strings.Contains(body, `method="get"`) ||
-		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || hxPostOutsideColumns(body) {
-		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d get=%t post=%t hxGet=%t hxPost=%t",
+		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || !strings.Contains(body, `hx-target="#client-create-content"`) {
+		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d get=%t post=%t hxGet=%t",
 			page.Code, page.Header().Get("Content-Language"), strings.Contains(body, `href="/assets/clients.css"`), htmx, app,
 			strings.Contains(body, `method="get"`), strings.Contains(body, `method="post"`),
-			strings.Contains(body, `hx-get=`), hxPostOutsideColumns(body))
+			strings.Contains(body, `hx-get=`))
 	}
 }
 
@@ -295,10 +300,9 @@ func TestClientDetailUsesSharedTemplComponents(t *testing.T) {
 	}, env.cookies, nil)
 	detail := request(env.routes, http.MethodGet, created.Header().Get("Location"), nil, env.cookies, nil)
 	body := detail.Body.String()
-	// shortcut: main (#498) renders the detail page inside the app shell; only the shared components are asserted now
-	if detail.Code != http.StatusOK || !strings.Contains(body, `id="client-display-name"`) ||
-		!strings.Contains(body, `class="input w-full"`) ||
-		!strings.Contains(body, `class="btn btn-primary" type="submit"`) {
+	if detail.Code != http.StatusOK || !strings.Contains(body, `id="inline-display_name"`) ||
+		!strings.Contains(body, `name="field" value="display_name"`) ||
+		!strings.Contains(body, `name="field" value="notes"`) {
 		t.Fatalf("client detail rendering or script boundary is incorrect: %s", body)
 	}
 }
@@ -329,6 +333,40 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	}, env.viewerCookies, nil)
 	if viewerWrite.Code != http.StatusForbidden {
 		t.Fatalf("viewer create = %d, want 403", viewerWrite.Code)
+	}
+}
+
+func TestClientModalCreateRetainsDraftAndRedirects(t *testing.T) {
+	env := newClientsTestEnv(t)
+	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	if !strings.Contains(page.Body.String(), `data-client-dialog`) || !strings.Contains(page.Body.String(), `data-client-create`) {
+		t.Fatal("clients page lacks the create dialog or its link")
+	}
+	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), `data-client-dialog`) || strings.Contains(viewer.Body.String(), `data-client-create`) {
+		t.Fatal("viewer can access client creation")
+	}
+	headers := map[string]string{"HX-Request": "true"}
+	invalid := request(env.routes, http.MethodPost, env.listPath()+"/new", url.Values{
+		"csrf": {env.csrf}, "client_modal": {"1"}, "display_name": {"Ada"},
+		"email": {"Ada <ada@example.com>"}, "phone": {"123"}, "notes": {"Remember this"},
+	}, env.cookies, headers)
+	body := invalid.Body.String()
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(body, "The email address is invalid.") ||
+		!strings.Contains(body, `value="Ada &lt;ada@example.com&gt;"`) || !strings.Contains(body, `value="123"`) ||
+		!strings.Contains(body, "Remember this") || strings.Contains(body, `id="client-new-page"`) {
+		t.Fatalf("modal validation lost draft or error: %d %s", invalid.Code, body)
+	}
+	created := request(env.routes, http.MethodPost, env.listPath()+"/new", url.Values{
+		"csrf": {env.csrf}, "client_modal": {"1"}, "display_name": {"Ada"},
+	}, env.cookies, headers)
+	location := created.Header().Get("X-Client-Location")
+	if created.Code != http.StatusNoContent || !strings.HasPrefix(location, env.listPath()+"/") {
+		t.Fatalf("modal create = %d, location %q", created.Code, location)
+	}
+	detail := request(env.routes, http.MethodGet, location, nil, env.cookies, nil)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "Ada") {
+		t.Fatalf("created client detail = %d", detail.Code)
 	}
 }
 
@@ -421,9 +459,9 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		strings.Contains(body, ">Cy<") || !strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
-	// After a filter is applied the menu starts again at the field list, with the archive selector.
-	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `aria-label="Archived"`) {
-		t.Fatalf("list lacks the field choices: %s", body)
+	// After a filter is applied the menu starts again at the field list, including archive status.
+	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `filter_field=archiveStatus`) {
+		t.Fatalf("list lacks the field choices or archive filter: %s", body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
 	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {

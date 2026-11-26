@@ -139,15 +139,15 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "name", Name: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName, Required: true, MaxLength: "200", Attrs: templ.Attributes{"autocomplete": "name"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "phone", Name: "phone", Label: data.T("public_intake.phone"), Type: "tel", Value: submission.Phone, MaxLength: "50", Attrs: templ.Attributes{"autocomplete": "tel", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.Input(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "email", Name: "email", Label: data.T("public_intake.email"), Type: "email", Value: submission.Email, MaxLength: "254", Attrs: templ.Attributes{"autocomplete": "email", "aria-describedby": "intake-contact-help"}}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -155,7 +155,7 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"my-4\"><label class=\"label\"><input class=\"checkbox\" type=\"checkbox\" name=\"consent\" required")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"my-4\"><label class=\"label flex items-start gap-2 whitespace-normal\"><input class=\"checkbox shrink-0\" type=\"checkbox\" name=\"consent\" required")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -165,14 +165,14 @@ func publicIntakePage(data viewmodel.PageData, consent string, submission intake
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "><span class=\"min-w-0 wrap-anywhere\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(consent)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 32, Col: 142}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `public_intake.templ`, Line: 32, Col: 222}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {

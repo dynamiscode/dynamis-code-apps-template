@@ -41,6 +41,21 @@ func openClients(t *testing.T, tab context.Context) {
 	waitVisible(t, tab, "#client-list")
 }
 
+// ensureClient gives list-layout tests a row even in a freshly bootstrapped workspace.
+func ensureClient(t *testing.T, tab context.Context) {
+	t.Helper()
+	path := eval[string](t, tab, "location.pathname")
+	if eval[bool](t, tab, `Boolean(document.querySelector(".list-view-table tbody tr"))`) {
+		return
+	}
+	navigate(t, tab, path+"/new")
+	fillByLabel(t, tab, "Display name", "Browser list fixture")
+	clickByText(t, tab, "Create client")
+	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "fixture creation did not open client detail")
+	navigate(t, tab, path)
+	waitVisible(t, tab, ".list-view-table tbody tr")
+}
+
 // clickByText clicks the first visible button, link, summary or submit whose text contains name.
 func clickByText(t *testing.T, tab context.Context, name string) {
 	t.Helper()
@@ -129,12 +144,163 @@ func acceptDialogs(tab context.Context) {
 	})
 }
 
+func TestDropdownActionsUseUnboxedTiles(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	click(t, tab, `.list-toolbar > details:has(.list-views-panel) > summary`)
+	eventually(t, tab, `Boolean(document.querySelector('.list-views-panel .list-view-option'))`, "views menu did not open")
+	if !eval[bool](t, tab, `(() => {
+		const item = document.querySelector('.list-views-panel .list-view-option');
+		const style = getComputedStyle(item);
+		return parseFloat(style.borderWidth) === 0 && item.getBoundingClientRect().height >= 44;
+	})()`) {
+		t.Fatal("view options must be unboxed touch-sized tiles")
+	}
+	click(t, tab, `a[href$="/engagements"]`)
+	waitVisible(t, tab, `#engagement-view .list-create details > summary`)
+	click(t, tab, `#engagement-view .list-create details > summary`)
+	if !eval[bool](t, tab, `(() => {
+		const items = [...document.querySelectorAll('#engagement-view .list-create .dropdown-content .menu > li > a')];
+		return items.length >= 2 && items.every(item => {
+			const style = getComputedStyle(item);
+			return parseFloat(style.borderWidth) === 0 && item.getBoundingClientRect().height >= 44;
+		});
+	})()`) {
+		t.Fatal("engagement settings actions must be unboxed touch-sized tiles")
+	}
+}
+
+func TestClientFilterTriggerMatchesToolbarControls(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	waitVisible(t, tab, "#list-filter-add summary")
+	if !eval[bool](t, tab, `(() => {
+		const filter = document.querySelector('#list-filter-add summary');
+		const columns = document.querySelector('.list-toolbar > details:has(.list-columns-panel) > summary');
+		const a = getComputedStyle(filter), b = getComputedStyle(columns);
+		return a.height === b.height && a.borderWidth === b.borderWidth &&
+			a.borderRadius === b.borderRadius && a.backgroundColor === b.backgroundColor &&
+			a.fontSize === b.fontSize && getComputedStyle(filter, '::after').content === getComputedStyle(columns, '::after').content;
+	})()`) {
+		t.Fatal("filter trigger must match the columns control")
+	}
+	run(t, tab, chromedp.Focus("#list-filter-add summary"), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('#list-filter-add details').open`, "keyboard did not open filter")
+}
+
+func TestClientSelectionAndNameHoverIndependently(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	waitVisible(t, tab, ".list-view-table tbody .list-select-cell")
+	moveTo := func(selector string) {
+		t.Helper()
+		point := eval[[]float64](t, tab, fmt.Sprintf(`(() => {
+			const r = document.querySelector(%s).getBoundingClientRect();
+			return [r.left + r.width / 2, r.top + r.height / 2];
+		})()`, jsString(selector)))
+		call(t, tab, input.DispatchMouseEvent, input.DispatchMouseEventParams{Type: input.DispatchMouseEventTypeMouseMoved, X: point[0], Y: point[1]})
+	}
+	moveTo(".list-view-table tbody .list-linked-cell")
+	if !eval[bool](t, tab, `(() => {
+		const row = document.querySelector('.list-view-table tbody tr');
+		const name = row.querySelector('.list-linked-cell');
+		const select = row.querySelector('.list-select-cell');
+		const initials = name.querySelector('.list-initials');
+		return getComputedStyle(name).backgroundColor !== getComputedStyle(select).backgroundColor &&
+			getComputedStyle(initials).backgroundColor !== getComputedStyle(name).backgroundColor;
+	})()`) {
+		t.Fatal("name hover must not highlight selection or hide the initials")
+	}
+	moveTo(".list-view-table tbody .list-select-cell")
+	if !eval[bool](t, tab, `(() => {
+		const row = document.querySelector('.list-view-table tbody tr');
+		return getComputedStyle(row.querySelector('.list-select-cell')).backgroundColor !==
+			getComputedStyle(row.querySelector('.list-linked-cell')).backgroundColor;
+	})()`) {
+		t.Fatal("selection cell must highlight independently")
+	}
+}
+
+func TestClientRowActionsCoverCellAndOverlayRows(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	waitVisible(t, tab, ".list-view-table tbody .list-actions-cell summary")
+	if !eval[bool](t, tab, `(() => {
+		const cell = document.querySelector('.list-view-table tbody .list-actions-cell');
+		const summary = cell.querySelector('summary');
+		const a = cell.getBoundingClientRect(), b = summary.getBoundingClientRect();
+		return Math.abs(a.left-b.left)<1 && Math.abs(a.right-b.right)<1 &&
+			Math.abs(a.top-b.top)<1 && Math.abs(a.bottom-b.bottom)<1 &&
+			parseFloat(getComputedStyle(summary).borderWidth) === 0;
+	})()`) {
+		t.Fatal("row actions trigger must cover the cell without a border")
+	}
+	idleBackground := eval[string](t, tab, `getComputedStyle(document.querySelector('.list-view-table tbody .list-actions-cell')).backgroundColor`)
+	run(t, tab, chromedp.Focus(".list-view-table tbody .list-actions-cell summary"), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table tbody .list-actions-cell details').open`, "keyboard did not open row actions")
+	if !eval[bool](t, tab, fmt.Sprintf(`(() => {
+		const panel = document.querySelector('.list-view-table tbody .list-actions-cell details[open] .dropdown-content');
+		const item = panel.querySelector('.list-action-item');
+		const r = item.getBoundingClientRect();
+		const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+		return panel.contains(hit) && parseFloat(getComputedStyle(item).borderWidth) === 0 &&
+			getComputedStyle(panel).backgroundColor === %s;
+	})()`, jsString(idleBackground))) {
+		details := eval[string](t, tab, `(() => {
+			const cell = document.querySelector('.list-view-table tbody .list-actions-cell');
+			const panel = cell.querySelector('details[open] .dropdown-content');
+			const item = panel.querySelector('.list-action-item');
+			const r = item.getBoundingClientRect();
+			const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+			return JSON.stringify({panel: panel.getBoundingClientRect().toJSON(), item: r.toJSON(),
+				hit: hit?.outerHTML, border: getComputedStyle(item).borderWidth,
+				panelBackground: getComputedStyle(panel).backgroundColor, cellBackground: getComputedStyle(cell).backgroundColor});
+		})()`)
+		t.Fatalf("row actions must overlay rows with an unboxed item and row-matching surface (idle %s): %s", idleBackground, details)
+	}
+}
+
+func TestClientsSortableHeaderCoversCell(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	header := `.list-view-table th[data-column="displayName"]`
+	waitVisible(t, tab, header+` > a`)
+	if !eval[bool](t, tab, `(() => {
+		const th = document.querySelector('.list-view-table th[data-column="displayName"]');
+		const link = th.querySelector('a');
+		const cell = th.getBoundingClientRect(), target = link.getBoundingClientRect();
+		const style = getComputedStyle(link), icon = getComputedStyle(link, '::after');
+		return Math.abs(cell.left - target.left) < 1 && Math.abs(cell.right - target.right) < 1 &&
+			Math.abs(cell.top - target.top) < 1 && Math.abs(cell.bottom - target.bottom) <= 1 &&
+			parseFloat(style.borderWidth) === 0 && icon.content !== 'none' &&
+			style.justifyContent === 'space-between';
+	})()`) {
+		details := eval[string](t, tab, `(() => {
+			const cell = document.querySelector('.list-view-table th[data-column="displayName"]');
+			const link = cell.querySelector('a');
+			const style = getComputedStyle(link);
+			return JSON.stringify({cell: cell.getBoundingClientRect().toJSON(), link: link.getBoundingClientRect().toJSON(),
+				border: style.borderWidth, indicator: getComputedStyle(link, '::after').content, justify: style.justifyContent});
+		})()`)
+		t.Fatalf("sort link must cover its header cell without a border, with the indicator on the right: %s", details)
+	}
+	run(t, tab, chromedp.Focus(header+` > a`), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table th[data-column="displayName"]').getAttribute('aria-sort') === 'ascending'`, "keyboard sorting did not activate ascending order")
+	run(t, tab, chromedp.Focus(header+` > a`), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table th[data-column="displayName"]').getAttribute('aria-sort') === 'descending'`, "keyboard sorting did not activate descending order")
+}
+
 func TestClientTimelineDialog(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
 	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", fmt.Sprintf("Timeline %d", time.Now().UnixMilli()))
-	clickByText(t, tab, "Add client")
+	clickByText(t, tab, "Create client")
 	waitVisible(t, tab, "[data-timeline-open]")
 	click(t, tab, "[data-timeline-open]")
 	eventually(t, tab, `document.querySelector('[data-timeline-dialog]').matches(':modal')`, "timeline dialog did not open")
@@ -171,35 +337,41 @@ func TestClientDetailLifecycle(t *testing.T) {
 	name := fmt.Sprintf("Lifecycle %d", time.Now().UnixMilli())
 	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", name)
-	clickByText(t, tab, "Add client")
+	clickByText(t, tab, "Create client")
 	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
 	detailPath := eval[string](t, tab, "location.pathname")
 
-	fillByLabel(t, tab, "Display name", name+" updated")
-	clickByText(t, tab, "Save client")
+	click(t, tab, `#client-detail details:has(#inline-display_name) > summary`)
+	fill(t, tab, "#inline-display_name", name+" updated")
+	click(t, tab, `#inline-display_name ~ div button[aria-label="Save value"]`)
 	eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll("h1, h2")].some((h) => h.textContent.trim() === %s)`, jsString(name+" updated")), "updated heading not shown")
 
+	click(t, tab, `summary[aria-label="Row actions"]`)
 	clickByText(t, tab, "Manage custom fields")
 	waitVisible(t, tab, ".client-create > summary")
 	click(t, tab, ".client-create > summary")
 	fillByLabel(t, tab, "Field label", "Lifecycle note")
 	clickByText(t, tab, "Add field")
 	navigate(t, tab, detailPath)
+	eval[any](t, tab, `(() => { const label = [...document.querySelectorAll("#client-values dt")].find(el => el.textContent.trim() === "Lifecycle note"); label.nextElementSibling.querySelector("details > summary").click(); })()`)
 	fillByLabel(t, tab, "Lifecycle note (optional)", "Follow up")
-	clickByText(t, tab, "Save value")
-	expectLabelValue(t, tab, "Lifecycle note (optional)", "Follow up")
-	clickByText(t, tab, "Clear value")
-	eventually(t, tab, `document.querySelectorAll(".client-value-clear").length === 0`, "cleared value control still shown")
+	click(t, tab, `#client-values details[open] button[aria-label="Save value"]`)
+	eventually(t, tab, `([...document.querySelectorAll("#client-values dt")].find(el => el.textContent.trim() === "Lifecycle note")?.nextElementSibling.textContent || "").includes("Follow up")`, "saved custom value not shown")
+	eval[any](t, tab, `(() => { const label = [...document.querySelectorAll("#client-values dt")].find(el => el.textContent.trim() === "Lifecycle note"); label.nextElementSibling.querySelector("details > summary").click(); })()`)
+	click(t, tab, `#client-values details[open] button[aria-label="Clear value"]`)
+	eventually(t, tab, fmt.Sprintf(`!%s.closest("form").querySelector('button[aria-label="Clear value"]')`, labelledControl("Lifecycle note (optional)")), "cleared value control still shown")
 
-	clickByText(t, tab, "More actions")
+	click(t, tab, `summary[aria-label="Row actions"]`)
 	clickByText(t, tab, "Archive")
 	eventually(t, tab, `document.body.textContent.includes("This client is archived. It is hidden from the default list.")`, "archived notice not shown")
+	click(t, tab, `summary[aria-label="Row actions"]`)
 	clickByText(t, tab, "Restore")
-	eventually(t, tab, `[...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Archive")`, "archive control not restored")
+	eventually(t, tab, `document.querySelector('summary[aria-label="Row actions"]') !== null && document.body.textContent.includes("Archive")`, "archive control not restored")
 
-	acceptDialogs(tab)
-	clickByText(t, tab, "More actions")
+	click(t, tab, `summary[aria-label="Row actions"]`)
 	clickByText(t, tab, "Delete permanently")
+	waitVisible(t, tab, "[data-client-delete-dialog]:modal")
+	click(t, tab, "[data-client-delete-confirm]")
 	eventually(t, tab, `/\/clients$/.test(location.pathname)`, "delete did not return to the clients list")
 	if count := eval[int](t, tab, fmt.Sprintf(`[...document.querySelectorAll("#client-list *")].filter((el) => el.childElementCount === 0 && el.textContent.trim() === %s).length`, jsString(name+" updated"))); count != 0 {
 		t.Fatalf("deleted client still listed %d times", count)
@@ -214,7 +386,7 @@ func TestClientsListAdaptsAcrossViewports(t *testing.T) {
 	clientsPath := eval[string](t, tab, "location.pathname + location.search")
 	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", "Responsive client")
-	clickByText(t, tab, "Add client")
+	clickByText(t, tab, "Create client")
 	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
 	for _, colorScheme := range []string{"light", "dark"} {
 		t.Run(colorScheme, func(t *testing.T) {
@@ -283,7 +455,7 @@ func TestClientsListKeepsServerDraftDuringRefresh(t *testing.T) {
 	expectAxeClean(t, tab)
 
 	listPath := eval[string](t, tab, "location.pathname")
-	click(t, tab, `a[href$="/clients/new"]`)
+	navigate(t, tab, listPath+"/new")
 	fillByLabel(t, tab, "Display name", "Server draft survives refresh")
 	fillByLabel(t, tab, "Email", "Ada <ada@example.com>")
 
@@ -316,7 +488,7 @@ func TestClientsListKeepsServerDraftDuringRefresh(t *testing.T) {
 	navigate(t, peer, listPath)
 	click(t, peer, `a[href$="/clients/new"]`)
 	fillByLabel(t, peer, "Display name", "SSE refresh trigger")
-	clickByText(t, peer, "Add client")
+	clickByText(t, peer, "Create client")
 	eventually(t, peer, `/\/clients\/[^/?]+$/.test(location.pathname)`, "peer create did not open the client detail")
 	expectLabelValue(t, tab, "Display name", "Server draft survives refresh")
 }
@@ -345,7 +517,7 @@ func TestClientDetailAndFieldsResponsiveLayouts(t *testing.T) {
 	openClients(t, tab)
 	click(t, tab, `a[href$="/clients/new"]`)
 	fillByLabel(t, tab, "Display name", fmt.Sprintf("Accessibility client %d", time.Now().UnixMilli()))
-	clickByText(t, tab, "Add client")
+	clickByText(t, tab, "Create client")
 	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "create did not open the client detail")
 	detailPath := eval[string](t, tab, "location.pathname")
 	fieldsPath := regexp.MustCompile(`/clients/[^/]+$`).ReplaceAllString(detailPath, "/client-fields")
@@ -375,7 +547,7 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 	click(t, peer, `a[href$="/clients/new"]`)
 	name := fmt.Sprintf("Query disclosure refresh trigger %d", time.Now().UnixMilli())
 	fillByLabel(t, peer, "Display name", name)
-	clickByText(t, peer, "Add client")
+	clickByText(t, peer, "Create client")
 	eventually(t, peer, `/\/clients\/[^/?]+$/.test(location.pathname)`, "peer create did not open the client detail")
 	eventually(t, tab, fmt.Sprintf(`document.querySelector("#client-list tbody")?.textContent.includes(%s)`, jsString(name)), "open query disclosure blocked the realtime refresh")
 	connected := eval[string](t, tab, `document.querySelector("#client-list")?.getAttribute("data-live-connected") ?? ""`)
@@ -390,6 +562,7 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 func TestClientFieldLifecycleSurvivesRefresh(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
+	clickByText(t, tab, "Manage")
 	clickByText(t, tab, "Manage custom fields")
 	click(t, tab, ".client-create > summary")
 	fillByLabel(t, tab, "Field label", "Browser multi-select")

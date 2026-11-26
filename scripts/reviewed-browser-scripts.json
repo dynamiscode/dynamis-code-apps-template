@@ -1,0 +1,37 @@
+{
+  "alpine-components.js": {
+    "bytes": 87954,
+    "sha256": "5a9a8f505a59f938384deb9f3bc8a3e97c732f7edc8b8de9496bc209ba4de614",
+    "reason": "App-owned form, dialog and action controls; HTMX response guard and server-rendered Markdown preview."
+  },
+  "htmx.min.js": {
+    "bytes": 37448,
+    "sha256": "a0abb04f2f45a1f89d1d4844023245537e5e6014c87b144553e0607b4cc32130",
+    "reason": "Vendored HTMX runtime; swaps app-owned server fragments"
+  },
+  "js/alpine.min.js": {
+    "bytes": 45328,
+    "sha256": "820bc9503874024057da244dc30c21301548329eb9a00e7937e91c4d3908b273",
+    "reason": "Vendored Alpine runtime; initializes app-owned declarative components"
+  },
+  "notes-editor-core.mjs": {
+    "bytes": 6119,
+    "sha256": "b4e919e81dd185b4b735cdbe092ad57bcee8e3445cd1167ca1b1e14c0f2b9a2f",
+    "reason": "App-owned Markdown controls enforce visual source round-tripping and validate links."
+  },
+  "notes-editor-safety.mjs": {
+    "bytes": 1155,
+    "sha256": "f179a422b833a381790e7ad8276d911aae88f8f7f74c7840480f9b56a39459f4",
+    "reason": "App-owned checks preserve unsupported Markdown as source."
+  },
+  "notes-editor-source.mjs": {
+    "bytes": 303,
+    "sha256": "8eeb5c51f1b8b1b0ec345b79d2001b82e0b502d56a83b707c0e73092a5a97dba",
+    "reason": "Build entry bundles the pinned Markora editor with app-owned controls."
+  },
+  "notes-editor.js": {
+    "bytes": 596286,
+    "sha256": "9511524321c4e77b197a210283fb00f24d6cf5733823b0bb1c7f1e15bf599023",
+    "reason": "Bundled Markora editor and app-owned Markdown controls; visual source round-trip and HTTP(S) link validation."
+  }
+}

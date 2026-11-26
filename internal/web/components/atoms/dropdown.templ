@@ -2,6 +2,8 @@
 // https://daisyui.com/components/dropdown
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type DropdownProps struct {
 	Label        string
 	Class        string
@@ -39,19 +41,19 @@ type DropdownItem struct {
 
 templ Dropdown(props DropdownProps) {
 	<details class={ "dropdown", props.Class } open?={ props.Open }>
-		<summary class={ "btn m-1", props.SummaryClass } { props.SummaryAttrs... }>
+		<summary class={ "btn m-1", props.SummaryClass } { actionattrs.ScalarAttributes(props.SummaryAttrs)... }>
 			{ props.Label }
 			if props.Summary != nil {
-				@props.Summary
+				@actionattrs.Scanned(props.Summary)
 			}
 			if !props.PanelChildren {
 				{ children... }
 			}
 		</summary>
 		if props.Panel != nil {
-			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>@props.Panel</div>
+			<div class={ "dropdown-content", props.PanelClass } { actionattrs.ScalarAttributes(props.PanelAttrs)... }>@actionattrs.Scanned(props.Panel)</div>
 		} else if props.PanelChildren {
-			<div class={ "dropdown-content", props.PanelClass } { props.PanelAttrs... }>{ children... }</div>
+			<div class={ "dropdown-content", props.PanelClass } { actionattrs.ScalarAttributes(props.PanelAttrs)... }>{ children... }</div>
 		} else {
 			<ul class={ "menu dropdown-content", props.ListClass }>
 				for _, di := range props.Items {
@@ -60,10 +62,10 @@ templ Dropdown(props DropdownProps) {
 					} else if di.Divider {
 						<li class="my-1 border-t border-base-content/10"></li>
 					} else if di.Item != nil {
-						<li class={ di.Class }>@di.Item</li>
+						<li class={ di.Class }>@actionattrs.Scanned(di.Item)</li>
 					} else {
 						<li>
-							<a { di.Attrs... } class={ templ.KV("text-error", di.Danger) }>{ di.Label }</a>
+							<a { actionattrs.From(di.Attrs)... } class={ "border border-base-300", templ.KV("text-error", di.Danger) }>{ di.Label }</a>
 						</li>
 					}
 				}

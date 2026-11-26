@@ -17,7 +17,6 @@ import (
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
-	"example.com/dynamis-code/apps-template/internal/platform/id"
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
@@ -35,7 +34,9 @@ import (
 	"unicode/utf16"
 )
 
-//go:embed assets/*
+//go:embed assets/app.css assets/clients.css assets/components.css assets/tokens.css
+//go:embed assets/alpine-components.js assets/htmx.min.js assets/js/alpine.min.js
+//go:embed assets/notes-editor.js assets/notes-editor.css
 var files embed.FS
 
 type Handler struct {
@@ -176,35 +177,36 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /language", h.language)
 	mux.HandleFunc("GET /intake/{token}", h.publicIntake)
 	mux.HandleFunc("POST /intake/{token}", h.publicIntake)
-	mux.HandleFunc("GET /login", h.loginPage)
-	mux.HandleFunc("POST /login", h.login)
-	mux.HandleFunc("GET /mfa", h.mfaPage)
-	mux.HandleFunc("POST /mfa/totp", h.mfaTOTP)
-	mux.HandleFunc("POST /mfa/recovery", h.mfaRecovery)
-	mux.HandleFunc("POST /mfa/passkey", h.mfaPasskey)
-	mux.HandleFunc("GET /setup", h.setupPage)
-	mux.HandleFunc("POST /setup", h.setup)
-	mux.HandleFunc("POST /logout", h.logout)
+	mux.HandleFunc("GET /login", h.serveAuthPage(h.loginView))
+	mux.HandleFunc("POST /login", h.serveAuthPage(h.loginSubmission))
+	mux.HandleFunc("GET /mfa", h.serveAuthPage(h.mfaPage))
+	mux.HandleFunc("POST /mfa/totp", h.serveAuthPage(h.mfaTOTP))
+	mux.HandleFunc("POST /mfa/recovery", h.serveAuthPage(h.mfaRecovery))
+	mux.HandleFunc("POST /mfa/passkey", h.serveAuthPage(h.mfaPasskey))
+	mux.HandleFunc("GET /setup", h.serveAuthPage(h.setupView))
+	mux.HandleFunc("POST /setup", h.serveAuthPage(h.setupSubmission))
+	mux.HandleFunc("POST /logout", h.serveAuthPage(h.logout))
 	if h.mcpResource != "" {
 		mux.HandleFunc("GET /oauth/authorize", h.mcpAuthorizePage)
 		mux.HandleFunc("POST /oauth/authorize", h.mcpAuthorize)
 	}
-	mux.HandleFunc("GET /account", h.accountPage)
-	mux.HandleFunc("POST /account/profile", h.accountProfileMutation)
-	mux.HandleFunc("POST /account/notifications", h.accountNotificationMutation)
-	mux.HandleFunc("POST /account/password", h.accountPasswordMutation)
-	mux.HandleFunc("POST /account/delete", h.accountDeleteMutation)
-	mux.HandleFunc("POST /account/verify-email", h.emailVerificationMutation)
-	mux.HandleFunc("GET /account/verify-email/{secret}", h.emailVerification)
-	mux.HandleFunc("GET /password-reset", h.passwordResetPage)
-	mux.HandleFunc("POST /password-reset", h.passwordResetRequest)
-	mux.HandleFunc("GET /password-reset/{secret}", h.passwordResetTokenPage)
-	mux.HandleFunc("POST /password-reset/{secret}", h.passwordResetComplete)
-	mux.HandleFunc("GET /notifications", h.notificationsPage)
-	mux.HandleFunc("POST /notifications/{notificationId}", h.notificationMutation)
+	mux.HandleFunc("GET /account", h.serveAuthPage(h.accountPage))
+	mux.HandleFunc("POST /account/profile", h.serveAuthPage(h.accountProfileMutation))
+	mux.HandleFunc("POST /account/theme", h.serveAuthPage(h.accountThemeMutation))
+	mux.HandleFunc("POST /account/notifications", h.serveAuthPage(h.accountNotificationMutation))
+	mux.HandleFunc("POST /account/password", h.serveAuthPage(h.accountPasswordMutation))
+	mux.HandleFunc("POST /account/delete", h.serveAuthPage(h.accountDeleteMutation))
+	mux.HandleFunc("POST /account/verify-email", h.serveAuthPage(h.emailVerificationMutation))
+	mux.HandleFunc("GET /account/verify-email/{secret}", h.serveAuthPage(h.emailVerification))
+	mux.HandleFunc("GET /password-reset", h.serveAuthPage(h.passwordResetPage))
+	mux.HandleFunc("POST /password-reset", h.serveAuthPage(h.passwordResetRequest))
+	mux.HandleFunc("GET /password-reset/{secret}", h.serveAuthPage(h.passwordResetTokenPage))
+	mux.HandleFunc("POST /password-reset/{secret}", h.serveAuthPage(h.passwordResetComplete))
+	mux.HandleFunc("GET /notifications", h.serveAuthPage(h.notificationsPage))
+	mux.HandleFunc("POST /notifications/{notificationId}", h.serveAuthPage(h.notificationMutation))
 	mux.HandleFunc("GET /notifications/events", h.notificationEvents)
-	mux.HandleFunc("GET /auth/oidc/{providerId}", h.oidcLogin)
-	mux.HandleFunc("GET /auth/oidc/{providerId}/callback", h.oidcCallback)
+	mux.HandleFunc("GET /auth/oidc/{providerId}", h.serveAuthPage(h.oidcLogin))
+	mux.HandleFunc("GET /auth/oidc/{providerId}/callback", h.serveAuthPage(h.oidcCallback))
 	mux.HandleFunc("GET /{$}", h.home)
 	if h.workspaceCreationEnabled() {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
@@ -223,6 +225,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices", h.catalogCreatePrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/edit", h.catalogEdit)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/field", h.catalogEdit)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/edit", h.catalogEditPrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/delete", h.catalogDeletePrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/archive", h.catalogArchive)
@@ -245,15 +248,21 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/new", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/field", h.changeClientProperty)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements", h.createEngagement)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}", h.engagementDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/name", h.setEngagementName)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/notes", h.setEngagementNotes)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/stage", h.moveEngagement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/next-action", h.setEngagementNextAction)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/quote", h.setEngagementQuote)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/agreement", h.setEngagementAgreement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/assignee", h.setEngagementAssignee)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements", h.listEngagements)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/bulk-move", h.bulkMoveEngagements)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/new", h.newEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/new", h.newEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/notes-preview", h.previewEngagementNotes)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/board", h.engagementBoard)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/due", h.dueEngagements)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/{engagementId}/action/{operation}", h.changeQueuedAction)
@@ -309,65 +318,39 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export", h.exportPage)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/export/download", h.exportWorkspace)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/audit", h.auditHistoryPage)
-	mux.HandleFunc("GET /sessions", h.sessionsPage)
-	mux.HandleFunc("POST /sessions/{sessionId}", h.sessionMutation)
-	mux.HandleFunc("GET /security", h.securityPage)
-	mux.HandleFunc("POST /security", h.securityMutation)
-	mux.HandleFunc("POST /security/totp/start", h.securityTOTPStart)
-	mux.HandleFunc("POST /security/totp/complete", h.securityTOTPComplete)
-	mux.HandleFunc("POST /security/totp/remove", h.securityTOTPRemove)
-	mux.HandleFunc("POST /security/passkey/{passkeyId}", h.securityPasskeyRemove)
-	mux.HandleFunc("GET /settings/language", h.languageSettingsPage)
-	mux.HandleFunc("POST /settings/language", h.languageSettings)
+	mux.HandleFunc("GET /sessions", h.serveAuthPage(h.sessionsPage))
+	mux.HandleFunc("POST /sessions/{sessionId}", h.serveAuthPage(h.sessionMutation))
+	mux.HandleFunc("GET /security", h.serveAuthPage(h.securityPage))
+	mux.HandleFunc("POST /security", h.serveAuthPage(h.securityMutation))
+	mux.HandleFunc("POST /security/totp/start", h.serveAuthPage(h.securityTOTPStart))
+	mux.HandleFunc("POST /security/totp/complete", h.serveAuthPage(h.securityTOTPComplete))
+	mux.HandleFunc("POST /security/totp/remove", h.serveAuthPage(h.securityTOTPRemove))
+	mux.HandleFunc("POST /security/passkey/{passkeyId}", h.serveAuthPage(h.securityPasskeyRemove))
+	mux.HandleFunc("GET /settings/language", h.serveAuthPage(h.languageSettingsPage))
+	mux.HandleFunc("POST /settings/language", h.serveAuthPage(h.languageSettings))
 	mux.HandleFunc("GET /workspaces/{workspaceId}/settings/general", h.generalSettingsPage)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/general", h.generalSettings)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/settings/notifications", h.workspaceNotificationSettings)
-	mux.HandleFunc("GET /invitations/{secret}", h.invitationPage)
-	mux.HandleFunc("POST /invitations/{secret}", h.invitationPost)
-	mux.HandleFunc("POST /invitations/{secret}/sign-in", h.invitationSignIn)
-	mux.HandleFunc("GET /invitations/continue", h.invitationContinuePage)
-	mux.HandleFunc("POST /invitations/continue", h.invitationContinuePost)
+	mux.HandleFunc("GET /invitations/{secret}", h.serveInvitation(h.invitationPage))
+	mux.HandleFunc("POST /invitations/{secret}", h.serveInvitation(h.invitationPost))
+	mux.HandleFunc("POST /invitations/{secret}/sign-in", h.serveInvitation(h.invitationSignIn))
+	mux.HandleFunc("GET /invitations/continue", h.serveInvitation(h.invitationContinuePage))
+	mux.HandleFunc("POST /invitations/continue", h.serveInvitation(h.invitationContinuePost))
 	return h.localeMiddleware(mux)
 }
 
-func (h *Handler) loginPage(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) setupSubmission(request *http.Request) authPageOutput {
 	available, err := h.setupAvailable(request)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	if available {
-		h.redirect(writer, request, "/setup")
-		return
-	}
-	token, err := id.New()
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	h.setCookie(writer, "login_csrf", token, time.Now().Add(10*time.Minute), true)
-	h.render(writer, http.StatusOK, "login.html", viewmodel.PageData{
-		Title: "Sign in", CSRF: token, OIDCProviders: h.providers(),
-		ReturnTo: h.invitationLoginReturnTo(request, request.URL.Query().Get("return_to")),
-	})
-}
-
-func (h *Handler) setupPage(writer http.ResponseWriter, request *http.Request) {
-	if !h.requireSetup(writer, request) {
-		return
-	}
-	h.renderSetup(writer, http.StatusOK, viewmodel.PageData{Title: "Set up Dynamis Code"})
-}
-
-func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
-	if !h.requireSetup(writer, request) {
-		return
+	if !available {
+		return authPageOutput{status: http.StatusNotFound}
 	}
 	if err := request.ParseForm(); err != nil || !h.validSetupCSRF(request) {
-		h.renderSetup(writer, http.StatusForbidden, viewmodel.PageData{
+		return h.setupOutput(http.StatusForbidden, viewmodel.PageData{
 			Title: "Set up Dynamis Code", Error: "The setup form expired. Reload and try again.",
 		})
-		return
 	}
 	token := request.FormValue("setup_token")
 	switch request.FormValue("setup_token_format") {
@@ -383,10 +366,9 @@ func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
 		token = ""
 	}
 	if h.setupTokenHash != "" && !identity.EqualSecretHash(token, h.setupTokenHash) {
-		h.renderSetup(writer, http.StatusForbidden, viewmodel.PageData{
+		return h.setupOutput(http.StatusForbidden, viewmodel.PageData{
 			Title: "Set up Dynamis Code", Error: "The setup token is invalid.",
 		})
-		return
 	}
 	data := viewmodel.PageData{
 		Title: "Set up Dynamis Code", Email: request.FormValue("email"),
@@ -394,28 +376,23 @@ func (h *Handler) setup(writer http.ResponseWriter, request *http.Request) {
 	}
 	if request.FormValue("password") != request.FormValue("password_confirmation") {
 		data.Error = "The passwords do not match."
-		h.renderSetup(writer, http.StatusUnprocessableEntity, data)
-		return
+		return h.setupOutput(http.StatusUnprocessableEntity, data)
 	}
-	_, err := h.identity.BootstrapFirstOwner(request.Context(), identity.BootstrapInput{
+	_, err = h.identity.BootstrapFirstOwner(request.Context(), identity.BootstrapInput{
 		Email: data.Email, Password: request.FormValue("password"), WorkspaceName: data.WorkspaceName,
 		WorkspaceLocale: data.WorkspaceLocale,
 	}, auditContext(request))
 	if errors.Is(err, identity.ErrAlreadyBootstrapped) {
-		h.redirect(writer, request, "/login")
-		return
+		return authPageOutput{kind: authPageRedirect, target: "/login"}
 	}
 	if errors.Is(err, identity.ErrInvalidBootstrap) {
 		data.Error = "Enter a valid email, workspace name, and password."
-		h.renderSetup(writer, http.StatusUnprocessableEntity, data)
-		return
+		return h.setupOutput(http.StatusUnprocessableEntity, data)
 	}
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.clearCookie(writer, "setup_csrf")
-	h.redirect(writer, request, "/login")
+	return authPageOutput{kind: authPageSetupCompleted}
 }
 
 type setupAvailability uint8
@@ -441,104 +418,63 @@ func (h *Handler) setupAvailable(request *http.Request) (bool, error) {
 	return availability == setupEnabled, err
 }
 
-func (h *Handler) requireSetup(writer http.ResponseWriter, request *http.Request) bool {
-	availability, err := h.setupAvailability(request)
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return false
-	}
-	if availability != setupEnabled {
-		h.renderError(writer, http.StatusNotFound)
-		return false
-	}
-	return true
-}
-
-func (h *Handler) renderSetup(writer http.ResponseWriter, status int, data viewmodel.PageData) {
-	token, err := id.New()
-	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
-	}
-	h.setCookie(writer, "setup_csrf", token, time.Now().Add(10*time.Minute), true)
-	data.CSRF = token
-	data.SetupTokenRequired = h.setupTokenHash != ""
-	h.render(writer, status, "setup.html", data)
-}
-
-func (h *Handler) login(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) loginSubmission(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil || !h.validLoginCSRF(request) {
-		h.render(writer, http.StatusForbidden, "login.html", viewmodel.PageData{
+		return authPageOutput{kind: authPageLogin, status: http.StatusForbidden, data: viewmodel.PageData{
 			Title: "Sign in", Error: "The sign-in form expired. Reload and try again.",
-		})
-		return
+		}}
 	}
 	userID, err := h.identity.AuthenticateLocal(
 		request.Context(), request.FormValue("email"), request.FormValue("password"),
 	)
 	if err != nil {
-		h.render(writer, http.StatusUnauthorized, "login.html", viewmodel.PageData{
+		return authPageOutput{kind: authPageLogin, status: http.StatusUnauthorized, data: viewmodel.PageData{
 			Title: "Sign in", CSRF: request.FormValue("csrf"), Email: strings.TrimSpace(request.FormValue("email")),
 			Error:         "The email or password is invalid.",
 			OIDCProviders: h.providers(), ReturnTo: h.invitationLoginReturnTo(request, request.FormValue("return_to")),
-		})
-		return
+		}}
 	}
 	mfaEnrolled, err := h.identity.MFAEnrolled(request.Context(), userID)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	if mfaEnrolled {
 		challenge, err := h.identity.BeginMFALogin(request.Context(), userID, auditContext(request))
 		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
-		h.setMFAChallengeCookies(writer, challenge, h.invitationLoginReturnTo(request, request.FormValue("return_to")))
-		h.redirect(writer, request, "/mfa")
-		return
+		return authPageOutput{kind: authPageMFALogin, challenge: challenge, target: h.invitationLoginReturnTo(request, request.FormValue("return_to"))}
 	}
 	session, err := h.identity.CreateSession(
 		request.Context(), userID, "local", "", 0, auditContext(request),
 	)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.setCookie(writer, "session", session.Secret, session.ExpiresAt, true)
-	h.setCookie(writer, "csrf", session.CSRFSecret, session.ExpiresAt, true)
-	h.clearCookie(writer, "login_csrf")
-	h.redirect(writer, request, h.invitationLoginReturnTo(request, request.FormValue("return_to")))
+	return authPageOutput{kind: authPageSignedIn, session: session, target: h.invitationLoginReturnTo(request, request.FormValue("return_to"))}
 }
 
-func (h *Handler) logout(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) logout(request *http.Request) authPageOutput {
 	continueInvitation := h.invitationReturnActive(request)
-	session, ok := h.validCSRFSession(writer, request)
-	if !ok {
-		return
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
 	providerID, err := h.identity.RevokeSession(
 		request.Context(), session.UserID, session.ID, auditContext(request),
 	)
 	if err != nil {
-		h.renderError(writer, http.StatusUnauthorized)
-		return
+		return authPageOutput{status: http.StatusUnauthorized}
 	}
-	h.clearCookie(writer, "session")
-	h.clearCookie(writer, "csrf")
 	if continueInvitation {
-		setInvitationSecurityHeaders(writer)
-		http.Redirect(writer, request, invitationLoginLocation, http.StatusSeeOther)
-		return
+		return authPageOutput{kind: authPageInvitationLogout}
 	}
 	if h.oidc != nil {
 		if logoutURL, ok := h.oidc.LogoutURL(providerID); ok {
-			h.redirectURL(writer, request, logoutURL)
-			return
+			return authPageOutput{kind: authPageProviderLogout, target: logoutURL}
 		}
 	}
-	h.redirect(writer, request, "/login")
+	return authPageOutput{kind: authPageLocalLogout}
 }
 
 func (h *Handler) home(writer http.ResponseWriter, request *http.Request) {
@@ -665,6 +601,14 @@ func (h *Handler) workspaceSession(
 	}
 	principal.AuthMethod = session.AuthMethod
 	principal.AuthLevel = session.AuthLevel
+	if state, ok := writer.(*localeWriter); ok && h.engagement != nil && principal.Permissions[identity.ResourcesRead] && (!state.engagementLoaded || state.engagementWorkspace != workspaceID) {
+		label, err := h.engagement.Label(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return identity.Principal{}, identity.Session{}, "", false
+		}
+		state.engagementWorkspace, state.engagementLabel, state.engagementLoaded = workspaceID, label, true
+	}
 	return principal, session, csrf, true
 }
 
@@ -672,34 +616,51 @@ func (h *Handler) session(
 	writer http.ResponseWriter,
 	request *http.Request,
 ) (identity.Session, string, bool) {
+	session, csrf, ok := h.checkSession(request)
+	if !ok {
+		h.redirect(writer, request, "/login")
+	}
+	return session, csrf, ok
+}
+
+func (h *Handler) checkSession(request *http.Request) (identity.Session, string, bool) {
 	secret := cookieValue(request, "session")
 	csrf := cookieValue(request, "csrf")
 	if secret == "" || csrf == "" {
-		h.redirect(writer, request, "/login")
 		return identity.Session{}, "", false
 	}
 	session, err := h.identity.AuthenticateSession(request.Context(), secret)
 	if err != nil {
-		h.redirect(writer, request, "/login")
 		return identity.Session{}, "", false
 	}
 	return session, csrf, true
 }
 
 func (h *Handler) validCSRFSession(writer http.ResponseWriter, request *http.Request) (identity.Session, bool) {
-	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return identity.Session{}, false
+	session, status := h.checkCSRFSession(request)
+	switch status {
+	case http.StatusOK:
+		return session, true
+	case http.StatusSeeOther:
+		h.redirect(writer, request, "/login")
+	default:
+		h.renderError(writer, status)
 	}
-	session, _, ok := h.session(writer, request)
+	return identity.Session{}, false
+}
+
+func (h *Handler) checkCSRFSession(request *http.Request) (identity.Session, int) {
+	if err := request.ParseForm(); err != nil {
+		return identity.Session{}, http.StatusBadRequest
+	}
+	session, _, ok := h.checkSession(request)
 	if !ok {
-		return identity.Session{}, false
+		return identity.Session{}, http.StatusSeeOther
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return identity.Session{}, false
+		return identity.Session{}, http.StatusForbidden
 	}
-	return session, true
+	return session, http.StatusOK
 }
 
 func (h *Handler) validLoginCSRF(request *http.Request) bool {
@@ -770,11 +731,6 @@ func listVisibleParam(request *http.Request) string {
 }
 
 func (h *Handler) render(writer http.ResponseWriter, status int, name string, data viewmodel.PageData) {
-	if lw, ok := writer.(*localeWriter); ok && len(data.Profile.Email) == 0 {
-		if state, found := lw.context.Value(localeContextKey{}).(localeState); found && state.userEmail != "" {
-			data.Profile = identity.UserProfile{DisplayName: state.userName, Email: state.userEmail}
-		}
-	}
 	data.FilesEnabled = h.files != nil
 	data.ClientsEnabled = h.clients != nil
 	data.CatalogEnabled = h.catalogService != nil

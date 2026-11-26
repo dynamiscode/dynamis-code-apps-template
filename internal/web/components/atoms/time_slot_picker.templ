@@ -2,6 +2,7 @@
 package atoms
 
 import "time"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 type TimeSlotPickerProps struct {
 	ID          string
@@ -83,7 +84,7 @@ templ timeSlotPickerDay(props TimeSlotPickerProps, day time.Time) {
 }
 
 templ timeSlotButton(slot TimeSlot, attrs templ.Attributes) {
-	<button class="btn btn-sm btn-ghost w-full" { attrs... }>
+	<button class="btn btn-sm btn-outline w-full" { actionattrs.From(attrs)... }>
 		{ slot.Start.Format("15:04") } - { slot.End.Format("15:04") }
 	</button>
 }
@@ -115,7 +116,7 @@ templ timeSlotModalContent(slot TimeSlot, slotName, reserveURL string) {
 			>
 				Reserve
 			</button>
-			<button class="btn btn-sm" { templ.Attributes{"onclick": slotName + ".close()"}... }>
+			<button class="btn btn-sm" { actionattrs.From(templ.Attributes{"onclick": slotName + ".close()"})... }>
 				Cancel
 			</button>
 		</div>
@@ -137,7 +138,7 @@ templ timeSlotPickerControls(props TimeSlotPickerProps) {
 			hx-get={ props.PickerURL + "?date=" + props.CurrentDate.Add(time.Duration(-7*24)*time.Hour).Format("2006-01-02") }
 			hx-target={ "#" + props.ID }
 			hx-swap="outerHTML"
-			class={ "btn btn-ghost btn-sm disabled:opacity-50", }
+			class={ "btn btn-outline btn-sm disabled:opacity-50", }
 			if props.CurrentDate.Format("2006-01-02") == time.Now().UTC().Format("2006-01-02") {
 				disabled
 			}
@@ -148,7 +149,7 @@ templ timeSlotPickerControls(props TimeSlotPickerProps) {
 			hx-get={ props.PickerURL + "?date=" + props.CurrentDate.Add(time.Duration(7*24)*time.Hour).Format("2006-01-02") }
 			hx-target={ "#" + props.ID }
 			hx-swap="outerHTML"
-			class="btn btn-ghost btn-sm"
+			class="btn btn-outline btn-sm"
 		>
 			@chevronRight()
 		</button>

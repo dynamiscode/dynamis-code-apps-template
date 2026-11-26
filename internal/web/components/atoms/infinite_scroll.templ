@@ -2,6 +2,7 @@
 package atoms
 
 import "fmt"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 
 templ InfiniteScrollTable(headers, rows []templ.Component, spinnerID string) {
 	@Table(TableProps{Headers: headers, Rows: rows})
@@ -10,7 +11,7 @@ templ InfiniteScrollTable(headers, rows []templ.Component, spinnerID string) {
 
 templ InfiniteScrollRows(rows []templ.Component) {
 	for _, r := range rows {
-		@r
+		@actionattrs.Scanned(r)
 	}
 }
 

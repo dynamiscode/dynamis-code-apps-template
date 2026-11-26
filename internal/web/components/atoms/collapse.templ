@@ -2,6 +2,8 @@
 // https://daisyui.com/components/collapse
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type CollapseDetailsProps struct {
 	Class        string
 	Open         bool // open on render (e.g. open-on-error forms)
@@ -14,7 +16,7 @@ type CollapseDetailsProps struct {
 templ CollapseDetails(props CollapseDetailsProps) {
 	<details
 		class={ "collapse", props.Class }
-		{ props.Attrs... }
+		{ actionattrs.ScalarAttributes(props.Attrs)... }
 		if props.Open {
 			open
 		}

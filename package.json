@@ -5,11 +5,16 @@
   "scripts": {
     "test:unit": "node --test internal/web/assets/*.test.mjs",
     "check:js": "for f in internal/web/assets/*.js; do node --check \"$f\"; done",
-    "build:css": "tailwindcss -i internal/web/tailwind.css -o internal/web/assets/components.css --minify"
+    "build:css": "tailwindcss -i internal/web/tailwind.css -o internal/web/assets/components.css --minify",
+    "build:notes": "esbuild internal/web/assets/notes-editor-source.mjs --bundle --minify --format=iife --outfile=internal/web/assets/notes-editor.js"
   },
   "devDependencies": {
     "@tailwindcss/cli": "4.3.5",
     "daisyui": "5.8.1",
     "tailwindcss": "4.3.5"
+  },
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "markora": "0.1.6"
   }
 }

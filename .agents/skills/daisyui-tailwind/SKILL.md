@@ -44,11 +44,10 @@ Load order in `UiHead`: `tokens.css` (token layer) -> `components.css`
    unknown daisyUI theme and once rendered half-light cards under a dark
    OS. `main form .btn { min-height: 2.75rem; }` is the 44px touch
    contract the accessibility smoke asserts; do not remove.
-5. **No new custom CSS without an audit row.** `app.css` holds only
-   a11y states, JS-hook states, pseudo-content, and structural layout -
-   every remaining rule is dispositioned in `daisyui-style-audit.md`
-   ("Final custom-CSS map"). A new rule needs a row there with its
-   reason, or utilities instead.
+5. **No new custom CSS without a disposition.** `app.css` holds a11y
+   states, JS-hook states, pseudo-content, and structural layout. When
+   adding or changing custom CSS, update `docs/custom-css.md` with the
+   selector and reason, or use utilities instead.
 
 ## Conventions kept from the adoption
 

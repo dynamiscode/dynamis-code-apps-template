@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -10,7 +9,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "time"
 
 templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Time) {
-	@templates.DashboardShell(data, organisms.AccountHeader(data), nil) {
+	@templates.DashboardShell(data, templates.DashboardAccount) {
 		<section class="account-page" aria-labelledby="sessions-heading">
 			<header class="account-heading bg-base-100 border-b border-base-200">
 				<p class="eyebrow">{ data.T("navigation.security") }</p>
@@ -50,7 +49,7 @@ templ sessionsPage(data viewmodel.PageData, currentSessionID string, now time.Ti
 								<form class="inline" data-webmcp-actions="session-revoke" data-webmcp-id={ session.ID } action={ "/sessions/" + session.ID } method="post">
 									<input type="hidden" name="csrf" value={ data.CSRF }/>
 									@atoms.Button(atoms.ButtonProps{
-										Class: "btn-secondary secondary",
+										Class: "btn-outline btn-error secondary",
 										Label: data.T("sessions.revoke"),
 										Attrs: templ.Attributes{"type": "submit"},
 									})

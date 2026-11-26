@@ -133,7 +133,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-ghost btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-outline btn-xs", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "archive", "data-bulk-action": true}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,7 +186,7 @@ func clientBulkBar(data viewmodel.PageData) templ.Component {
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-xs client-bulk-danger", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete", "data-bulk-action": true, "data-confirm": data.T("clients.bulk_delete_confirm")}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.Button(atoms.ButtonProps{Class: "btn-xs client-bulk-danger", Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "delete", "data-bulk-action": true, "data-client-delete": true, "data-client-bulk": true, "data-confirm": data.T("clients.bulk_delete_confirm")}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -221,7 +221,7 @@ func clientRowSelect(data viewmodel.PageData, row viewmodel.ListRow) templ.Compo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = atoms.Checkbox(atoms.CheckboxProps{
+		templ_7745c5c3_Err = atoms.PlainCheckbox(atoms.CheckboxProps{
 			Name:  "client_id",
 			Attrs: templ.Attributes{"form": "client-bulk", "value": row.ID, "data-bulk-row": true, "aria-label": data.T("clients.bulk_select_row", map[string]any{"name": row.CellText(data.ClientListLinkKey())})},
 		}).Render(ctx, templ_7745c5c3_Buffer)
@@ -254,7 +254,7 @@ func clientCardSelect(data viewmodel.PageData, row viewmodel.ListRow) templ.Comp
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = atoms.Checkbox(atoms.CheckboxProps{
+		templ_7745c5c3_Err = atoms.PlainCheckbox(atoms.CheckboxProps{
 			Name:       "client_id",
 			LabelClass: "list-select",
 			After:      data.T("clients.bulk_select"),

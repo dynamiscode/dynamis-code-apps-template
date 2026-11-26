@@ -1,7 +1,6 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -9,7 +8,7 @@ import "example.com/dynamis-code/apps-template/internal/engagement"
 import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
 import "strconv"
 templ workspaceSelection(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), nil) {
+	@templates.DashboardShell(data, templates.DashboardStandalone) {
 		@molecules.PageHeading(data.T("workspace.workspaces"), "")
 		if data.Error != "" {
 			@molecules.ErrorAlert(data.Error)
@@ -25,7 +24,7 @@ templ workspaceSelection(data viewmodel.PageData) {
 		}
 		if data.CanCreateWorkspace {
 			<details class="collapse bg-base-100" if data.Error != "" { open }>
-				<summary class="collapse-title font-semibold">{ data.T("workspace.create") }</summary>
+				<summary class="collapse-title font-semibold rounded-field border border-base-300">{ data.T("workspace.create") }</summary>
 				<div class="collapse-content">
 					<form data-webmcp-actions="workspace-create" action="/workspaces" method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
@@ -53,18 +52,18 @@ templ dashboardActionPreview(data viewmodel.PageData, title, filter string, acti
 			<ul>
 				for _, action := range actions {
 					<li>
-						<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + action.ClientID.String() + "/engagements/" + action.EngagementID.String()) }>{ action.Action.Text }</a>
+						<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + action.ClientID.String() + "/engagements/" + action.EngagementID.String()) }>{ action.Action.Text }</a>
 						<span> — { action.EngagementName } — { action.ClientName } — { action.Action.DueDate }</span>
 					</li>
 				}
 			</ul>
 		}
-		<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=" + filter) }>{ data.T("dashboard.view_all") } — { title }</a>
+		<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/due?filter=" + filter) }>{ data.T("dashboard.view_all") } — { title }</a>
 	</section>
 }
 
 templ workspaceHome(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.Workspace.Name, "")
 		if data.EngagementDashboard != nil {
 			<section aria-labelledby="engagement-dashboard-title">
@@ -82,7 +81,7 @@ templ workspaceHome(data viewmodel.PageData) {
 				<ul class="grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 					for _, stage := range data.EngagementDashboard.Stages {
 						<li class="card bg-base-100 p-4">
-							<a class="link" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements?stage=" + stage.Stage.ID.String()) }>{ stage.Stage.Name }
+							<a class="btn btn-outline btn-sm h-auto min-h-8 max-w-full whitespace-normal break-words" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagements?stage=" + stage.Stage.ID.String()) }>{ stage.Stage.Name }
 								if stage.Stage.Archived {
 									<span> ({ data.T("engagement.archived") })</span>
 								}
@@ -93,10 +92,10 @@ templ workspaceHome(data viewmodel.PageData) {
 				</ul>
 				<nav aria-label={ data.T("ui.pages") }>
 					if data.DashboardPrevious != "" {
-						<a class="link" rel="prev" href={ templ.SafeURL(data.DashboardPrevious) }>{ data.T("ui.previous_page") }</a>
+						<a class="btn btn-outline btn-sm" rel="prev" href={ templ.SafeURL(data.DashboardPrevious) }>{ data.T("ui.previous_page") }</a>
 					}
 					if data.DashboardNext != "" {
-						<a class="link" rel="next" href={ templ.SafeURL(data.DashboardNext) }>{ data.T("items.next_page") }</a>
+						<a class="btn btn-outline btn-sm" rel="next" href={ templ.SafeURL(data.DashboardNext) }>{ data.T("items.next_page") }</a>
 					}
 				</nav>
 			</section>
@@ -109,8 +108,8 @@ templ workspaceHome(data viewmodel.PageData) {
 			<ul class="cards workspace-cards grid list-none gap-4 p-0 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
 					if data.ClientsEnabled {
 					@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("clients.title"), data.T("workspace.clients_description"))
-					if data.CanEditClients {
-						@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/clients", data.T("engagement.create"), "")
+					if data.CanEditClients && data.EngagementEnabled {
+						@molecules.LinkedCard("/workspaces/" + data.Workspace.ID.String() + "/engagements/new", data.T("engagement.create"), "")
 					}
 				}
 				if data.CatalogEnabled {

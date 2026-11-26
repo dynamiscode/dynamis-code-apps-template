@@ -4,7 +4,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ SettingsSidebar(data viewmodel.PageData) {
 	<aside class="flex flex-col gap-4">
-		<a class="btn btn-ghost btn-sm w-full justify-start font-normal" href={ "/workspaces/" + data.Workspace.ID.String() }><span aria-hidden="true">←</span> { data.T("workspace.back_to_home") }</a>
+		<a class="btn btn-sm w-full justify-start font-normal" href={ "/workspaces/" + data.Workspace.ID.String() }><span aria-hidden="true">←</span> { data.T("workspace.back_to_home") }</a>
 		@WorkspaceNav(data)
 	</aside>
 }

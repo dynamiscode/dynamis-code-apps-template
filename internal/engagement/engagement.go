@@ -2,6 +2,7 @@ package engagement
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,12 @@ var ErrNoOpenStage = errors.New("workspace has no open stage")
 var ErrNotFound = errors.New("engagement not found")
 var ErrInvalidName = fmt.Errorf("%w: engagement name is invalid", ErrInvalidInput)
 var ErrInvalidStage = fmt.Errorf("%w: engagement stage is invalid", ErrInvalidInput)
+var ErrInvalidNotes = fmt.Errorf("%w: engagement notes are invalid", ErrInvalidInput)
+var ErrNotesConflict = errors.New("engagement notes changed")
+
+func NotesRevision(notes string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(notes)))
+}
 
 type ID int64
 
@@ -56,6 +63,14 @@ type MoveHistory struct {
 }
 
 func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, stageID StageID, audit identity.AuditContext) error {
+	return s.MoveMany(ctx, actor, workspaceID, []ID{engagementID}, stageID, audit)
+}
+
+// MoveMany moves every selected engagement in one transaction, or changes none.
+func (s *Service) MoveMany(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, ids []ID, stageID StageID, audit identity.AuditContext) error {
+	if len(ids) == 0 || len(ids) > 100 {
+		return ErrInvalidInput
+	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return err
@@ -64,6 +79,23 @@ func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceI
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
 		return identity.ErrForbidden
 	}
+	for i, id := range ids {
+		if id <= 0 {
+			return ErrInvalidInput
+		}
+		for _, previous := range ids[:i] {
+			if previous == id {
+				return ErrInvalidInput
+			}
+		}
+		if err := s.moveInTx(ctx, tx, actor, workspaceID, id, stageID, audit); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Service) moveInTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, stageID StageID, audit identity.AuditContext) error {
 	var from StageID
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT stage_id FROM engagements WHERE workspace_id = ? AND id = ?`), workspaceID, engagementID).Scan(&from); errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
@@ -96,7 +128,7 @@ func (s *Service) Move(ctx context.Context, actor identity.Principal, workspaceI
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.moved", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.move", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: string(metadata), CreatedAt: now}); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return nil
 }
 
 func (s *Service) history(ctx context.Context, tx *sql.Tx, workspaceID identity.WorkspaceID, engagementID ID) ([]MoveHistory, error) {
@@ -138,9 +170,11 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if !validName(input.Name) {
 		return Engagement{}, ErrInvalidName
 	}
-	input.Notes = strings.TrimSpace(input.Notes)
-	if input.ClientID == 0 || !utf8.ValidString(input.Notes) || utf8.RuneCountInString(input.Notes) > 5000 {
+	if input.ClientID == 0 {
 		return Engagement{}, ErrInvalidInput
+	}
+	if !utf8.ValidString(input.Notes) || utf8.RuneCountInString(input.Notes) > 5000 {
+		return Engagement{}, ErrInvalidNotes
 	}
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
@@ -182,13 +216,17 @@ func (s *Service) CreateIntakeInTx(ctx context.Context, tx *sql.Tx, token string
 
 func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Engagement, error) {
 	clientService := clients.NewService(s.db, s.driver, s.auth, 0)
-	if _, err := clientService.GetInTx(ctx, tx, workspaceID, input.ClientID); errors.Is(err, clients.ErrNotFound) {
+	client, err := clientService.GetInTx(ctx, tx, workspaceID, input.ClientID)
+	if errors.Is(err, clients.ErrNotFound) {
 		return Engagement{}, ErrInvalidInput
 	} else if err != nil {
 		return Engagement{}, err
 	}
+	if client.ArchivedAt != nil {
+		return Engagement{}, ErrInvalidInput
+	}
 	var stageID StageID
-	err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrInvalidStage
 	}
@@ -233,6 +271,53 @@ func (s *Service) SetName(ctx context.Context, actor identity.Principal, workspa
 		return err
 	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.name_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.name.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Service) SetNotes(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, notes string, revision *string, audit identity.AuditContext) (err error) {
+	defer func() {
+		var state interface{ SQLState() string }
+		if errors.As(err, &state) && state.SQLState() == "40001" {
+			err = ErrNotesConflict
+		}
+	}()
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesWrite); err != nil {
+		return identity.ErrForbidden
+	}
+	var current string
+	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT notes FROM engagements WHERE workspace_id = ? AND id = ?`), workspaceID, engagementID).Scan(&current); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if revision != nil && *revision != NotesRevision(current) {
+		return ErrNotesConflict
+	}
+	if notes == current {
+		return nil
+	}
+	if !utf8.ValidString(notes) || utf8.RuneCountInString(notes) > 5000 {
+		return ErrInvalidNotes
+	}
+	result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagements SET notes = ? WHERE workspace_id = ? AND id = ? AND notes = ?`), notes, workspaceID, engagementID, current)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotesConflict
+	}
+	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement.notes_updated", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement", TargetKey: int64(engagementID), Action: "engagement.notes.update", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
 		return err
 	}
 	return tx.Commit()

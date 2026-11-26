@@ -1,21 +1,23 @@
 package molecules
 
-import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 // ListPageSize sets how many rows a page shows. It is a menu of links, like the columns and filter menus: each link
 // is the list's address with that limit, so it works without JavaScript, keeps the search, filters, sort, and
 // scope, and never opens the native picker. The trigger names the current size.
 templ ListPageSize(data viewmodel.PageData, limit int, sizes []int) {
-	@atoms.Dropdown(atoms.DropdownProps{
-		Class:        "list-menu list-page-size",
-		SummaryClass: "btn btn-ghost btn-sm list-page-size-trigger",
-		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.page_size") + ": " + ListPageSizeLabel(data, limit)},
-		Label:        ListPageSizeLabel(data, limit),
-		Summary:      pageSizeChevron(),
-		ListClass:    "list-page-size-options bg-base-100 rounded-box shadow-lg",
-		Items:        listPageSizeItems(data, limit, sizes),
-	})
+	<details class="dropdown list-menu list-page-size">
+		<summary class="btn m-1 btn btn-sm list-page-size-trigger" aria-label={ data.T("clients.page_size") + ": " + ListPageSizeLabel(data, limit) }>
+			{ ListPageSizeLabel(data, limit) + " " }
+			@pageSizeChevron()
+		</summary>{ " " }
+		<ul class="menu dropdown-content list-page-size-options bg-base-100 rounded-box shadow-lg">
+			for _, size := range sizes {
+				<li><a { actionattrs.From(listPageSizeAttrs(data, limit, size))... } class="border border-base-300">{ ListPageSizeLabel(data, size) }</a></li>
+			}
+		</ul>
+	</details>
 }
 
 // pageSizeChevron marks the trigger as a menu.

@@ -390,10 +390,13 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/intake", "internal/httpapi/intake.go", "internal/httpapi/intake_test.go",
 		"internal/web/intake.go", "internal/web/intake.templ", "internal/web/intake_templ.go", "internal/web/intake_test.go",
 		"internal/web/public_intake.go", "internal/web/public_intake.templ", "internal/web/public_intake_templ.go",
-		"internal/platform/database/migrations/000042_public_intake.sql",
+		"internal/platform/database/migrations/000042_public_intake.sql", "internal/platform/database/migrations/000055_public_intake_encrypted_token.sql",
+		"internal/web/clients_intake_menu_test.go",
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
 		"internal/engagement/list.go", "internal/engagement/list_test.go", "internal/engagement/dashboard.go",
 		"internal/web/engagement_dashboard_test.go",
+		"internal/web/engagement_notes.go", "internal/web/engagement_notes_test.go",
+		"internal/web/engagement_new.go", "internal/web/engagement_new.templ", "internal/web/engagement_new_templ.go", "internal/web/engagement_new_search_test.go",
 		"internal/web/engagement_list.go", "internal/web/engagement_list.templ", "internal/web/engagement_list_templ.go",
 		"internal/web/engagement_board.go", "internal/web/engagement_board.templ", "internal/web/engagement_board_templ.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",
@@ -427,7 +430,7 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, table := range []string{"client_events", "client_timeline_entries"} {
+		for _, table := range []string{"client_events", "client_timeline_entries", "public_intake_links"} {
 			if strings.Contains(string(content), table) {
 				t.Errorf("generated application without Clients keeps %s in %s", table, filepath.Base(migration))
 			}

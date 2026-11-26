@@ -10,22 +10,20 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
-func (h *Handler) accountPage(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.session(writer, request)
+func (h *Handler) accountPage(request *http.Request) authPageOutput {
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	data, ok := h.accountData(request, session.UserID, csrf)
 	if !ok {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	data.CurrentAuthMethod = session.AuthMethod
 	data.Saved = request.URL.Query().Get("saved") == "1"
-	h.render(writer, http.StatusOK, "account-page", data)
+	return authPageOutput{kind: authPageAccount, status: http.StatusOK, data: data}
 }
 
 func (h *Handler) accountData(request *http.Request, userID identity.UserID, csrf string) (viewmodel.PageData, bool) {
@@ -44,18 +42,16 @@ func (h *Handler) accountData(request *http.Request, userID identity.UserID, csr
 	}, true
 }
 
-func (h *Handler) accountProfileMutation(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) accountProfileMutation(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, csrf, ok := h.session(writer, request)
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return authPageOutput{status: http.StatusForbidden}
 	}
 	err := h.identity.UpdateUserProfile(request.Context(), session.UserID, identity.ProfileUpdateInput{
 		DisplayName: request.FormValue("display_name"), Locale: request.FormValue("locale"),
@@ -64,122 +60,101 @@ func (h *Handler) accountProfileMutation(writer http.ResponseWriter, request *ht
 	if err != nil {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.Error = "The account settings are invalid."
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
-	h.setCookie(writer, themeCookie, strings.TrimSpace(request.FormValue("theme")), time.Now().Add(themeCookieTTL), true)
-	h.redirect(writer, request, "/account?saved=1")
+	return authPageOutput{kind: authPageThemeChanged, theme: strings.TrimSpace(request.FormValue("theme")), target: "/account?saved=1"}
 }
 
-func (h *Handler) accountNotificationMutation(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.validCSRFSessionWithCSRF(writer, request)
-	if !ok {
-		return
+func (h *Handler) accountNotificationMutation(request *http.Request) authPageOutput {
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
+	csrf := cookieValue(request, "csrf")
 	if err := h.identity.SetNotificationPreference(request.Context(), session.UserID,
 		request.FormValue("notification_type"), request.FormValue("enabled") == "true", auditContext(request)); err != nil {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.Error = "The notification preference is invalid."
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
-	h.redirect(writer, request, "/account?saved=1")
+	return authPageOutput{kind: authPageRedirect, target: "/account?saved=1"}
 }
 
-func (h *Handler) accountPasswordMutation(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) accountPasswordMutation(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, csrf, ok := h.session(writer, request)
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return authPageOutput{status: http.StatusForbidden}
 	}
 	if request.FormValue("new_password") != request.FormValue("password_confirmation") {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.password_mismatch"
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
 	if err := h.identity.ChangePassword(request.Context(), session.UserID,
 		request.FormValue("current_password"), request.FormValue("new_password"), auditContext(request)); err != nil {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.password_invalid"
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
 	if enrolled, err := h.identity.MFAEnrolled(request.Context(), session.UserID); err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	} else if enrolled {
 		challenge, err := h.identity.BeginMFALogin(request.Context(), session.UserID, auditContext(request))
 		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
-		h.setMFAChallengeCookies(writer, challenge, "/account?saved=1")
-		h.redirect(writer, request, "/mfa")
-		return
+		return authPageOutput{kind: authPageMFALogin, challenge: challenge, target: "/account?saved=1"}
 	}
 	newSession, err := h.identity.CreateSession(request.Context(), session.UserID, "local", "", 0, auditContext(request))
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.setCookie(writer, "session", newSession.Secret, newSession.ExpiresAt, true)
-	h.setCookie(writer, "csrf", newSession.CSRFSecret, newSession.ExpiresAt, true)
-	h.redirect(writer, request, "/account?saved=1")
+	return authPageOutput{kind: authPageAccountSession, session: newSession}
 }
 
-func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) accountDeleteMutation(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, ok := h.validCSRFSession(writer, request)
-	if !ok {
-		return
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
 	if request.FormValue("confirm_delete") != "yes" {
 		data, loaded := h.accountData(request, session.UserID, cookieValue(request, "csrf"))
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		data.ErrorKey = "account.delete_confirmation_required"
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
 	err := h.identity.DeleteAccount(request.Context(), session.UserID, request.FormValue("password"), auditContext(request))
 	if err != nil {
 		data, loaded := h.accountData(request, session.UserID, cookieValue(request, "csrf"))
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.CurrentAuthMethod = session.AuthMethod
 		if errors.Is(err, identity.ErrOwnedWorkspace) {
@@ -187,38 +162,32 @@ func (h *Handler) accountDeleteMutation(writer http.ResponseWriter, request *htt
 		} else {
 			data.ErrorKey = "account.delete_password_required"
 		}
-		h.render(writer, http.StatusUnprocessableEntity, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusUnprocessableEntity, data: data}
 	}
-	h.clearCookie(writer, "session")
-	h.clearCookie(writer, "csrf")
-	h.redirect(writer, request, "/login")
+	return authPageOutput{kind: authPageAccountDeleted}
 }
 
-func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.validCSRFSessionWithCSRF(writer, request)
-	if !ok {
-		return
+func (h *Handler) emailVerificationMutation(request *http.Request) authPageOutput {
+	session, status := h.checkCSRFSession(request)
+	if status != http.StatusOK {
+		return authSessionFailure(status)
 	}
+	csrf := cookieValue(request, "csrf")
 	verification, err := h.identity.BeginEmailVerification(request.Context(), session.UserID, auditContext(request))
 	if errors.Is(err, identity.ErrEmailAlreadyVerified) {
-		h.redirect(writer, request, "/account?saved=1")
-		return
+		return authPageOutput{kind: authPageRedirect, target: "/account?saved=1"}
 	}
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	link := accountURL(h.publicURL, "/account/verify-email/", verification.Secret)
 	if !appmail.Enabled(h.mailer) {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.DeliveryWarning = "Email delivery is not configured."
-		h.render(writer, http.StatusServiceUnavailable, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusServiceUnavailable, data: data}
 	}
 	locale := h.accountLocale(request, session.UserID)
 	if err := h.mailer.Send(request.Context(), verification.Email,
@@ -226,99 +195,79 @@ func (h *Handler) emailVerificationMutation(writer http.ResponseWriter, request 
 		h.catalog.Translate(locale, "email.verification_body", map[string]any{"link": link})); err != nil {
 		data, loaded := h.accountData(request, session.UserID, csrf)
 		if !loaded {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
 		data.DeliveryWarning = "Verification email could not be delivered. Try again later."
-		h.render(writer, http.StatusServiceUnavailable, "account-page", data)
-		return
+		return authPageOutput{kind: authPageAccount, status: http.StatusServiceUnavailable, data: data}
 	}
-	h.redirect(writer, request, "/account?saved=1")
+	return authPageOutput{kind: authPageRedirect, target: "/account?saved=1"}
 }
 
-func (h *Handler) emailVerification(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) emailVerification(request *http.Request) authPageOutput {
 	err := h.identity.VerifyEmail(request.Context(), request.PathValue("secret"), auditContext(request))
 	data := viewmodel.PageData{Title: "Email verification"}
 	if err != nil {
 		data.Error = "The email verification link is invalid or expired."
-		h.render(writer, http.StatusUnprocessableEntity, "verification.html", data)
-		return
+		return authPageOutput{kind: authPageVerification, status: http.StatusUnprocessableEntity, data: data}
 	}
 	data.Saved = true
-	h.render(writer, http.StatusOK, "verification.html", data)
+	return authPageOutput{kind: authPageVerification, status: http.StatusOK, data: data}
 }
 
-func (h *Handler) passwordResetPage(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) passwordResetPage(request *http.Request) authPageOutput {
 	token, err := id.New()
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.setCookie(writer, "reset_csrf", token, time.Now().Add(10*time.Minute), true)
-	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Reset password", CSRF: token})
+	return resetPageOutput(http.StatusOK, viewmodel.PageData{Title: "Reset password", CSRF: token}, resetCookieRefresh)
 }
 
-func (h *Handler) passwordResetRequest(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) passwordResetRequest(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", viewmodel.PageData{Title: "Reset password", ErrorKey: "account.password_reset_form_expired"})
-		return
+		return resetPageOutput(http.StatusForbidden, viewmodel.PageData{Title: "Reset password", ErrorKey: "account.password_reset_form_expired"}, resetCookieUnchanged)
 	}
 	reset, err := h.identity.BeginPasswordReset(request.Context(), request.FormValue("email"), auditContext(request))
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	if reset.Secret != "" && appmail.Enabled(h.mailer) {
 		link := accountURL(h.publicURL, "/password-reset/", reset.Secret)
-		locale := h.pageLocale(writer, viewmodel.PageData{})
+		locale := h.resolvePageLocale(request.Context(), viewmodel.PageData{})
 		_ = h.mailer.Send(request.Context(), reset.Email,
 			h.catalog.Translate(locale, "email.password_reset_subject", nil),
 			h.catalog.Translate(locale, "email.password_reset_body", map[string]any{"link": link}))
 	}
-	h.clearCookie(writer, "reset_csrf")
-	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Reset password", Saved: true})
+	return resetPageOutput(http.StatusOK, viewmodel.PageData{Title: "Reset password", Saved: true}, resetCookieClear)
 }
 
-func (h *Handler) passwordResetTokenPage(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) passwordResetTokenPage(request *http.Request) authPageOutput {
 	token, err := id.New()
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	h.setCookie(writer, "reset_csrf", token, time.Now().Add(10*time.Minute), true)
-	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{
-		Title: "Choose a new password", CSRF: token, PasswordResetSecret: request.PathValue("secret"),
-	})
+	return resetPageOutput(http.StatusOK, viewmodel.PageData{Title: "Choose a new password", CSRF: token, PasswordResetSecret: request.PathValue("secret")}, resetCookieRefresh)
 }
 
-func (h *Handler) passwordResetComplete(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) passwordResetComplete(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil || !validResetCSRF(request) {
-		h.render(writer, http.StatusForbidden, "password-reset.html", viewmodel.PageData{Title: "Choose a new password", ErrorKey: "account.password_reset_form_expired"})
-		return
+		return resetPageOutput(http.StatusForbidden, viewmodel.PageData{Title: "Choose a new password", ErrorKey: "account.password_reset_form_expired"}, resetCookieUnchanged)
 	}
 	if request.FormValue("password") != request.FormValue("password_confirmation") {
-		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", viewmodel.PageData{
+		return resetPageOutput(http.StatusUnprocessableEntity, viewmodel.PageData{
 			Title: "Choose a new password", ErrorKey: "account.password_reset_mismatch",
 			CSRF: request.FormValue("csrf"), PasswordResetSecret: request.PathValue("secret"),
-		})
-		return
+		}, resetCookieUnchanged)
 	}
 	if err := h.identity.CompletePasswordReset(request.Context(), request.PathValue("secret"), request.FormValue("password"), auditContext(request)); err != nil {
 		csrf, tokenErr := id.New()
 		if tokenErr != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
+			return authPageOutput{status: http.StatusInternalServerError}
 		}
-		h.setCookie(writer, "reset_csrf", csrf, time.Now().Add(10*time.Minute), true)
-		h.render(writer, http.StatusUnprocessableEntity, "password-reset.html", viewmodel.PageData{
+		return resetPageOutput(http.StatusUnprocessableEntity, viewmodel.PageData{
 			Title: "Reset password", ErrorKey: "account.password_reset_invalid", CSRF: csrf,
-		})
-		return
+		}, resetCookieRefresh)
 	}
-	h.clearCookie(writer, "reset_csrf")
-	h.clearCookie(writer, "session")
-	h.clearCookie(writer, "csrf")
-	h.render(writer, http.StatusOK, "password-reset.html", viewmodel.PageData{Title: "Password reset", Saved: true, PasswordResetCompleted: true})
+	return resetPageOutput(http.StatusOK, viewmodel.PageData{Title: "Password reset", Saved: true, PasswordResetCompleted: true}, resetCookieClearSession)
 }
 
 func (h *Handler) validCSRFSessionWithCSRF(writer http.ResponseWriter, request *http.Request) (identity.Session, string, bool) {

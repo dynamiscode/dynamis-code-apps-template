@@ -20,11 +20,15 @@ type localeState struct {
 	cookieTheme    string
 	userName       string
 	userEmail      string
+	returnPath     string
 }
 
 type localeWriter struct {
 	http.ResponseWriter
-	context context.Context
+	context             context.Context
+	engagementWorkspace identity.WorkspaceID
+	engagementLabel     string
+	engagementLoaded    bool
 }
 
 func (w *localeWriter) Flush() {
@@ -46,7 +50,7 @@ func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 			userLocale: userLocale, cookieLocale: cookieValue(request, "locale"),
 			acceptLanguage: request.Header.Get("Accept-Language"),
 			userTheme:      userTheme, cookieTheme: cookieValue(request, themeCookie),
-			userName: userName, userEmail: userEmail,
+			userName: userName, userEmail: userEmail, returnPath: request.URL.Path,
 		}))
 		next.ServeHTTP(&localeWriter{ResponseWriter: writer, context: request.Context()}, request)
 	})
@@ -54,11 +58,19 @@ func (h *Handler) localeMiddleware(next http.Handler) http.Handler {
 
 func (h *Handler) pageLocale(writer http.ResponseWriter, data viewmodel.PageData) i18n.Locale {
 	state, _ := writer.(*localeWriter)
-	userLocale, cookieLocale, acceptLanguage := "", "", ""
+	ctx := context.Background()
 	if state != nil {
-		if values, ok := state.context.Value(localeContextKey{}).(localeState); ok {
-			userLocale, cookieLocale, acceptLanguage = values.userLocale, values.cookieLocale, values.acceptLanguage
-		}
+		ctx = state.context
+	}
+	locale := h.resolvePageLocale(ctx, data)
+	writer.Header().Set("Content-Language", string(locale))
+	return locale
+}
+
+func (h *Handler) resolvePageLocale(ctx context.Context, data viewmodel.PageData) i18n.Locale {
+	userLocale, cookieLocale, acceptLanguage := "", "", ""
+	if values, ok := ctx.Value(localeContextKey{}).(localeState); ok {
+		userLocale, cookieLocale, acceptLanguage = values.userLocale, values.cookieLocale, values.acceptLanguage
 	}
 	workspaceLocale := data.Workspace.Locale
 	if workspaceLocale == "" {
@@ -67,9 +79,7 @@ func (h *Handler) pageLocale(writer http.ResponseWriter, data viewmodel.PageData
 	if data.Invitation.ID != 0 {
 		userLocale = ""
 	}
-	locale := h.catalog.Resolve(userLocale, cookieLocale, workspaceLocale, acceptLanguage)
-	writer.Header().Set("Content-Language", string(locale))
-	return locale
+	return h.catalog.Resolve(userLocale, cookieLocale, workspaceLocale, acceptLanguage)
 }
 
 func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageData) {
@@ -77,6 +87,19 @@ func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageD
 	data.Locale = string(locale)
 	data.Theme = h.pageTheme(writer)
 	data.Catalog = h.catalog
+	data.CatalogEnabled = h.catalogService != nil
+	data.EngagementEnabled = h.engagement != nil
+	if state, ok := writer.(*localeWriter); ok {
+		if state.engagementLoaded && state.engagementWorkspace == data.Workspace.ID {
+			data.EngagementLabel = state.engagementLabel
+		}
+		if values, ok := state.context.Value(localeContextKey{}).(localeState); ok {
+			data.ReturnPath = values.returnPath
+			if data.Profile.Email == "" && values.userEmail != "" {
+				data.Profile = identity.UserProfile{DisplayName: values.userName, Email: values.userEmail}
+			}
+		}
+	}
 	data.Title = localizedLegacy(h.catalog, locale, data.Title)
 	data.Error = localizedLegacy(h.catalog, locale, data.Error)
 	data.MFAError = localizedLegacy(h.catalog, locale, data.MFAError)
@@ -162,19 +185,18 @@ func (h *Handler) language(writer http.ResponseWriter, request *http.Request) {
 	h.redirect(writer, request, safeReturnTo(request.URL.Query().Get("return_to")))
 }
 
-func (h *Handler) languageSettingsPage(writer http.ResponseWriter, request *http.Request) {
-	session, csrf, ok := h.session(writer, request)
+func (h *Handler) languageSettingsPage(request *http.Request) authPageOutput {
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	locale, err := h.identity.GetUserLocale(request.Context(), session.UserID)
 	if err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	data := h.languageSettingsData(request, session.UserID, csrf, locale)
 	data.Saved = request.URL.Query().Get("saved") == "1"
-	h.render(writer, http.StatusOK, "language-page", data)
+	return authPageOutput{kind: authPageLanguage, status: http.StatusOK, data: data}
 }
 
 func (h *Handler) languageSettingsData(request *http.Request, userID identity.UserID, csrf, locale string) viewmodel.PageData {
@@ -184,42 +206,37 @@ func (h *Handler) languageSettingsData(request *http.Request, userID identity.Us
 	}
 }
 
-func (h *Handler) languageSettings(writer http.ResponseWriter, request *http.Request) {
+func (h *Handler) languageSettings(request *http.Request) authPageOutput {
 	if err := request.ParseForm(); err != nil {
-		h.renderError(writer, http.StatusBadRequest)
-		return
+		return authPageOutput{status: http.StatusBadRequest}
 	}
-	session, csrf, ok := h.session(writer, request)
+	session, csrf, ok := h.checkSession(request)
 	if !ok {
-		return
+		return authSessionFailure(http.StatusSeeOther)
 	}
 	if !h.identity.VerifyCSRF(request.Context(), session.ID, request.FormValue("csrf")) {
-		h.renderError(writer, http.StatusForbidden)
-		return
+		return authPageOutput{status: http.StatusForbidden}
 	}
 	locale := strings.TrimSpace(request.FormValue("locale"))
 	if locale != "" {
 		if _, ok := i18n.ParseLocale(locale); !ok {
 			profile, err := h.identity.GetUserProfile(request.Context(), session.UserID)
 			if err != nil {
-				h.renderError(writer, http.StatusInternalServerError)
-				return
+				return authPageOutput{status: http.StatusInternalServerError}
 			}
 			data := h.languageSettingsData(request, session.UserID, csrf, profile.Locale)
 			data.Theme = profile.Theme
 			data.Error = "The selected language is invalid."
-			h.render(writer, http.StatusUnprocessableEntity, "language-page", data)
-			return
+			return authPageOutput{kind: authPageLanguage, status: http.StatusUnprocessableEntity, data: data}
 		}
 	}
 	if err := h.identity.SetUserLocale(request.Context(), session.UserID, locale, auditContext(request)); err != nil {
-		h.renderError(writer, http.StatusInternalServerError)
-		return
+		return authPageOutput{status: http.StatusInternalServerError}
 	}
 	if locale == "" {
-		h.clearCookie(writer, "locale")
+		return authPageOutput{kind: authPageLocaleCleared}
 	}
-	h.redirect(writer, request, "/settings/language?saved=1")
+	return authPageOutput{kind: authPageRedirect, target: "/settings/language?saved=1"}
 }
 
 func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.Request) {

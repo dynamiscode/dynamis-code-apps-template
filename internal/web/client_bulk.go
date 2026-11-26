@@ -46,6 +46,10 @@ func (h *Handler) bulkClients(writer http.ResponseWriter, request *http.Request)
 		h.redirect(writer, request, back)
 		return
 	}
+	if request.FormValue("action") == "delete" && request.FormValue("confirm_delete") != "yes" {
+		h.renderClientDeleteConfirmation(writer, request, ids, back, true)
+		return
+	}
 	audit := auditContext(request)
 	var err error
 	switch request.FormValue("action") {

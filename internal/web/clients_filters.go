@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const clientArchiveFilter = "archiveStatus"
+
 // clientQueryFromValues parses a Clients list query. choices holds the options of each choice field.
 func clientQueryFromValues(query url.Values, fields []clients.Field, choices map[string][]listFilterChoice) (viewmodel.ClientQueryForm, bool) {
 	form := viewmodel.ClientQueryForm{
@@ -49,16 +51,17 @@ func clientQueryFromValues(query url.Values, fields []clients.Field, choices map
 		return form, false
 	}
 	form.Match = input.Match
-	form.Filters = toClientFilterInputs(input.Filters)
-	return form, true
-}
-
-func toClientFilterInputs(filters []viewmodel.ListFilter) []clients.FilterInput {
-	out := make([]clients.FilterInput, 0, len(filters))
-	for _, filter := range filters {
-		out = append(out, clients.FilterInput{Field: filter.Field, Op: filter.Op, Value: filter.Value})
+	for _, filter := range input.Filters {
+		if filter.Field == clientArchiveFilter {
+			if form.Archived != "" || (filter.Value != "active" && filter.Value != "archived" && filter.Value != "all") {
+				return form, false
+			}
+			form.Archived = filter.Value
+		} else {
+			form.Filters = append(form.Filters, clients.FilterInput{Field: filter.Field, Op: filter.Op, Value: filter.Value})
+		}
 	}
-	return out
+	return form, true
 }
 
 // clientListFilterFields describes the Clients fields for the shared filter model: the built-in fields,
@@ -72,7 +75,16 @@ func clientListFilterFields(fields []clients.Field, choices map[string][]listFil
 		{clients.FieldCreatedAt, "clients.created_at", "date"},
 		{clients.FieldUpdatedAt, "clients.updated_at", "date"},
 	}
-	out := make([]listFilterField, 0, len(builtins)+len(fields))
+	out := make([]listFilterField, 0, len(builtins)+len(fields)+1)
+	out = append(out, listFilterField{
+		Key: clientArchiveFilter, LabelKey: "clients.archived_legend",
+		Ops: []listFilterOp{{Key: "equals", LabelKey: "clients.op_equals"}},
+		Choices: []listFilterChoice{
+			{Value: "active", LabelKey: "catalog.active"},
+			{Value: "archived", LabelKey: "catalog.archived"},
+			{Value: "all", LabelKey: "ui.all"},
+		},
+	})
 	for _, builtin := range builtins {
 		out = append(out, listFilterField{
 			Key: builtin.key, LabelKey: builtin.labelKey, Ops: clientListOps(builtin.key, fields), InputType: builtin.kind,

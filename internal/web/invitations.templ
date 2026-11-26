@@ -14,7 +14,7 @@ import (
 )
 
 templ invitationManagementView(data viewmodel.PageData) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.SettingsSidebar(data)) {
+	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			@molecules.PageHeading(data.Workspace.Name + " · " + data.T("invitations.invitations"), data.T("navigation.settings"))
 			@organisms.PeopleTabs(data)
@@ -23,13 +23,13 @@ templ invitationManagementView(data viewmodel.PageData) {
 			}
 			if data.InvitationURL != "" {
 				<p role="status">{ data.T("invitations.copy_link") }</p>
-				@atoms.Input(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
+				@atoms.PlainInput(atoms.InputProps{Value: data.InvitationURL, Attrs: templ.Attributes{"readonly": true, "aria-label": data.T("invitations.copy_link")}})
 			}
 			<section class="settings-panel card min-w-0 p-5" aria-labelledby="invitation-create-title">
 				<h2 id="invitation-create-title">{ data.T("invitations.create") }</h2>
 				<form action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post" data-persist="invitation-create">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:        "invite-email",
 						Label:     data.T("common.email"),
 						Name:      "email",
@@ -49,7 +49,7 @@ templ invitationManagementView(data viewmodel.PageData) {
 						},
 					})
 					<p class="status-line">{ data.T("members.role_help") }</p>
-					@atoms.Input(atoms.InputProps{
+					@atoms.PlainInput(atoms.InputProps{
 						ID:    "invite-life",
 						Label: data.T("invitations.lifetime") + " " + data.T("ui.optional"),
 						Name:  "lifetime",
@@ -79,14 +79,14 @@ templ invitationManagementView(data viewmodel.PageData) {
 										if invitation.Status(time.Now()) == identity.InvitationPending || invitation.Status(time.Now()) == identity.InvitationExpired {
 											<form class="inline" action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post">
 												<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="invitation_id" value={ invitation.ID.String() }/>
-												@atoms.Button(atoms.ButtonProps{Label: data.T("invitations.resend"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "resend"}})
+												@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("invitations.resend"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "resend"}})
 											</form>
 										}
 										if invitation.Status(time.Now()) == identity.InvitationPending {
 											<form class="inline" data-webmcp-actions="invitation-revoke" data-webmcp-id={ invitation.ID.String() } action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/invitations" } method="post">
 												<input type="hidden" name="csrf" value={ data.CSRF }/><input type="hidden" name="invitation_id" value={ invitation.ID.String() }/>
 												@molecules.ConfirmationField("revoke-" + invitation.ID.String(), "confirm_revoke", data.T("invitations.revoke_confirm"))
-												@molecules.SubmitButton(data.T("invitations.revoke"), templ.Attributes{"name": "action", "value": "revoke"})
+												@atoms.Button(atoms.ButtonProps{Class: "btn-outline btn-error", Label: data.T("invitations.revoke"), Attrs: templ.Attributes{"type": "submit", "name": "action", "value": "revoke"}})
 											</form>
 										}
 									</td>
@@ -121,14 +121,14 @@ templ invitationView(data viewmodel.PageData) {
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@molecules.SubmitButton(data.T("invitations.sign_in_accept"), nil)
 				</form>
-				<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
+				<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-outline" type="submit">{ data.T("navigation.sign_out") }</button></form>
 			} else {
 				<section aria-labelledby="invite-account-title">
 					<h2 id="invite-account-title">{ data.T("invitations.new_account") }</h2>
 					<p>{ data.T("invitations.existing_account_help") }</p>
 					<form action={ "/invitations/" + data.InvitationSecret } method="post">
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Input(atoms.InputProps{
+						@atoms.PlainInput(atoms.InputProps{
 							ID:        "invite-password",
 							Label:     data.T("common.password"),
 							Name:      "password",
@@ -151,7 +151,7 @@ templ invitationView(data viewmodel.PageData) {
 			if data.ErrorKey == "invitations.unavailable" {
 				<p>{ data.T("invitations.unavailable_help") }</p>
 			}
-			<p><a href="/">{ data.T("navigation.home") }</a></p>
+			<p><a class="btn btn-outline btn-sm" href="/">{ data.T("navigation.home") }</a></p>
 		}
 	}
 }
@@ -170,10 +170,10 @@ templ invitationContinueView(data viewmodel.PageData) {
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
 				@molecules.SubmitButton(data.T("invitations.accept"), nil)
 			</form>
-			<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn" type="submit">{ data.T("navigation.sign_out") }</button></form>
+			<form action="/logout" method="post"><input type="hidden" name="csrf" value={ data.CSRF }/><button class="btn btn-outline" type="submit">{ data.T("navigation.sign_out") }</button></form>
 		} else {
 			<p>{ data.T("invitations.unavailable_help") }</p>
-			<p><a href="/">{ data.T("navigation.home") }</a></p>
+			<p><a class="btn btn-outline btn-sm" href="/">{ data.T("navigation.home") }</a></p>
 		}
 	}
 }

@@ -57,12 +57,11 @@ func TestSearchKeepsAConditionAddedFromTheMenu(t *testing.T) {
 	}
 }
 
-// TestLiveResultsRefreshTheControlsThatCarryTheSearch checks that the results fragment also swaps the filter bar
-// and the archived selector, which hold the search in their links, and that the full page does not.
+// TestLiveResultsRefreshTheControlsThatCarryTheSearch checks the filter controls retain the search.
 func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 	env := newClientsTestEnv(t)
 	fragment := request(env.routes, http.MethodGet, env.listPath()+"?part=results&q=ix", nil, env.cookies, map[string]string{"HX-Request": "true"}).Body.String()
-	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`, `<div id="client-list-scope" hx-swap-oob="true">`, `archived=archived&amp;q=ix`} {
+	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`, `<div id="list-filter-add" hx-swap-oob="true">`, `filter_field=archiveStatus&amp;q=ix`} {
 		if !strings.Contains(fragment, marker) {
 			t.Fatalf("results fragment lacks out-of-band %s", marker)
 		}
@@ -73,13 +72,13 @@ func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 	}
 }
 
-func TestClientScopeSwapPreservesSearchAndFullPageFallback(t *testing.T) {
+func TestClientFilterSwapPreservesSearchAndFullPageFallback(t *testing.T) {
 	env := newClientsTestEnv(t)
-	path := env.listPath() + "?archived=archived&q=Ada"
+	path := env.listPath() + "?filter=archiveStatus:equals:archived&q=Ada"
 	fragment := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
 	body := fragment.Body.String()
-	if fragment.Code != http.StatusOK || !strings.HasPrefix(body, `<section id="client-list"`) || !strings.Contains(body, `hx-target="#client-list"`) || !strings.Contains(body, `?q=Ada`) || strings.Contains(body, "<!doctype") {
-		t.Fatal("client scope fragment must preserve search and target the list")
+	if fragment.Code != http.StatusOK || !strings.HasPrefix(body, `<section id="client-list"`) || !strings.Contains(body, `q=Ada`) || !strings.Contains(body, `archiveStatus`) || strings.Contains(body, "<!doctype") {
+		t.Fatal("client filter fragment must preserve search and archive status")
 	}
 	full := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
 	if !strings.Contains(full.Body.String(), "<!doctype html>") {
@@ -161,8 +160,7 @@ func TestClientCardsCarryTheRowActions(t *testing.T) {
 	}
 }
 
-// TestArchivedClientsListOffersRestoreNotArchive checks the archived view: the toolbar opens it, and its rows
-// offer restore, not archive.
+// TestArchivedClientsListOffersRestoreNotArchive checks archived rows offer restore, not archive.
 func TestArchivedClientsListOffersRestoreNotArchive(t *testing.T) {
 	env := newClientsTestEnv(t)
 	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada"}}, env.cookies, nil)
@@ -175,11 +173,46 @@ func TestArchivedClientsListOffersRestoreNotArchive(t *testing.T) {
 		t.Fatalf("archive = %d", archive.Code)
 	}
 	active := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(active, `>Archived</a>`) || strings.Contains(active, location+"/unarchive") {
-		t.Fatalf("active list must link to archived clients and hide archived rows")
+	if !strings.Contains(active, `filter_field=archiveStatus`) || strings.Contains(active, location+"/unarchive") {
+		t.Fatalf("active list must offer archive filtering and hide archived rows")
 	}
-	archived := request(env.routes, http.MethodGet, env.listPath()+"?all=1&archived=archived", nil, env.cookies, nil).Body.String()
-	if !strings.Contains(archived, location+"/unarchive") || strings.Contains(archived, location+"/archive\"") || !strings.Contains(archived, `>Active</a>`) {
+	archived := request(env.routes, http.MethodGet, env.listPath()+"?all=1&filter=archiveStatus:equals:archived", nil, env.cookies, nil).Body.String()
+	if !strings.Contains(archived, location+"/unarchive") || strings.Contains(archived, location+"/archive\"") || !strings.Contains(archived, "list-filter-chip-remove") {
 		t.Fatalf("archived list must offer restore and a way back")
+	}
+}
+
+func TestClientArchiveFilterPreservesQuery(t *testing.T) {
+	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada Active")
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada Archived"}}, env.cookies, nil)
+	result := request(env.routes, http.MethodPost, created.Header().Get("Location")+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if result.Code != http.StatusSeeOther {
+		t.Fatalf("archive = %d", result.Code)
+	}
+	query := "?q=Ada&sort=displayName&order=asc&filter=archiveStatus:equals:archived&filter=displayName:contains:Ada"
+	page := request(env.routes, http.MethodGet, env.listPath()+query, nil, env.cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, "Ada Archived") || strings.Contains(body, "Ada Active") || !strings.Contains(body, "archiveStatus:equals:archived") || !strings.Contains(body, "displayName:contains:Ada") || !strings.Contains(body, `name="sort" value="displayName"`) {
+		t.Fatalf("archive filter lost rows or query: %d %s", page.Code, body)
+	}
+}
+
+func TestClientArchiveFilterAddStepAndValidation(t *testing.T) {
+	env := newClientsTestEnv(t)
+	step := request(env.routes, http.MethodGet, env.listPath()+"?filter_field=archiveStatus&q=Ada&sort=displayName", nil, env.cookies, nil)
+	for _, want := range []string{`name="filter_field" value="archiveStatus"`, `value="active"`, `value="archived"`, `name="q" value="Ada"`, `name="sort" value="displayName"`} {
+		if step.Code != http.StatusOK || !strings.Contains(step.Body.String(), want) {
+			t.Fatalf("archive filter add step missing %s: %d %s", want, step.Code, step.Body.String())
+		}
+	}
+	for _, query := range []string{
+		"?filter=archiveStatus:equals:bogus",
+		"?filter=archiveStatus:equals:active&filter=archiveStatus:equals:archived",
+		"?filter=archiveStatus:equals:active,archived",
+	} {
+		if response := request(env.routes, http.MethodGet, env.listPath()+query, nil, env.cookies, nil); response.Code != http.StatusBadRequest {
+			t.Fatalf("invalid archive filter %q = %d", query, response.Code)
+		}
 	}
 }

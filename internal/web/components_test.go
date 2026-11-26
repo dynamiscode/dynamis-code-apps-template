@@ -38,11 +38,15 @@ func TestSharedComponentsRenderAccessibleNativeControls(t *testing.T) {
 		{"button", molecules.SubmitButton("Save", templ.Attributes{"name": "action", "value": "save"}), nil, []string{`type="submit"`, `name="action"`, `value="save"`, `>Save</button>`}},
 		{"link button", molecules.LinkButton("/items", "Items"), nil, []string{`href="/items"`, `class="btn btn-primary"`, `Items </a>`}},
 		{"confirmation", molecules.ConfirmationField("confirm", "confirm", "I understand"), nil, []string{`for="confirm"`, `type="checkbox"`, `name="confirm"`, `required`, `I understand`}},
-		{"destructive action", molecules.ConfirmButton("Delete", "Delete this item?", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
+		{"destructive action", molecules.ConfirmButton("Delete", "Delete this item?", "", templ.Attributes{"name": "action", "value": "delete"}), nil, []string{`type="submit"`, `data-confirm="Delete this item?"`, `value="delete"`}},
 		{"error", molecules.ErrorAlert("Invalid <title>"), nil, []string{`role="alert"`, `tabindex="-1"`, `Invalid &lt;title&gt;`}},
 		{"status", molecules.StatusLine("Ready <now>", templ.Attributes{"aria-live": "polite", "id": "realtime-status"}), nil, []string{`<p class="status-line" role="status" aria-live="polite" id="realtime-status">Ready &lt;now&gt;</p>`}},
 		{"success", molecules.SuccessAlert("Saved"), link, []string{`role="status"`, `Saved <a href="/items">Open</a>`}},
 		{"table", organisms.DataTable("Items", true), child, []string{`<table`, `class="sr-only"`, `>Items</caption>`, `scope="col"`, `>Example</td>`}},
+		{"linked cell", organisms.ListLinkedCell("/items", templ.Attributes{"data-column": "name"}), templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+			_, err := io.WriteString(w, "Item")
+			return err
+		}), []string{`<td class="list-linked-cell" data-column="name"><a class="list-row-link" href="/items">Item</a></td>`}},
 		{"card", molecules.LinkedCard("/items", "Item <one>", "Open"), nil, []string{`href="/items"`, `Item &lt;one&gt;`, `>Open</span>`}},
 		{"responsive cards", molecules.ListCards(), link, []string{`<ul class="list-view-cards">`, `<a href="/items">Open</a>`}},
 		{"empty", molecules.EmptyState("No items"), link, []string{`<p>No items <a href="/items">Open</a>`}},

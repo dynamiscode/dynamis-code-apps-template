@@ -125,6 +125,14 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
+Migration 000055 adds nullable encrypted public intake tokens and key versions;
+existing hash-only links remain valid but cannot be retrieved until rotated.
+Configure and back up the encryption keyring before creating or rotating links.
+Retain old key versions to retrieve previously encrypted tokens. Older binaries
+can read the additive schema but do not maintain encrypted token fields, so do
+not use them to rotate or disable links. Restore a pre-upgrade backup to remove
+the schema, losing subsequent writes.
+
 With the Catalog profile, migration 000048 adds booking storage. Back up before
 upgrading; restore the backup to roll back the schema, losing changes made after
 that backup. Booking data is included in database backups, not workspace export.

@@ -2,6 +2,8 @@
 // https://daisyui.com/components/timeline
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type TimelineProps []TimelineProp
 
 type TimelineProp struct {
@@ -22,7 +24,7 @@ templ Timeline(props TimelineProps) {
 				}
 				if prop.Middle != nil {
 					<div class="timeline-middle">
-						@prop.Middle
+						@actionattrs.Scanned(prop.Middle)
 					</div>
 				}
 				if prop.End != "" {

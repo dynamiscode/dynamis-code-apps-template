@@ -379,7 +379,7 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 		},
 		restOK: http.StatusNoContent,
 		web: func(ws matrixWorkspace) matrixRequest {
-			return matrixRequest{method: http.MethodPost, path: webBase(ws) + "/clients/" + ws.client.String() + "/delete"}
+			return matrixRequest{method: http.MethodPost, path: webBase(ws) + "/clients/" + ws.client.String() + "/delete", form: url.Values{"confirm_delete": {"yes"}}}
 		},
 		webOK: http.StatusSeeOther,
 	},

@@ -2,6 +2,8 @@
 // https://daisyui.com/components/alert
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type AlertProps struct {
 	Class string
 	// Attrs render after the defaults, so role/id/tabindex can be overridden
@@ -29,7 +31,7 @@ func alertAttrs(attrs templ.Attributes) templ.Attributes {
 }
 
 templ Alert(props AlertProps) {
-	<div role={ alertRole(props.Attrs) } class={ "alert", props.Class } { alertAttrs(props.Attrs)... }>
+	<div role={ alertRole(props.Attrs) } class={ "alert", props.Class } { actionattrs.ScalarAttributes(alertAttrs(props.Attrs))... }>
 		{ children... }
 	</div>
 }

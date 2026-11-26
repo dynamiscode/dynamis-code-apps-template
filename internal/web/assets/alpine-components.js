@@ -1,6 +1,12 @@
 (() => {
 	"use strict";
 
+	function createAction(tag, classes) {
+		const action = document.createElement(tag);
+		action.className = classes;
+		return action;
+	}
+
 	const copyIntakeLink = async (field, clipboard, origin) => {
 		const url = new URL(field.value, origin).href;
 		try {
@@ -703,9 +709,8 @@
 			const item = document.createElement("p");
 			item.className = `toast alert py-2 ${kind === "error" ? "alert-error" : "alert-success"}`;
 			item.textContent = text;
-			const close = document.createElement("button");
+			const close = createAction("button", "btn btn-outline btn-xs");
 			close.type = "button";
-			close.className = "btn btn-ghost btn-xs";
 			close.textContent = msg("dismiss");
 			close.addEventListener("click", () => item.remove());
 			item.appendChild(close);
@@ -769,7 +774,7 @@
 			title.textContent = msg("error-summary");
 			const list = document.createElement("ul");
 			for (const el of invalid) {
-				const link = document.createElement("a");
+				const link = createAction("a", "rounded-field border border-base-300 px-1");
 				link.href = `#${idFor(el, "field")}`;
 				link.textContent = `${fieldLabel(el)}: ${el.validationMessage}`;
 				link.addEventListener("click", (event) => {
@@ -820,6 +825,8 @@
 			if (!initial.has(form)) return;
 			const dirty = isDirty(initial.get(form), entriesOf(form, true));
 			if (dirty || !dirtyOnLoad.has(form)) form.dataset.dirty = dirty ? "true" : "";
+			const status = form.querySelector("[data-dirty-status]");
+			if (status) status.hidden = form.dataset.dirty !== "true";
 			if (form.dataset.submitting === "true") return;
 			for (const button of form.querySelectorAll("[data-requires-change]")) button.disabled = !dirty;
 		}
@@ -864,9 +871,8 @@
 			note.className = "draft-notice alert alert-info py-2 text-sm";
 			note.setAttribute("role", "status");
 			note.textContent = `${msg("draft-restored")} `;
-			const discard = document.createElement("button");
+			const discard = createAction("button", "btn btn-outline btn-xs");
 			discard.type = "button";
-			discard.className = "btn btn-ghost btn-xs";
 			discard.textContent = msg("discard-draft");
 			discard.addEventListener("click", () => {
 				storage?.removeItem(draftKey(form));
@@ -888,9 +894,8 @@
 		function enhancePassword(el) {
 			if (el.dataset.enhanced) return;
 			el.dataset.enhanced = "true";
-			const toggle = document.createElement("button");
+			const toggle = createAction("button", "btn btn-outline btn-xs reveal");
 			toggle.type = "button";
-			toggle.className = "btn btn-ghost btn-xs reveal";
 			toggle.setAttribute("aria-controls", idFor(el, "password"));
 			toggle.setAttribute("aria-pressed", "false");
 			toggle.setAttribute("aria-label", msg("show-password"));
@@ -957,8 +962,8 @@
 			const status = document.createElement("p");
 			status.className = "wizard-status text-base-content/60 font-bold";
 			status.setAttribute("aria-live", "polite");
-			const back = Object.assign(document.createElement("button"), { type: "button", className: "btn btn-ghost btn-sm", textContent: msg("back") });
-			const next = Object.assign(document.createElement("button"), { type: "button", textContent: msg("next") });
+			const back = Object.assign(createAction("button", "btn btn-outline btn-sm"), { type: "button", textContent: msg("back") });
+			const next = Object.assign(createAction("button", "btn btn-primary btn-sm"), { type: "button", textContent: msg("next") });
 			nav.append(back, next);
 			form.insertBefore(status, steps[0]);
 			submit.insertAdjacentElement("beforebegin", nav);
@@ -1030,9 +1035,8 @@
 				const status = box.querySelector('[role="status"]');
 				if (status) status.textContent = msg("load-failed");
 				if (box.querySelector(".lazy-retry")) return;
-				const retry = document.createElement("button");
+				const retry = createAction("button", "btn btn-outline btn-xs lazy-retry");
 				retry.type = "button";
-				retry.className = "btn btn-ghost btn-xs lazy-retry";
 				retry.textContent = msg("retry");
 				retry.addEventListener("click", () => {
 					retry.remove();
@@ -1056,7 +1060,7 @@
 						dirtyOnLoad.add(form);
 						form.dataset.dirty = "true";
 					}
-					else updateDirty(form);
+					updateDirty(form);
 				}
 				if (form.dataset.persist) applyDraft(form, announce);
 				if (form.matches("[data-wizard]")) enhanceWizard(form);
@@ -1215,6 +1219,12 @@
 		document.addEventListener("htmx:after:swap", (event) => {
 			enhance(document, false);
 			wireCatalogDialog(document);
+			wireClientDialog(document);
+			wireEngagementDialog(document);
+			wireDetailDialogs(document);
+			wireDetailSplit(document);
+			wireInlineTitles(document);
+			wireConfirmSelects(document);
 			const alert = document.querySelector('[role="alert"].error');
 			const again = focusedId && document.getElementById(focusedId);
 			if (alert) {
@@ -1222,6 +1232,8 @@
 				alert.focus();
 			} else if (again) {
 				again.focus();
+			} else if (event.detail?.ctx?.target?.id === "engagement-client-results" && (focusedId === "engagement-client-prev" || focusedId === "engagement-client-next")) {
+				document.getElementById("client-search")?.focus();
 			}
 		});
 		document.addEventListener("app:toast", (event) => toast(event.detail?.value));
@@ -1408,6 +1420,105 @@
 		}
 	};
 
+	const wireDetailSplit = (root) => {
+		for (const split of root.querySelectorAll("[data-detail-split]")) {
+			const divider = split.querySelector("[data-detail-divider]");
+			const range = split.querySelector("[data-detail-range]");
+			if (!divider || split.dataset.detailSplitWired) continue;
+			split.dataset.detailSplitWired = "true";
+			let sidebar = 384;
+			let drag = null;
+			const controls = [divider];
+			const desktop = window.matchMedia("(min-width: 1024px)");
+			const stopDrag = () => {
+				if (!drag) return;
+				const pointerId = drag.id;
+				drag = null;
+				if (divider.hasPointerCapture(pointerId)) divider.releasePointerCapture(pointerId);
+			};
+			const update = () => {
+				const width = Math.floor(split.clientWidth);
+				const active = desktop.matches && width >= 616;
+				for (const control of controls) control.hidden = !active;
+				divider.tabIndex = active ? 0 : -1;
+				if (!active) {
+					if (range) range.hidden = true;
+					stopDrag();
+					return;
+				}
+				sidebar = Math.max(280, Math.min(width - 336, Math.round(sidebar)));
+				split.style.setProperty("--detail-sidebar-width", `${sidebar}px`);
+				divider.setAttribute("aria-valuemin", "320");
+				divider.setAttribute("aria-valuemax", String(width - 296));
+				divider.setAttribute("aria-valuenow", String(width - 16 - sidebar));
+				if (range) {
+					range.min = "320";
+					range.max = String(width - 296);
+					range.value = String(width - 16 - sidebar);
+				}
+			};
+			divider.addEventListener("pointerdown", (event) => {
+				if (divider.hidden || drag || !event.isPrimary || event.button !== 0) return;
+				drag = { id: event.pointerId, x: event.clientX, sidebar, moved: false };
+				divider.setPointerCapture(event.pointerId);
+				event.preventDefault();
+			});
+			divider.addEventListener("pointermove", (event) => {
+				if (!drag || event.pointerId !== drag.id) return;
+				if (Math.abs(event.clientX - drag.x) > 3) drag.moved = true;
+				sidebar = drag.sidebar - (event.clientX - drag.x);
+				update();
+			});
+			divider.addEventListener("pointerup", (event) => {
+				if (!drag || event.pointerId !== drag.id) return;
+				const openRange = !drag.moved && range;
+				stopDrag();
+				if (openRange) {
+					range.hidden = false;
+					range.focus();
+				}
+			});
+			for (const type of ["pointercancel", "lostpointercapture"]) {
+				divider.addEventListener(type, (event) => {
+					if (drag && event.pointerId === drag.id) stopDrag();
+				});
+			}
+			divider.addEventListener("keydown", (event) => {
+				if (divider.hidden) return;
+				if (event.key === "ArrowLeft") sidebar += 10;
+				else if (event.key === "ArrowRight") sidebar -= 10;
+				else if (event.key === "Home") sidebar = split.clientWidth - 336;
+				else if (event.key === "End") sidebar = 280;
+				else return;
+				event.preventDefault();
+				update();
+			});
+			range?.addEventListener("input", () => {
+				sidebar = split.clientWidth - 16 - Number(range.value);
+				update();
+			});
+			range?.addEventListener("blur", () => { range.hidden = true; });
+			range?.addEventListener("keydown", (event) => {
+				if (event.key === "Escape") {
+					range.hidden = true;
+					divider.focus();
+				}
+			});
+			const resize = () => {
+				if (split.isConnected === false) {
+					window.removeEventListener("resize", resize);
+					observer?.disconnect();
+					return;
+				}
+				update();
+			};
+			const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(resize);
+			observer?.observe(split);
+			window.addEventListener("resize", resize);
+			update();
+		}
+	};
+
 	const wireTimelineDialog = (root) => {
 		const composer = root.querySelector("[data-timeline-composer]");
 		const dialog = root.querySelector("[data-timeline-dialog]");
@@ -1440,6 +1551,337 @@
 		catalogDialog.addEventListener("close", () => catalogOpen.focus());
 		if (initiallyOpen) catalogDialog.showModal();
 	};
+	const wireClientDialog = (root) => {
+		const dialog = root.querySelector("[data-client-dialog]");
+		if (!dialog || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		if (!root._clientDialogBound) {
+			root._clientDialogBound = true;
+			root.addEventListener("click", (event) => {
+				const current = root.querySelector("[data-client-dialog]");
+				const open = event.target.closest("[data-client-create]");
+				if (open && current) {
+					event.preventDefault();
+					root._clientDialogOpener = open;
+					current.showModal();
+					current.querySelector('input[name="display_name"]')?.focus();
+				} else if (current && event.target.closest("[data-client-close]")) {
+					current.close();
+				}
+			});
+		}
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+		dialog.addEventListener("close", () => root._clientDialogOpener?.focus());
+	};
+
+
+	const wireEngagementDialog = (root) => {
+		const dialog = root.querySelector("[data-engagement-dialog]");
+		const cancel = dialog?.querySelector("[data-engagement-cancel]");
+		if (!dialog || !cancel || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		cancel.addEventListener("click", (event) => { event.preventDefault(); dialog.close(); });
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+		dialog.addEventListener("close", () => root.querySelector("[data-engagement-create]")?.focus());
+		dialog.showModal();
+	};
+
+	const wireDetailDialogs = (root) => {
+		for (const details of root.querySelectorAll("[data-detail-editor]")) {
+			const dialog = details.querySelector("[data-detail-dialog]");
+			const summary = details.querySelector("summary");
+			const form = dialog?.querySelector("form");
+			const cancel = dialog?.querySelector("[data-detail-cancel]");
+			if (!dialog || !summary || !form || !cancel || dialog.dataset.bound || typeof dialog.showModal !== "function") continue;
+			dialog.dataset.bound = "true";
+			const initiallyOpen = details.open;
+			dialog.removeAttribute("open");
+			dialog.classList.remove("relative");
+			dialog.classList.add("modal");
+			details.open = false;
+			cancel.hidden = false;
+			const fallbackCancel = dialog.querySelector("[data-detail-fallback-cancel]");
+			if (fallbackCancel) fallbackCancel.hidden = true;
+			const values = () => JSON.stringify([...form.elements].filter((field) => field.name && !["hidden", "submit", "button"].includes(field.type)).map((field) =>
+				[field.name, field.type === "checkbox" || field.type === "radio" ? field.checked : field.value]));
+			const initial = values();
+			const open = () => {
+				details.open = true;
+				dialog.showModal();
+				dialog.querySelector('[role="alert"], [aria-invalid="true"]')?.focus();
+			};
+			const dismiss = () => {
+				if ((details.hasAttribute("data-detail-dirty-on-load") || values() !== initial) && !window.confirm(details.dataset.detailDiscardMessage)) return;
+				dialog.close();
+			};
+			summary.addEventListener("click", (event) => { event.preventDefault(); open(); });
+			cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+			dialog.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(); });
+			dialog.addEventListener("keydown", (event) => { if (event.key === "Escape") event.stopPropagation(); });
+			dialog.addEventListener("close", () => { details.open = false; summary.focus(); });
+			if (initiallyOpen) open();
+		}
+	};
+
+	const wireConfirmSelects = (root) => {
+		for (const form of root.querySelectorAll("form[data-confirm-select]")) {
+			const select = form.querySelector("select");
+			const dialog = form.querySelector("[data-confirm-select-dialog]");
+			const fallback = form.querySelector("[data-confirm-select-fallback]");
+			const value = dialog?.querySelector("[data-confirm-select-value]");
+			const cancel = dialog?.querySelector("[data-confirm-select-cancel]");
+			const accept = dialog?.querySelector("[data-confirm-select-accept]");
+			if (!select || !dialog || !fallback || !value || !cancel || !accept || form.dataset.confirmSelectBound || typeof dialog.showModal !== "function") continue;
+			form.dataset.confirmSelectBound = "true";
+			fallback.hidden = true;
+			const previous = select.selectedIndex;
+			const previousValue = select.value;
+			let confirmed = false;
+			select.addEventListener("change", () => {
+				if (select.value === previousValue) return;
+				value.textContent = select.selectedOptions[0]?.textContent.trim() || "";
+				confirmed = false;
+				dialog.showModal();
+				cancel.focus();
+			});
+			cancel.addEventListener("click", () => dialog.close());
+			dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+			dialog.addEventListener("close", () => {
+				if (!confirmed) {
+					select.selectedIndex = previous;
+					select.dispatchEvent(new Event("input", { bubbles: true }));
+				}
+				select.focus();
+			});
+			accept.addEventListener("click", () => {
+				confirmed = true;
+				dialog.close();
+				form.requestSubmit();
+			});
+		}
+	};
+
+	const wireInlineTitles = (root) => {
+		for (const details of root.querySelectorAll("[data-inline-title]")) {
+			const summary = details.querySelector("summary");
+			const input = details.querySelector("[data-inline-input]");
+			const form = details.querySelector("form");
+			const cancel = details.querySelector("[data-inline-cancel]");
+			if (!summary || !input || !form || !cancel || details.dataset.inlineBound) continue;
+			details.dataset.inlineBound = "true";
+			let opening = false;
+			const dismiss = (restoreFocus = true) => {
+				if (details.hasAttribute("data-inline-dirty-on-load")) {
+					form.dataset.submitting = "true";
+					window.location.assign(cancel.href);
+					return;
+				}
+				input.value = details.dataset.inlineSaved;
+				details.removeAttribute("data-inline-dirty-on-load");
+				input.dispatchEvent(new Event("input", { bubbles: true }));
+				form.dataset.dirty = "";
+				details.open = false;
+				if (restoreFocus) summary.focus();
+			};
+			summary.addEventListener("click", (event) => {
+				if (!details.open) { opening = true; return; }
+				event.preventDefault();
+				dismiss();
+			});
+			details.addEventListener("toggle", () => {
+				if (details.open && opening) { input.focus(); input.select(); }
+				opening = false;
+			});
+			cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+			details.ownerDocument.addEventListener("click", (event) => {
+				if (details.open && !details.contains(event.target) && form.dataset.submitting !== "true") dismiss(false);
+			});
+			details.addEventListener("keydown", (event) => {
+				const multiline = input.hasAttribute("data-inline-multiline");
+				if (event.key === "Enter" && event.target === input && !event.isComposing &&
+					(multiline ? (event.ctrlKey || event.metaKey) && !event.shiftKey : !event.shiftKey)) {
+					event.preventDefault();
+					if (!details.hasAttribute("data-inline-explicit-retry")) {
+						const confirm = form.querySelector("button[type=submit][data-confirm]");
+						if (confirm) confirm.click();
+						else form.requestSubmit();
+					}
+					return;
+				}
+				if (event.key !== "Escape" || !details.open || event.isComposing) return;
+				event.preventDefault();
+				event.stopPropagation();
+				dismiss();
+			});
+		}
+	};
+
+
+	const engagementClientPicker = () => ({
+		init() {
+			const root = this.$root;
+			const picker = root.querySelector("[data-client-picker]");
+			const selected = root.querySelector("[data-selected-client]");
+			const current = root.querySelector("[data-client-current]");
+			if (!picker || !selected || !current) return;
+			root.addEventListener("click", (event) => {
+				const option = event.target.closest("[data-client-option]");
+				if (!option || !picker.contains(option)) return;
+				event.preventDefault();
+				selected.value = option.dataset.clientId;
+				current.textContent = option.textContent.trim();
+				picker.open = false;
+				picker.querySelector("summary")?.focus();
+			});
+		},
+	});
+
+	const engagementNotesEditor = () => ({
+		init() {
+			const root = this.$root;
+			const textarea = root.querySelector("textarea");
+			const controls = root.querySelector("[data-notes-controls]");
+			const tools = root.querySelector("[data-notes-tools]");
+			const writePanel = root.querySelector("[data-notes-write-panel]");
+			const output = root.querySelector("[data-notes-output]");
+			const write = root.querySelector("[data-notes-write]");
+			const preview = root.querySelector("[data-notes-preview]");
+			const count = root.querySelector("[data-notes-count]");
+			const form = root.closest("form");
+			if (!textarea || !controls || !tools || !writePanel || !output || !write || !preview || !count || !form) return;
+			let revision = 0;
+			const updateCount = () => { count.textContent = `${root.dataset.countLabel}: ${textarea.value.length} / ${textarea.maxLength}`; };
+			const showWrite = () => {
+				revision++;
+				writePanel.hidden = false;
+				output.hidden = true;
+				output.removeAttribute("aria-busy");
+				tools.hidden = false;
+				write.setAttribute("aria-selected", "true");
+				preview.setAttribute("aria-selected", "false");
+				write.tabIndex = 0;
+				preview.tabIndex = -1;
+				write.classList.add("tab-active");
+				preview.classList.remove("tab-active");
+			};
+			textarea.addEventListener("input", () => { updateCount(); if (!output.hidden) showWrite(); });
+			tools.addEventListener("click", (event) => {
+				const button = event.target.closest("[data-markdown]");
+				if (!button) return;
+				const formats = { bold: ["**", "**"], italic: ["*", "*"], heading: ["## ", ""], list: ["- ", ""], link: ["[", "](https://)"], code: ["`", "`"] };
+				const format = formats[button.dataset.markdown];
+				if (!format) return;
+				const start = textarea.selectionStart;
+				const end = textarea.selectionEnd;
+				const lineFormat = button.dataset.markdown === "heading" || button.dataset.markdown === "list";
+				const replaceStart = lineFormat ? (start === 0 ? 0 : textarea.value.lastIndexOf("\n", start - 1) + 1) : start;
+				const selected = textarea.value.slice(replaceStart, end);
+				const replacement = format[0] + (lineFormat ? selected.replace(/\n(?!$)/g, `\n${format[0]}`) : selected) + format[1];
+				if (textarea.value.length - (end - replaceStart) + replacement.length > textarea.maxLength) return;
+				textarea.setRangeText(replacement, replaceStart, end, "select");
+				if (lineFormat) {
+					const selectionStart = start + format[0].length;
+					const selectionEnd = end + replacement.length - selected.length;
+					textarea.setSelectionRange(selectionStart, selectionEnd);
+				} else {
+					textarea.setSelectionRange(start + format[0].length, start + format[0].length + selected.length);
+				}
+				textarea.dispatchEvent(new Event("input", { bubbles: true }));
+				textarea.focus();
+			});
+			write.addEventListener("click", showWrite);
+			preview.addEventListener("click", async () => {
+				const current = ++revision;
+				writePanel.hidden = true;
+				output.hidden = false;
+				tools.hidden = true;
+				write.setAttribute("aria-selected", "false");
+				preview.setAttribute("aria-selected", "true");
+				write.tabIndex = -1;
+				preview.tabIndex = 0;
+				write.classList.remove("tab-active");
+				preview.classList.add("tab-active");
+				output.textContent = root.dataset.previewLoading;
+				output.setAttribute("aria-busy", "true");
+				const body = new FormData();
+				body.set("csrf", form.querySelector('[name="csrf"]').value);
+				body.set("notes", textarea.value);
+				try {
+					const response = await fetch(root.dataset.previewUrl, { method: "POST", body });
+					if (!response.ok || response.redirected || !response.headers.get("content-type")?.startsWith("text/html")) throw new Error("preview");
+					const html = await response.text();
+					if (current !== revision) return;
+					if (html) output.innerHTML = html;
+					else output.textContent = root.dataset.previewEmpty;
+				} catch (_) {
+					if (current !== revision) return;
+					output.textContent = root.dataset.previewFailed;
+				} finally {
+					if (current === revision) output.removeAttribute("aria-busy");
+				}
+			});
+			for (const tab of [write, preview]) {
+				tab.addEventListener("keydown", (event) => {
+					if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+					event.preventDefault();
+					const target = event.key === "Home" ? write : event.key === "End" ? preview : tab === write ? preview : write;
+					target.click();
+					target.focus();
+				});
+			}
+			writePanel.setAttribute("role", "tabpanel");
+			writePanel.setAttribute("aria-labelledby", "engagement-notes-write-tab");
+			updateCount();
+			count.hidden = false;
+			controls.hidden = false;
+		},
+	});
+
+	const wireClientDeleteDialog = (root) => {
+		const dialog = root.querySelector("[data-client-delete-dialog]");
+		if (!dialog || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		const warning = dialog.querySelector("[data-client-delete-warning]");
+		const names = dialog.querySelector("[data-client-delete-names]");
+		const cancel = dialog.querySelector("[data-client-delete-cancel]");
+		const confirm = dialog.querySelector("[data-client-delete-confirm]");
+		let pending;
+		root.addEventListener("click", (event) => {
+			const button = event.target.closest?.("button[data-client-delete]");
+			if (!button || button.disabled || !button.form) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			pending = button;
+			warning.textContent = button.dataset.confirm;
+			names.replaceChildren();
+			const selected = button.hasAttribute("data-client-bulk")
+				? [...button.form.elements].filter((input) => input.name === "client_id" && input.checked)
+				: [];
+			const labels = button.hasAttribute("data-client-bulk")
+				? [...new Map(selected.map((input) => [input.value, input.getAttribute("aria-label")])).values()]
+				: [button.dataset.clientName];
+			for (const label of labels) {
+				const item = root.createElement("li");
+				item.textContent = label;
+				names.append(item);
+			}
+			dialog.showModal();
+			cancel.focus();
+		}, true);
+		cancel.addEventListener("click", () => dialog.close());
+		dialog.addEventListener("close", () => pending?.focus());
+		confirm.addEventListener("click", () => {
+			if (!pending || pending.form.dataset.submitting === "true") return;
+			const form = pending.form;
+			const input = root.createElement("input");
+			input.type = "hidden";
+			input.name = "confirm_delete";
+			input.value = "yes";
+			form.append(input);
+			dialog.close();
+			form.requestSubmit(pending);
+		});
+	};
 
 	// pageBehaviors: the per-page mount. Every shell body carries it; each
 	// wire function self-guards, so pages without a behavior pay nothing.
@@ -1447,7 +1889,13 @@
 		init() {
 			wireTimelineDialog(document);
 			wireCatalogDialog(document);
+			wireClientDialog(document);
+			wireClientDeleteDialog(document);
+			wireDetailDialogs(document);
+			wireDetailSplit(document);
+			wireInlineTitles(document);
 			wireForms();
+			wireConfirmSelects(document);
 			wireRealtime();
 			wireFileUploader();
 			wireWebMCP();
@@ -1458,13 +1906,31 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireRealtime, wireTimelineDialog, wireCatalogDialog, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
+	// The pinned HTMX runtime dispatches this before reading or parsing the body.
+	// Keep downloads, EventSource, API data and external redirects out of swaps.
+	document.addEventListener("htmx:before:response", (event) => {
+		const response = event.detail?.ctx?.response;
+		const clientLocation = response?.headers?.get("X-Client-Location");
+		if (clientLocation && event.detail?.ctx?.sourceElement?.closest?.("#client-create-content")) {
+			location.assign(clientLocation);
+			event.preventDefault();
+			return;
+		}
+		if ([204, 205, 304].includes(response?.status)) return;
+		const mediaType = response?.headers?.get("Content-Type")?.trim() ?? "";
+		const disposition = response?.headers?.get("Content-Disposition");
+		const local = response?.raw?.url?.startsWith(location.origin + "/");
+		if (!local || disposition != null || !/^text\/html(?:[ \t]*;[ \t]*charset[ \t]*=[ \t]*(?:utf-8|"utf-8"))?$/i.test(mediaType)) event.preventDefault();
+	}, true);
 	document.addEventListener("alpine:init", () => {
 		window.Alpine.data("notificationsLive", notificationsLive);
 		window.Alpine.data("passkeyLogin", passkeyLogin);
 		window.Alpine.data("passkeyEnroll", passkeyEnroll);
 		window.Alpine.data("listScreen", listScreen);
+		window.Alpine.data("engagementClientPicker", engagementClientPicker);
+		window.Alpine.data("engagementNotesEditor", engagementNotesEditor);
 		window.Alpine.data("pageBehaviors", pageBehaviors);
 	});
 })();

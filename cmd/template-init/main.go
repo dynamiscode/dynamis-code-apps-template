@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"example.com/dynamis-code/apps-template/internal/platform/sourceaudit"
 )
 
 var (
@@ -99,6 +101,12 @@ func run(args []string, now func() time.Time) error {
 	if err != nil {
 		return err
 	}
+	if err := sourceaudit.Verify(root); err != nil {
+		return fmt.Errorf("validate released Go output source before profile generation: %w", err)
+	}
+	if err := sourceaudit.VerifyBuildEnvironment(root); err != nil {
+		return err
+	}
 	destination, err := filepath.Abs(*output)
 	if err != nil || strings.TrimSpace(*output) == "" || destination == root {
 		return errors.New("output must name a new application directory")
@@ -142,6 +150,10 @@ func run(args []string, now func() time.Time) error {
 	if err := copyTemplate(
 		root, destination, replacements, templateSlug, slug, hasProfile(selectedProfiles, "Agent"), hasProfile(selectedProfiles, "Files"),
 		hasProfile(selectedProfiles, "Clients"), hasProfile(selectedProfiles, "Catalog"),
+		templateName, *name, "Dynamis Code", *name,
+		"Copyright (c) 2026 David Londono", "Copyright (c) 2026 "+*name+" contributors",
+		templateRepositoryURL, strings.TrimRight(*repository, "/"),
+		templateSecurityURL, strings.TrimRight(*securityURL, "/"),
 	); err != nil {
 		return err
 	}
@@ -169,6 +181,12 @@ func run(args []string, now func() time.Time) error {
 	if output, err := command.CombinedOutput(); err != nil {
 		return fmt.Errorf("prune generated module dependencies: %s", strings.TrimSpace(string(output)))
 	}
+	if err := sourceaudit.VerifyBuildEnvironment(destination); err != nil {
+		return err
+	}
+	if err := sourceaudit.WriteReviewed(destination); err != nil {
+		return fmt.Errorf("derive reviewed Go output manifest after profile generation: %w", err)
+	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
 	lock.Template.Version = selectedVersion
@@ -186,7 +204,10 @@ func copyTemplate(
 	files bool,
 	clients bool,
 	catalog bool,
+	dynamicReplacements ...string,
 ) error {
+	replace := strings.NewReplacer(replacements...)
+	dynamic := strings.NewReplacer(dynamicReplacements...)
 	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -204,6 +225,9 @@ func copyTemplate(
 		relative, err := filepath.Rel(root, path)
 		if err != nil || relative == "." {
 			return err
+		}
+		if filepath.ToSlash(relative) == sourceaudit.ManifestPath {
+			return nil
 		}
 		if ignored(relative) {
 			if entry.IsDir() {
@@ -253,7 +277,10 @@ func copyTemplate(
 			return err
 		}
 		if !strings.ContainsRune(string(raw), '\x00') {
-			value := strings.NewReplacer(replacements...).Replace(string(raw))
+			value, err := replaceBrandedSource(filepath.ToSlash(relative), string(raw), replace, dynamic)
+			if err != nil {
+				return fmt.Errorf("generate %s: %w", relative, err)
+			}
 			if !agent && filepath.ToSlash(relative) == "docs/capabilities.md" {
 				value = strings.ReplaceAll(value, "; [MCP tests](../internal/mcpserver/server_test.go); [CLI tests](../internal/appctl/run_test.go)", "")
 				value = strings.ReplaceAll(value, "[live surface smoke](../internal/bootstrap/agent_smoke_test.go)", "[composition test](../internal/bootstrap/app_test.go)")
@@ -286,6 +313,34 @@ func copyTemplate(
 		}
 		if !catalog {
 			raw = disableCatalogSource(filepath.ToSlash(relative), raw)
+		}
+		if filepath.ToSlash(relative) == "scripts/actioncheck/exceptions.json" && (!agent || !files || !clients || !catalog) {
+			var exceptions []json.RawMessage
+			if err := json.Unmarshal(raw, &exceptions); err != nil {
+				return fmt.Errorf("decode actioncheck exceptions: %w", err)
+			}
+			kept := exceptions[:0]
+			for _, exception := range exceptions {
+				var record struct {
+					Path    string
+					OpenTag string
+				}
+				if err := json.Unmarshal(exception, &record); err != nil {
+					return fmt.Errorf("decode actioncheck exception: %w", err)
+				}
+				if !agent && agentPath(record.Path) || !files && filesPath(record.Path) ||
+					!clients && clientsPath(record.Path) || !catalog && catalogPath(record.Path) ||
+					(!clients || !catalog) && reminderPath(record.Path) ||
+					!clients && record.Path == "internal/web/engagement.templ" && record.OpenTag == `<a class="link lg:hidden" href="#action-history">` {
+					continue
+				}
+				kept = append(kept, exception)
+			}
+			raw, err = json.MarshalIndent(kept, "", "  ")
+			if err != nil {
+				return fmt.Errorf("encode actioncheck exceptions: %w", err)
+			}
+			raw = append(raw, '\n')
 		}
 		info, err := entry.Info()
 		if err != nil {
@@ -442,10 +497,10 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 	case "internal/web/clients.go":
 		value = removeLinesContaining(value, `/internal/scheduling"`)
 		value = removeLinesContaining(value, "engagementBookings :=")
-		value = removeText(value, "\tif h.scheduling != nil && len(engagements) > 0 {", "\townerError := false")
+		value = removeText(value, "\tif h.scheduling != nil && request.PathValue(\"engagementId\") != \"\" && len(engagements) > 0 {", "\townerError := false")
 		value = strings.ReplaceAll(value, "EngagementBookings: engagementBookings, ", "")
-	case "internal/web/clients.templ":
-		value = removeText(value, "\t\t\t\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\t\t\t\t\t\t\tif data.CanEditClients {")
+	case "internal/web/engagement.templ":
+		value = removeText(value, "\n\t\t\t\tif len(data.EngagementBookings[item.ID]) > 0 {", "\n\t\t\t</section>")
 	case "docs/capabilities.md":
 		value = removeLinesContaining(value, "000049_scheduling_engagement.sql")
 		value = removeLinesContaining(value, "000050_scheduling_booking_moves.sql")
@@ -493,6 +548,7 @@ func filesPath(relative string) bool {
 	return relative == "internal/files" || strings.HasPrefix(relative, "internal/files/") ||
 		relative == "internal/httpapi/files.go" || relative == "internal/httpapi/files_test.go" || relative == "internal/web/files.go" || relative == "internal/web/files_test.go" ||
 		relative == "internal/web/files.templ" || relative == "internal/web/files_templ.go" ||
+		relative == "internal/web/files_stream_test.go" ||
 		relative == "internal/web/viewmodel/files.go" || relative == "internal/web/files_actions.go" || relative == "internal/web/files_order.go" || relative == "docs/files-417-evidence.md" ||
 		relative == "internal/web/files_no_javascript_test.go" || relative == "internal/browsertest/files_test.go" ||
 		relative == "internal/platform/database/migrations/000014_files.sql" ||
@@ -513,7 +569,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/httpapi/intake.go" || relative == "internal/httpapi/intake_test.go" ||
 		relative == "internal/web/intake.go" || relative == "internal/web/intake_test.go" || relative == "internal/web/intake.templ" || relative == "internal/web/intake_templ.go" ||
 		relative == "internal/web/public_intake.go" || relative == "internal/web/public_intake.templ" || relative == "internal/web/public_intake_templ.go" ||
-		relative == "internal/platform/database/migrations/000042_public_intake.sql" ||
+		relative == "internal/platform/database/migrations/000042_public_intake.sql" || relative == "internal/platform/database/migrations/000055_public_intake_encrypted_token.sql" ||
 		relative == "internal/identity/engagement_membership_test.go" ||
 		relative == "internal/engagement/engagement.go" || relative == "internal/engagement/list.go" || relative == "internal/engagement/list_test.go" ||
 		relative == "internal/engagement/action_queue.go" || relative == "internal/engagement/action_queue_test.go" || relative == "internal/engagement/dashboard.go" ||
@@ -538,8 +594,12 @@ func clientsPath(relative string) bool {
 		relative == "internal/mcpserver/approval_test.go" || relative == "internal/mcpserver/schema_contract_test.go" ||
 		relative == "internal/httpapi/clients.go" || relative == "internal/httpapi/clients_test.go" ||
 		relative == "internal/httpapi/client_timeline.go" || relative == "internal/httpapi/client_timeline_test.go" ||
-		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" ||
+		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" || relative == "internal/web/clients_intake_menu_test.go" ||
+		relative == "internal/web/clients_stream_test.go" ||
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
+		relative == "internal/web/engagement_notes.go" || relative == "internal/web/engagement_notes_test.go" ||
+		relative == "internal/web/client_delete.go" || relative == "internal/web/client_delete.templ" || relative == "internal/web/client_delete_templ.go" || relative == "internal/web/client_inline_field_test.go" ||
+		relative == "internal/web/engagement_new.go" || relative == "internal/web/engagement_new.templ" || relative == "internal/web/engagement_new_templ.go" || relative == "internal/web/engagement_new_search_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
 		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
@@ -632,6 +692,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, `, "engagement_id": {eng.ID.String()}`, "", 1)
 		value = strings.Replace(value, ` || !strings.Contains(page.Body.String(), eng.ID.String())`, "", 1)
 		value = removeText(value, "\tclientPage := request", "\tbookings, _, err := s.Schedule")
+		value = removeText(value, "\tengagementPath := path +", "\tinvalidMove := request")
+		value = removeText(value, "\tengagementPage = request", "\tinvalidMove = request")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeLinesContaining(value, `/internal/listprefs"`)
@@ -665,6 +727,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/intake"`)
 		value = removeLineStarting(value, "\tintakeService := intake.NewService(")
 		value = removeLineStarting(value, "\tintakeService.ConfigureNotifications(")
+		value = removeLineStarting(value, "\tintakeService.ConfigureEncryption(")
 		value = strings.ReplaceAll(value, ", intakeService,", ",")
 		value = removeLineStarting(value, "\twebHandler.EnableIntake(")
 		value = removeLineStarting(value, "\tclientService := clients.NewService(")
@@ -753,6 +816,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "engagement.Engagement")
 		value = removeLinesContaining(value, "engagement.DashboardPage")
 		value = removeLinesContaining(value, "engagement.ActionHistoryEntry")
+		value = removeLinesContaining(value, "engagement.ActivityEntry")
 		value = removeLinesContaining(value, "DashboardPrevious ")
 		value = removeLinesContaining(value, "DashboardNext ")
 		value = removeLinesContaining(value, "engagement.Stage")
@@ -768,6 +832,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "ClientQueryForm")
 		value = removeLinesContaining(value, "ClientFieldRow")
 		value = removeLinesContaining(value, "ClientValueRow")
+	case "internal/web/navigation_test.go":
+		value = removeText(value, "func TestAvatarUsesSessionProfileAcrossRenderPaths(", "func TestCatalogWorkspaceNavigation(")
+		value = removeLinesContaining(value, `"net/http"`)
 	case "internal/web/handler.go":
 		value = removeText(value, "\tif h.engagement != nil && principal.Permissions[identity.ResourcesRead] {", "\th.render(writer, http.StatusOK, \"workspace-home\", data)")
 		value = removeLinesContaining(value, `"strconv"`)
@@ -798,8 +865,11 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements\"")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/new")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/notes-preview")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/bulk-move")
 		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/workspace.templ":
 		value = removeLinesContaining(value, `import "strconv"`)
@@ -824,10 +894,12 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/engagement.templ":
 		value = removeLinesContaining(value, `import "strconv"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
 		value = removeLinesContaining(value, `import "strconv"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.

@@ -143,11 +143,17 @@ func TestAgreementPickerPaginationAndSubmission(t *testing.T) {
 	if strings.Contains(first.Body.String(), "file-100.txt") {
 		t.Fatal("last file unexpectedly on first page")
 	}
+	if strings.Contains(first.Body.String(), `data-detail-dirty-on-load open`) {
+		t.Fatal("multiple file pages must not open the agreement editor")
+	}
 	pagedDraft := request(routes, http.MethodPost, detail+"/agreement?page=2", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_page": {"1"}, "recorded": {"1"}, "file_id": {"manual-draft"}, "selected_file_id": {firstFile.ID.String()}}, env.cookies, nil)
 	for _, want := range []string{"file-100.txt", `value="manual-draft"`, `name="recorded" value="1" checked`, `value="` + firstFile.ID.String() + `" selected`} {
 		if pagedDraft.Code != http.StatusOK || !strings.Contains(pagedDraft.Body.String(), want) {
 			t.Fatalf("paged draft missing %q: %d", want, pagedDraft.Code)
 		}
+	}
+	if !strings.Contains(pagedDraft.Body.String(), `data-detail-dirty-on-load open`) {
+		t.Fatal("agreement pagination must reopen the draft editor")
 	}
 	back := request(routes, http.MethodPost, detail+"/agreement?page=1", url.Values{"csrf": {env.csrf}, "return_to": {"detail"}, "file_page": {"1"}, "file_id": {"manual-draft"}, "selected_file_id": {firstFile.ID.String()}}, env.cookies, nil)
 	for _, want := range []string{`value="manual-draft"`, `value="` + firstFile.ID.String() + `" selected`, "file-000.txt"} {

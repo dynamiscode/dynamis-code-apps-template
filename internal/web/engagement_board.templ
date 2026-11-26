@@ -3,18 +3,26 @@ package web
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import "example.com/dynamis-code/apps-template/internal/engagement"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
-import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, kind string, listPath string, clientsPath string) {
- @templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
   @molecules.PageHeading(data.T("engagement.board"), data.T("clients.title"))
   <nav aria-label={ data.T("engagement.board_filter") } class="flex flex-wrap gap-2 my-4">
    <a class="btn btn-outline" aria-current?={ kind == "open" } href={ templ.SafeURL(data.CurrentPath) }>{ data.T("engagement.open") }</a>
    <a class="btn btn-outline" aria-current?={ kind == "won" } href={ templ.SafeURL(data.CurrentPath + "?kind=won") }>{ data.T("engagement.won") }</a>
    <a class="btn btn-outline" aria-current?={ kind == "lost" } href={ templ.SafeURL(data.CurrentPath + "?kind=lost") }>{ data.T("engagement.lost") }</a>
   </nav>
-  <a class="link" href={ templ.SafeURL(listPath) }>{ data.T("engagement.list") }</a>
+  <a class="btn btn-outline" href={ templ.SafeURL(listPath) }>{ data.T("engagement.table") }</a>
+  @engagementBoardColumns(data, columns, stages, clientsPath, listPath, true, kind, "", "", "")
+ }
+}
+
+templ engagementBoardView(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, clientsPath string, search string, selectedStage string, selectedAssignee string) {
+ @engagementBoardColumns(data, columns, stages, clientsPath, data.CurrentPath, false, "", search, selectedStage, selectedAssignee)
+}
+
+templ engagementBoardColumns(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, clientsPath string, listPath string, legacy bool, kind string, search string, selectedStage string, selectedAssignee string) {
   if len(columns) == 0 {
    <p>{ data.T("engagement.board_empty") }</p>
   }
@@ -32,16 +40,33 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
      <ul>
       for _, item := range column.Page.Engagements {
        <li class="py-2">
-        <a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
-        <span> — </span><a class="link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
+        <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+        <span> — </span><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
         if data.CanEditClients && !boardHasMoveTarget(stages, item.StageID) {
          <p>{ data.T("engagement.no_move_target") }</p>
         }
         if data.CanEditClients && boardHasMoveTarget(stages, item.StageID) {
          <form action={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
           <input type="hidden" name="csrf" value={ data.CSRF }/>
-          <input type="hidden" name="return_to" value="board"/>
-          <input type="hidden" name="kind" value={ kind }/>
+          if legacy {
+           <input type="hidden" name="return_to" value="board"/>
+           <input type="hidden" name="kind" value={ kind }/>
+          } else {
+           <input type="hidden" name="return_to" value="board_view"/>
+           <input type="hidden" name="q" value={ search }/>
+           <input type="hidden" name="filter_stage" value={ selectedStage }/>
+           <input type="hidden" name="assignee" value={ selectedAssignee }/>
+           for _, column := range data.ListColumns {
+            if column.SortDirection != "" {
+             <input type="hidden" name="sort" value={ column.Key }/>
+             if column.SortDirection == "ascending" {
+              <input type="hidden" name="direction" value="asc"/>
+             } else {
+              <input type="hidden" name="direction" value="desc"/>
+             }
+            }
+           }
+          }
           <label for={ "move-" + item.ID.String() }>{ data.T("engagement.move") } — { item.Name }</label>
           <select id={ "move-" + item.ID.String() } name="stage" class="select select-bordered" required>
            <option value="">{ data.T("engagement.select_stage") }</option>
@@ -58,10 +83,9 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
       }
      </ul>
      if column.Page.Total > len(column.Page.Engagements) {
-      <a class="link" href={ templ.SafeURL(listPath + "?stage=" + column.Stage.ID.String()) }>{ data.T("engagement.board_view_all") }</a>
+      <a class="btn btn-outline btn-sm" href={ templ.SafeURL(engagementBoardListURL(data, listPath, column.Stage.ID.String(), search, selectedAssignee)) }>{ data.T("engagement.board_view_all") }</a>
      }
     </section>
    }
   </div>
- }
 }

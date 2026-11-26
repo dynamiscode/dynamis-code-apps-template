@@ -13,6 +13,8 @@ package atoms
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type SwapProps struct {
 	On    templ.Component
 	Off   templ.Component
@@ -76,7 +78,7 @@ func Swap(props SwapProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = props.On.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(props.On).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -84,7 +86,7 @@ func Swap(props SwapProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = props.Off.Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = actionattrs.Scanned(props.Off).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

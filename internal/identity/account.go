@@ -93,6 +93,37 @@ func (s *Service) UpdateUserProfile(
 	return tx.Commit()
 }
 
+func (s *Service) SetUserTheme(ctx context.Context, userID UserID, raw string, audit AuditContext) error {
+	theme, err := normalizeTheme(raw)
+	if err != nil {
+		return ErrInvalidProfile
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var exists int
+	if err := s.queryRow(ctx, tx, "SELECT 1 FROM users WHERE id = ?", userID).Scan(&exists); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrForbidden
+		}
+		return err
+	}
+	if _, err := s.exec(ctx, tx, "UPDATE users SET theme = ? WHERE id = ?", theme, userID); err != nil {
+		return err
+	}
+	if err := s.audit(ctx, tx, AuditEvent{
+		EventType: "user.theme.updated", ActorUserID: userID, AuthMethod: "session",
+		TargetType: "user", TargetKey: int64(userID), Action: "user.theme.update", Outcome: "success",
+		RequestID: audit.RequestID, SourceAddress: audit.SourceAddress,
+		Metadata: metadata(map[string]any{"theme": theme}), CreatedAt: s.now().UTC(),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func normalizeTimezone(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" || len(value) > 128 || value == "Local" {

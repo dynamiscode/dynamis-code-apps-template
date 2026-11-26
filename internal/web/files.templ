@@ -8,7 +8,7 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ filesPage(data viewmodel.PageData, canUpload bool) {
-	@templates.DashboardShell(data, organisms.DashboardHeader(data), organisms.DashboardHomeNavigation(data)) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.T("files.files"), "")
 		<div class="files-page">
 			if data.ErrorKey != "" {
@@ -35,13 +35,30 @@ templ filesPage(data viewmodel.PageData, canUpload bool) {
 			}
 			<section aria-labelledby="files-list-heading">
 				<h2 id="files-list-heading" class="sr-only">{ data.T("files.recent") }</h2>
-				@organisms.ListScreen(data, "files.search", fileListTools(data), fileResults(data, canUpload))
+				@fileListView(data, canUpload)
 			</section>
 		</div>
 		<script defer src="/assets/htmx.min.js"></script>
 		if canUpload {
 			}
 	}
+}
+
+templ fileListView(data viewmodel.PageData, canUpload bool) {
+	<div class="list-toolbar">
+		if data.ListHasContent() {
+			@molecules.ListSearch(data, "files.search", data.ListSearch)
+		}
+		if data.ListHasContent() || len(data.ListViews) > 0 {
+			@organisms.ListViewSwitcher(data)
+		}
+		if data.ListHasContent() {
+			@organisms.ListAddFilter(data)
+		}
+		@fileListTools(data)
+	</div>
+	@organisms.ListFilterBar(data)
+	@fileResults(data, canUpload)
 }
 
 // fileListTools are the file list's own controls on the toolbar: the columns.
@@ -53,7 +70,16 @@ templ fileListTools(data viewmodel.PageData) {
 
 // fileResults is the Files results region, shared with every list: the table or cards and the footer.
 templ fileResults(data viewmodel.PageData, canUpload bool) {
-	@organisms.ListResults(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes), data.ClientQuerySuffix, fileList(data, canUpload), templ.NopComponent)
+	<div id="list-results">
+		@fileList(data, canUpload)
+		@organisms.ListFooter(data, data.FileListQuery.Limit, listPageSizeOptions(data.FileListQuery.Limit, listPageSizes)) {
+			@molecules.ListPager(data)
+		}
+	</div>
+	if data.ListFragment {
+		@organisms.ListFilterBarOOB(data)
+		@molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
+	}
 }
 
 templ fileList(data viewmodel.PageData, canUpload bool) {
@@ -85,9 +111,9 @@ templ fileList(data viewmodel.PageData, canUpload bool) {
 		if data.HasClientFilters || data.ListSearch != "" {
 			@molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "file-empty-state", Message: data.T("files.none"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
 		} else if canUpload {
-			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description"), CTA: filesEmptyCTA(data)})
+			@molecules.EmptyStateCardBody(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")}) { @filesEmptyCTA(data) }
 		} else {
-			@molecules.EmptyStateCard(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")})
+			@molecules.EmptyStateCardBody(molecules.EmptyStateCardProps{ID: "file-empty-state", Title: data.T("files.empty_title"), Description: data.T("files.empty_description")})
 		}
 	}
 }

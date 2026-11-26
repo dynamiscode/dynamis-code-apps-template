@@ -2,6 +2,8 @@
 // https://daisyui.com/components/steps
 package atoms
 
+import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+
 type StepProps struct {
 	Label string
 	Done  bool
@@ -18,6 +20,6 @@ templ Step(props StepProps) {
 	<li
 		class={ "step", templ.KV("step-primary", props.Done) }
 	>
-		<a { props.Attrs... }>{ props.Label }</a>
+		<a class="rounded-field border border-base-300 px-1" { actionattrs.From(props.Attrs)... }>{ props.Label }</a>
 	</li>
 }
