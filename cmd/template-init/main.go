@@ -322,14 +322,16 @@ func copyTemplate(
 			kept := exceptions[:0]
 			for _, exception := range exceptions {
 				var record struct {
-					Path string
+					Path    string
+					OpenTag string
 				}
 				if err := json.Unmarshal(exception, &record); err != nil {
 					return fmt.Errorf("decode actioncheck exception: %w", err)
 				}
 				if !agent && agentPath(record.Path) || !files && filesPath(record.Path) ||
 					!clients && clientsPath(record.Path) || !catalog && catalogPath(record.Path) ||
-					(!clients || !catalog) && reminderPath(record.Path) {
+					(!clients || !catalog) && reminderPath(record.Path) ||
+					!clients && record.Path == "internal/web/engagement.templ" && record.OpenTag == `<a class="link lg:hidden" href="#action-history">` {
 					continue
 				}
 				kept = append(kept, exception)
@@ -890,10 +892,12 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	case "internal/web/engagement.templ":
 		value = removeLinesContaining(value, `import "strconv"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
 		value = removeLinesContaining(value, `import "strconv"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
+		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
 	case "internal/platform/maintenance/maintenance.go":
 		// Retention prunes client_events, which Clients-off apps do not have.

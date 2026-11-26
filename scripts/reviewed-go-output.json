@@ -28,7 +28,7 @@
   "cmd/screenshot/main.go": "cee56f93b4d20c2e18cd79f84ba8e48ceb8f5021d4fcf24eee2287a0ca0357e9",
   "cmd/server/main.go": "109528ba51d730c6dde8bff00c952bab994e7693e6dcab288210a759e070295a",
   "cmd/template-init/branding.go": "b177ada98a17be4a1eaea431a9de6cf3472d1cd8e37cf8f32779053e8c641feb",
-  "cmd/template-init/main.go": "b9cfa490bc223f0115c075702ef4c4d6b2af4439cfc8a8430401e917b9f37542",
+  "cmd/template-init/main.go": "6f4ea0c7ea5091010fc6a49c9f4ccacaa5e4b18df97b11f091fbc7496a4c517f",
   "go.mod": "eb4e9d23104d10c58a7d5956ac74c337f41ee4a95c55f22d17121600aab7eb17",
   "go.sum": "52017c7180218733ed443d32af11fa6010adb7ab27fa2187399ab7bb6657b8b6",
   "internal/appctl/run.go": "491b9a4b23d66ba8144d1fc37e113ec3b79adb59af188f75fcc1f312da9b2be0",

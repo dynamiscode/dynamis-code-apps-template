@@ -35,6 +35,31 @@ func TestClientsOmissionKeepsSchedulingMembershipCleanup(t *testing.T) {
 	}
 }
 
+func TestClientsOmissionPrunesEngagementDetailImports(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	for _, tc := range []struct {
+		path, kept string
+	}{
+		{"internal/web/engagement.templ", "templ engagementStagesPage("},
+		{"internal/web/engagement_templ.go", "func engagementStagesPage("},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			source, err := os.ReadFile(filepath.Join(root, tc.path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			output := string(disableClientsSource(tc.path, source))
+			if strings.Contains(output, "actionattrs") {
+				t.Error("catalog-independent engagement stages retain detail-only actionattrs")
+			}
+			if !strings.Contains(output, tc.kept) {
+				t.Error("engagement stages were removed")
+			}
+		})
+	}
+}
+
 func TestCatalogOmissionPrunesEngagementBookings(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
@@ -75,6 +100,7 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 	paths := []string{
 		"internal/web/catalog.templ",
 		"internal/web/engagement_list.templ",
+		"internal/web/engagement.templ",
 		"internal/web/components/molecules/list_column_heading.templ",
 	}
 	for _, path := range append(paths, "scripts/actioncheck/exceptions.json") {
@@ -83,7 +109,7 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 		}
 		content := []byte("template")
 		if path == "scripts/actioncheck/exceptions.json" {
-			content = []byte(`[{"Path":"internal/web/catalog.templ","Reason":"catalog"},{"Path":"internal/web/engagement_list.templ","Reason":"clients"},{"Path":"internal/web/components/molecules/list_column_heading.templ","Reason":"shared"}]`)
+			content = []byte(`[{"Path":"internal/web/catalog.templ","Reason":"catalog"},{"Path":"internal/web/engagement_list.templ","Reason":"clients"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"link lg:hidden\" href=\"#action-history\">","Reason":"detail"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"other\">","Reason":"other"},{"Path":"internal/web/components/molecules/list_column_heading.templ","Reason":"shared"}]`)
 		}
 		if err := os.WriteFile(filepath.Join(root, path), content, 0o644); err != nil {
 			t.Fatal(err)
@@ -94,10 +120,10 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 		clients, catalog bool
 		want             []string
 	}{
-		{"neither", false, false, []string{"shared"}},
-		{"catalog", false, true, []string{"catalog", "shared"}},
-		{"clients", true, false, []string{"clients", "shared"}},
-		{"both", true, true, []string{"catalog", "clients", "shared"}},
+		{"neither", false, false, []string{"other", "shared"}},
+		{"catalog", false, true, []string{"catalog", "other", "shared"}},
+		{"clients", true, false, []string{"clients", "detail", "other", "shared"}},
+		{"both", true, true, []string{"catalog", "clients", "detail", "other", "shared"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			output := t.TempDir()
@@ -168,7 +194,8 @@ func TestGenerateCatalogProfile(t *testing.T) {
 					t.Fatal("exception has no string Path")
 				}
 				if path == "internal/web/catalog.templ" && !selected ||
-					path == "internal/web/engagement_list.templ" && !tc.clients {
+					(path == "internal/web/engagement_list.templ" || path == "internal/web/clients.templ" || path == "internal/web/engagement_new.templ") && !tc.clients ||
+					path == "internal/web/engagement.templ" && exception["OpenTag"] == `<a class="link lg:hidden" href="#action-history">` && !tc.clients {
 					continue
 				}
 				expected = append(expected, exception)
