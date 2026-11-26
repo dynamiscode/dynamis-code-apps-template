@@ -101,9 +101,6 @@ func run(args []string, now func() time.Time) error {
 	if err != nil {
 		return err
 	}
-	if err := sourceaudit.Verify(root); err != nil {
-		return fmt.Errorf("validate released Go output source before profile generation: %w", err)
-	}
 	if err := sourceaudit.VerifyBuildEnvironment(root); err != nil {
 		return err
 	}
@@ -184,9 +181,6 @@ func run(args []string, now func() time.Time) error {
 	if err := sourceaudit.VerifyBuildEnvironment(destination); err != nil {
 		return err
 	}
-	if err := sourceaudit.WriteReviewed(destination); err != nil {
-		return fmt.Errorf("derive reviewed Go output manifest after profile generation: %w", err)
-	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
 	lock.Template.Version = selectedVersion
@@ -226,9 +220,6 @@ func copyTemplate(
 		relative, err := filepath.Rel(root, path)
 		if err != nil || relative == "." {
 			return err
-		}
-		if filepath.ToSlash(relative) == sourceaudit.ManifestPath {
-			return nil
 		}
 		if ignored(relative) {
 			if entry.IsDir() {
