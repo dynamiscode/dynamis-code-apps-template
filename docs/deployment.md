@@ -22,6 +22,10 @@ restrict access. The setup route closes after the first successful bootstrap.
 Back up the PostgreSQL service and the bucket. The templates do not enforce
 backups.
 
+Secure cookies and HSTS are enabled by default, including when `APP_PUBLIC_URL`
+is unset. Railway terminates TLS before forwarding to the application. Do not
+set `HTTP_SECURE=false` on Railway or any public deployment.
+
 ## SQLite: one instance
 
 ```sh
@@ -40,8 +44,9 @@ tokenless remote setup remains available. A publicly reachable uninitialized
 nonblank token configured or enable deployment-level access control, such as
 temporary gateway authentication or an IP allowlist, until bootstrap completes.
 This browser path is recommended for platforms that provide environment
-configuration but no shell access. Source runs using the default loopback
-address can also open `/setup` without a token. The CLI fallback is:
+configuration but no shell access. Source runs on loopback can also open
+`/setup` without a token; set `HTTP_SECURE=false` explicitly for local HTTP.
+The CLI fallback is:
 
 ```sh
 read -s BOOTSTRAP_ADMIN_PASSWORD; export BOOTSTRAP_ADMIN_PASSWORD
@@ -51,9 +56,13 @@ unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
 The non-root application listens on port 8080 and stores SQLite data in the
-`app-data` volume. Override the host port with `APP_PORT`. Never place SQLite
-on ephemeral or shared network storage, and never run more than one
-application instance against its file.
+`app-data` volume. Compose publishes only on host loopback; override the host
+port with `APP_PORT`. Its container listens on all interfaces, so local HTTP
+mode is not available through Docker bridge port publishing. Configure a local
+HTTPS reverse proxy to use the browser, or run from source with
+`HTTP_SECURE=false` and a loopback listener. Never expose that local HTTP
+listener through a public proxy. Never place SQLite on ephemeral or shared
+network storage, and never run more than one instance against its file.
 
 ## PostgreSQL: multiple instances
 
@@ -114,8 +123,9 @@ object bytes go to one private bucket. Variables are described in
 - Container user: UID/GID 65532; writable path: `/data`; port: `8080`.
 - Liveness: `/health/live`; readiness: `/health/ready`.
 - Send SIGTERM for the configured graceful drain, 10 seconds by default.
-- Terminate public TLS before the application and set `HTTP_SECURE=true` so
-  HSTS and Secure cookies are enabled.
+- Terminate public TLS before the application. Browser cookies always use the
+  Secure attribute; HSTS defaults on. Retain `HTTP_SECURE=true` on all public
+  deployments.
 - Inject secrets at runtime. Do not bake `.env`, database URLs, OIDC secrets,
   OTLP headers, TLS keys, or backups into the image.
 - Persist and protect database and backup storage before accepting durable

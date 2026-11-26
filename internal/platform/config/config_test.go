@@ -56,6 +56,42 @@ func TestLoadFromDefaultsToSQLite(t *testing.T) {
 	}
 }
 
+func TestCookieSecurityConfiguration(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		values map[string]string
+		secure bool
+		fail   bool
+	}{
+		{"missing URL defaults secure", nil, true, false},
+		{"public listener defaults secure", map[string]string{"HTTP_ADDRESS": "0.0.0.0:8080"}, true, false},
+		{"misleading local URL defaults secure", map[string]string{"APP_PUBLIC_URL": "http://localhost:8080"}, true, false},
+		{"public HTTPS defaults secure", map[string]string{"APP_PUBLIC_URL": "https://app.example.com"}, true, false},
+		{"explicit local HTTP", map[string]string{"HTTP_SECURE": "false", "APP_PUBLIC_URL": "http://127.0.0.1:8080"}, false, false},
+		{"explicit local HTTP without URL", map[string]string{"HTTP_SECURE": "false"}, false, false},
+		{"explicit IPv6 loopback", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": "[::1]:8080"}, false, false},
+		{"insecure wildcard rejected", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": "0.0.0.0:8080"}, false, true},
+		{"insecure wildcard with misleading URL rejected", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": ":8080", "APP_PUBLIC_URL": "http://localhost:8080"}, false, true},
+		{"insecure public address rejected", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": "192.0.2.1:8080"}, false, true},
+		{"insecure hostname rejected", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": "localhost:8080"}, false, true},
+		{"insecure malformed address rejected", map[string]string{"HTTP_SECURE": "false", "HTTP_ADDRESS": "127.0.0.1"}, false, true},
+		{"HTTPS with insecure cookies rejected", map[string]string{"HTTP_SECURE": "false", "APP_PUBLIC_URL": "https://app.example.com"}, false, true},
+		{"public HTTP rejected", map[string]string{"HTTP_SECURE": "false", "APP_PUBLIC_URL": "http://app.example.com"}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg, err := LoadFrom(env(tc.values))
+			if (err != nil) != tc.fail {
+				t.Fatalf("LoadFrom() error = %v, want failure %t", err, tc.fail)
+			}
+			if err == nil && cfg.HTTP.Secure != tc.secure {
+				t.Fatalf("HTTP.Secure = %t, want %t", cfg.HTTP.Secure, tc.secure)
+			}
+		})
+	}
+}
+
 func TestLoadFromValidatesStorage(t *testing.T) {
 	t.Parallel()
 

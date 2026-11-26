@@ -686,14 +686,14 @@ func (h *Handler) setCookie(
 ) {
 	http.SetCookie(writer, &http.Cookie{
 		Name: name, Value: value, Path: "/", Expires: expires,
-		HttpOnly: httpOnly, Secure: h.cfg.Secure, SameSite: http.SameSiteLaxMode,
+		HttpOnly: httpOnly, Secure: true, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (h *Handler) clearCookie(writer http.ResponseWriter, name string) {
 	http.SetCookie(writer, &http.Cookie{
 		Name: name, Path: "/", MaxAge: -1, Expires: time.Unix(1, 0),
-		HttpOnly: true, Secure: h.cfg.Secure, SameSite: http.SameSiteLaxMode,
+		HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
 	})
 }
 
