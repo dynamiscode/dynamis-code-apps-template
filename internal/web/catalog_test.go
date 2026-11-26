@@ -3,7 +3,9 @@ package web
 import (
 	"context"
 	"database/sql"
+	"html"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strings"
@@ -18,8 +20,12 @@ func catalogDetailLinks(t *testing.T, body string) []string {
 	t.Helper()
 	matches := regexp.MustCompile(`href="([^"]+/catalog\?entry=[^"]+)"`).FindAllStringSubmatch(body, -1)
 	links := make([]string, 0, len(matches))
+	seen := make(map[string]bool)
 	for _, match := range matches {
-		links = append(links, match[1])
+		if !seen[match[1]] {
+			links = append(links, match[1])
+			seen[match[1]] = true
+		}
 	}
 	if len(links) == 0 {
 		t.Fatal("catalog detail link missing")
@@ -36,8 +42,25 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
+	request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Active entry"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	page = request(routes, http.MethodGet, catalogDetailLinks(t, page.Body.String())[0], nil, cookies, nil)
+	for _, want := range []string{`<td class="list-actions-cell"><details class="dropdown list-menu">`, `list-row-menu-button`, `list-action-item border border-base-300 rounded-field`, `/archive"`} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("catalog table menu missing %q", want)
+		}
+	}
+	var detail string
+	for _, link := range catalogDetailLinks(t, page.Body.String()) {
+		candidate := request(routes, http.MethodGet, link, nil, cookies, nil)
+		if strings.Contains(candidate.Body.String(), "<h1") && strings.Contains(candidate.Body.String(), "Consultation") {
+			detail = link
+			break
+		}
+	}
+	if detail == "" {
+		t.Fatal("consultation detail missing")
+	}
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
 	matches := regexp.MustCompile(`action="([^"]+/archive)"`).FindStringSubmatch(page.Body.String())
 	if len(matches) != 2 {
 		t.Fatal("archive form missing")
@@ -51,8 +74,28 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 		t.Fatal("archived entry in default list")
 	}
 	page = request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, nil)
-	if !strings.Contains(page.Body.String(), "Consultation") {
-		t.Fatal("archived entry missing")
+	if !strings.Contains(page.Body.String(), "Consultation") || strings.Contains(page.Body.String(), "Active entry") {
+		t.Fatal("archived filter must show only archived entries")
+	}
+	page = request(routes, http.MethodGet, path+"?includeArchived=true&sort=name&direction=desc&q=care", nil, cookies, nil)
+	body := html.UnescapeString(page.Body.String())
+	for _, want := range []string{"direction=asc", "includeArchived=true", "q=care"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("catalog sort lost %q", want)
+		}
+	}
+	detail = html.UnescapeString(catalogDetailLinks(t, page.Body.String())[0])
+	for _, want := range []string{"includeArchived=true", "sort=name", "direction=desc", "q=care"} {
+		if !strings.Contains(detail, want) {
+			t.Fatalf("catalog detail link lost %q", want)
+		}
+	}
+	detailPage := request(routes, http.MethodGet, detail, nil, cookies, nil)
+	if !strings.Contains(html.UnescapeString(detailPage.Body.String()), path+"?direction=desc&includeArchived=true&q=care&sort=name") {
+		t.Fatal("catalog back link lost list state")
+	}
+	if !strings.Contains(page.Body.String(), `/unarchive"`) || !strings.Contains(page.Body.String(), `list-action-item border border-base-300 rounded-field`) {
+		t.Fatal("archived catalog row menu missing restore action")
 	}
 	unarchive := strings.TrimSuffix(matches[1], "/archive") + "/unarchive"
 	response = request(routes, http.MethodPost, unarchive, url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
@@ -62,6 +105,26 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 	response = request(routes, http.MethodPost, strings.TrimSuffix(matches[1], "/archive")+"/delete", url.Values{"csrf": {session.CSRFSecret}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("delete = %d", response.Code)
+	}
+}
+
+func TestCatalogCreateInfersPriceMode(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	for _, item := range []struct{ name, amount string }{{"Manual service", ""}, {"Fixed service", "27"}} {
+		response := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {item.name}, "amount": {item.amount}, "currency": {"USD"}}, cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("create %s: %d", item.name, response.Code)
+		}
+	}
+	body := request(routes, http.MethodGet, path, nil, cookies, nil).Body.String()
+	if !strings.Contains(body, "Manual service") || !strings.Contains(body, "Manual price") || !strings.Contains(body, "Fixed service") || !strings.Contains(body, "27") {
+		t.Fatal("created prices do not reflect the supplied amounts")
 	}
 }
 
@@ -96,7 +159,7 @@ func TestCatalogCreate(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}, "duration_minutes": {"30"}}
+	form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Consultation"}, "currency": {"USD"}, "variant": {"Initial"}, "duration_minutes": {"30"}}
 	created := request(routes, http.MethodPost, path, form, cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
@@ -105,8 +168,8 @@ func TestCatalogCreate(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Consultation") {
 		t.Fatalf("list = %d %s", page.Code, page.Body.String())
 	}
-	form.Set("name", " ")
-	form.Set("mode", "manual")
+	form.Set("name", "Draft <consultation>")
+	form.Set("duration_minutes", "-3")
 	form.Set("amount", "0.123456789012345678")
 	form.Set("currency", "BTC")
 	form.Set("variant", "Special")
@@ -115,13 +178,21 @@ func TestCatalogCreate(t *testing.T) {
 	if invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid = %d %s", invalid.Code, invalid.Body.String())
 	}
-	for _, want := range []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
+	for _, want := range []string{`name="name" value="Draft &lt;consultation&gt;"`, `name="duration_minutes" value="-3"`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
 		if !strings.Contains(invalid.Body.String(), want) {
 			t.Errorf("rejected create missing %s", want)
 		}
 	}
+	if strings.Contains(invalid.Body.String(), `name="mode"`) {
+		t.Error("create form exposes a price mode selector")
+	}
 	if !regexp.MustCompile(`(?s)<dialog[^>]* open[^>]*>`).MatchString(invalid.Body.String()) {
 		t.Error("rejected create form is collapsed")
+	}
+	form.Set("variant", "")
+	invalid = request(routes, http.MethodPost, path, form, cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `name="variant" value=""`) {
+		t.Errorf("rejected create did not preserve empty variant: %d", invalid.Code)
 	}
 }
 
@@ -231,7 +302,7 @@ func TestCatalogList(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	ownerPage := request(routes, http.MethodGet, path, nil, ownerCookies, nil)
 	ownerPage = request(routes, http.MethodGet, catalogDetailLinks(t, ownerPage.Body.String())[0], nil, ownerCookies, nil)
-	edit := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(ownerPage.Body.String())
+	edit := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(ownerPage.Body.String())
 	if len(edit) != 2 {
 		t.Fatal("missing owner edit form")
 	}
@@ -245,8 +316,11 @@ func TestCatalogList(t *testing.T) {
 	if strings.Contains(response.Body.String(), "/edit") {
 		t.Fatal("viewer sees edit controls")
 	}
-	if denied := request(routes, http.MethodPost, edit[1], url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil); denied.Code != http.StatusForbidden {
+	if denied := request(routes, http.MethodPost, strings.TrimSuffix(edit[1], "/field")+"/edit", url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil); denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer edit = %d", denied.Code)
+	}
+	if denied := request(routes, http.MethodPost, edit[1], url.Values{"csrf": {session.CSRFSecret}, "field": {"name"}, "version": {"Viewer entry"}, "value": {"Denied"}}, cookies, nil); denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer inline edit = %d", denied.Code)
 	}
 	deniedWrite := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil)
 	if deniedWrite.Code != http.StatusForbidden {
@@ -281,15 +355,23 @@ func TestCatalogEditWeb(t *testing.T) {
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
 	detail := catalogDetailLinks(t, page.Body.String())[0]
 	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
-	matches := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(page.Body.String())
-	if len(matches) != 2 {
-		t.Fatal("entry edit form missing")
+	for _, want := range []string{`data-detail-editor`, `data-detail-dialog`, `data-detail-cancel`, `data-detail-fallback-cancel`, `group-open:hidden`, `Initial`, `USD`} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Errorf("catalog detail missing %s", want)
+		}
 	}
-	response := request(routes, http.MethodPost, matches[1], url.Values{"csrf": {session.CSRFSecret}, "name": {"Updated"}, "duration_minutes": {"45"}}, cookies, nil)
+	matches := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(page.Body.String())
+	if len(matches) != 2 {
+		t.Fatal("entry inline form missing")
+	}
+	entryPath := strings.TrimSuffix(matches[1], "/field")
+	if strings.Contains(page.Body.String(), `action="`+entryPath+`/edit"`) {
+		t.Fatal("redundant entry edit form present")
+	}
+	response := request(routes, http.MethodPost, entryPath+"/edit", url.Values{"csrf": {session.CSRFSecret}, "name": {"Updated"}, "duration_minutes": {"45"}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("edit: %d", response.Code)
 	}
-	entryPath := strings.TrimSuffix(matches[1], "/edit")
 	response = request(routes, http.MethodPost, entryPath+"/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Visit"}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("create price: %d", response.Code)
@@ -345,7 +427,11 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 	var entries [][]string
 	for _, link := range links {
 		entryPage := request(routes, http.MethodGet, link, nil, cookies, nil)
-		entries = append(entries, regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindStringSubmatch(entryPage.Body.String()))
+		match := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(entryPage.Body.String())
+		if len(match) == 2 {
+			match[1] = strings.TrimSuffix(match[1], "/field") + "/edit"
+		}
+		entries = append(entries, match)
 	}
 	if len(entries) != 2 || len(entries[0]) != 2 || len(entries[1]) != 2 {
 		t.Fatal("entry forms missing")
@@ -384,9 +470,15 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 				t.Fatalf("rejected = %d", response.Code)
 			}
 			body := response.Body.String()
-			openForm := regexp.MustCompile(`(?s)<details[^>]* open[^>]*>\s*<summary[^>]*>[^<]*</summary>\s*<form[^>]*action="` + regexp.QuoteMeta(tc.action) + `"`)
+			openForm := regexp.MustCompile(`(?s)<details[^>]*data-detail-dirty-on-load[^>]* open[^>]*>.*?<dialog open[^>]*data-detail-dialog[^>]*>.*?<form[^>]*action="` + regexp.QuoteMeta(tc.action) + `"`)
 			if !openForm.MatchString(body) {
-				t.Error("rejected form is collapsed")
+				t.Error("rejected form is not open in its editor")
+			}
+			form := formBody(body, tc.action)
+			for _, want := range []string{`role="alert" tabindex="-1"`, `name="csrf"`, `data-detail-cancel`, `data-detail-fallback-cancel`} {
+				if !strings.Contains(form, want) {
+					t.Errorf("rejected editor missing %s", want)
+				}
 			}
 			for _, want := range tc.want {
 				if !strings.Contains(formBody(body, tc.action), want) {
@@ -477,8 +569,8 @@ func TestCatalogScopeSwapsAndFallsBackToFullPage(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	if !strings.Contains(page.Body.String(), `hx-target="#catalog-view"`) || !strings.Contains(page.Body.String(), `href="`+path+`?includeArchived=true"`) || !strings.Contains(page.Body.String(), `/assets/htmx.min.js`) {
-		t.Fatal("catalog scope lacks enhancement or fallback")
+	if !strings.Contains(page.Body.String(), `hx-target="#catalog-view"`) || !strings.Contains(page.Body.String(), `name="includeArchived"`) || !strings.Contains(page.Body.String(), `value="false" selected`) {
+		t.Fatal("catalog status filter lacks default or enhancement")
 	}
 	fragment := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, map[string]string{"HX-Request": "true"})
 	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="catalog-view">`) || strings.Contains(fragment.Body.String(), "<!doctype") || !strings.Contains(fragment.Body.String(), "No archived catalog entries.") {
@@ -491,6 +583,13 @@ func TestCatalogScopeSwapsAndFallsBackToFullPage(t *testing.T) {
 	restored := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, map[string]string{"HX-Request": "true", "HX-History-Restore-Request": "true"})
 	if !strings.Contains(restored.Body.String(), "<!doctype html>") {
 		t.Fatal("history restoration must return the full page")
+	}
+	filtered := request(routes, http.MethodGet, path+"?includeArchived=true&sort=name&direction=desc&q=care", nil, cookies, nil)
+	body := filtered.Body.String()
+	for _, want := range []string{`value="true" selected`, `name="sort" value="name"`, `name="direction" value="desc"`, `name="q" value="care"`, `Status: Archived`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("catalog filter lost %q", want)
+		}
 	}
 }
 
@@ -527,5 +626,64 @@ func TestWorkspacePagesUseOneContentHeading(t *testing.T) {
 		if response.Code != http.StatusOK || strings.Count(body, "<h1") != 1 || !strings.Contains(body, "<h1>"+title+"</h1>") || strings.Index(body, "<main") > strings.Index(body, "<h1") {
 			t.Errorf("%s must have a single content heading %q (status %d)", path, title, response.Code)
 		}
+	}
+}
+
+func TestCatalogInlineFieldsAndListSorting(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	for _, entry := range []struct{ name, duration string }{{"Zulu", "30"}, {"Alpha", "60"}} {
+		response := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {entry.name}, "duration_minutes": {entry.duration}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Standard"}}, cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("create = %d", response.Code)
+		}
+	}
+	sorted := request(routes, http.MethodGet, path+"?sort=name&direction=asc", nil, cookies, nil)
+	body := sorted.Body.String()
+	if !strings.Contains(body, `aria-sort="ascending"`) || strings.Index(body, "Alpha") >= strings.Index(body, "Zulu") || !strings.Contains(body, "<table") {
+		t.Fatalf("sorted catalog table missing or out of order: %s", body)
+	}
+	desc := request(routes, http.MethodGet, path+"?sort=duration&direction=desc", nil, cookies, nil).Body.String()
+	if !strings.Contains(desc, `aria-sort="descending"`) || strings.Index(desc, "Alpha") >= strings.Index(desc, "Zulu") {
+		t.Fatalf("duration sort missing or out of order: %s", desc)
+	}
+	links := catalogDetailLinks(t, body)
+	detail := request(routes, http.MethodGet, links[0], nil, cookies, nil).Body.String()
+	match := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(detail)
+	if len(match) != 2 || !strings.Contains(detail, `data-inline-saved="Alpha"`) {
+		t.Fatal("inline editor missing")
+	}
+	action := match[1]
+	post := func(field, version, value string) *httptest.ResponseRecorder {
+		return request(routes, http.MethodPost, action, url.Values{"csrf": {session.CSRFSecret}, "field": {field}, "version": {version}, "value": {value}}, cookies, nil)
+	}
+	if response := request(routes, http.MethodPost, action, url.Values{"csrf": {"wrong"}, "field": {"name"}, "version": {"Alpha"}, "value": {"Denied"}}, cookies, nil); response.Code != http.StatusForbidden {
+		t.Fatalf("invalid csrf = %d", response.Code)
+	}
+	if response := post("invalid", "Alpha", "Denied"); response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid field = %d", response.Code)
+	}
+	if response := post("duration_minutes", "60", "45"); response.Code != http.StatusSeeOther {
+		t.Fatalf("duration update = %d: %s", response.Code, response.Body.String())
+	}
+	if response := post("name", "Alpha", "Renamed"); response.Code != http.StatusSeeOther {
+		t.Fatalf("independent name update = %d: %s", response.Code, response.Body.String())
+	}
+	conflict := post("name", "Alpha", "Draft")
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), `value="Draft"`) || !strings.Contains(conflict.Body.String(), `name="version" value="Renamed"`) || !strings.Contains(conflict.Body.String(), `data-inline-explicit-retry`) {
+		t.Fatalf("stale update = %d: %s", conflict.Code, conflict.Body.String())
+	}
+	invalid := post("duration_minutes", "45", "-1")
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `value="-1"`) || !strings.Contains(invalid.Body.String(), `id="catalog-inline-duration_minutes-error" role="alert"`) || !strings.Contains(invalid.Body.String(), `data-inline-dirty-on-load open`) || !strings.Contains(invalid.Body.String(), `data-inline-cancel`) {
+		t.Fatalf("invalid duration = %d: %s", invalid.Code, invalid.Body.String())
+	}
+	page := request(routes, http.MethodGet, links[0], nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), `data-inline-saved="Renamed"`) || !strings.Contains(page.Body.String(), `data-inline-saved="45"`) {
+		t.Fatalf("saved values missing: %s", page.Body.String())
 	}
 }

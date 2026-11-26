@@ -51,6 +51,10 @@ templ navLi(data viewmodel.PageData, href, key string, active bool) {
 	<li class={ templ.KV("menu-active", active) }>@NavLink(data, href, key, active)</li>
 }
 
+templ sidebarNavLi(data viewmodel.PageData, href, key string, active bool) {
+	<li><a class={ templ.KV("menu-active", active) } aria-current={ currentPage(active) } href={ href }>{ data.T(key) }</a></li>
+}
+
 
 templ navTitle(text string) {
 	<li class="menu-title text-base-content/80">{ text }</li>
@@ -62,24 +66,24 @@ templ WorkspaceNav(data viewmodel.PageData) {
 		<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_settings") }>
 			<ul class="menu w-full">
 				@navTitle(data.T("navigation.settings_setup"))
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
 					if data.ClientsEnabled {
-						@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", data.NavPage == "intake")
+						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", data.NavPage == "intake")
 					}
 				}
 				@navTitle(data.T("navigation.settings_access"))
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations")
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/tokens", "navigation.tokens", data.NavPage == "tokens")
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/webhooks", "navigation.webhooks", data.NavPage == "webhooks")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/members", "navigation.members", data.NavPage == "members" || data.NavPage == "invitations")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/tokens", "navigation.tokens", data.NavPage == "tokens")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/webhooks", "navigation.webhooks", data.NavPage == "webhooks")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/provisioning", "navigation.provisioning", data.NavPage == "provisioning")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/provisioning", "navigation.provisioning", data.NavPage == "provisioning")
 				}
 				@navTitle(data.T("navigation.settings_activity"))
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/export", "navigation.export", data.NavPage == "export")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/export", "navigation.export", data.NavPage == "export")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/audit", "navigation.audit_history", data.NavPage == "audit")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/audit", "navigation.audit_history", data.NavPage == "audit")
 				}
 			</ul>
 		</nav>
@@ -87,18 +91,21 @@ templ WorkspaceNav(data viewmodel.PageData) {
 		<nav class="sidebar-navigation" aria-label={ data.T("navigation.workspace_navigation") }>
 			<ul class="menu w-full">
 				@navTitle(data.T("common.workspace"))
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String(), "navigation.home", data.NavPage == "workspace")
 				if data.ClientsEnabled {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", data.NavPage == "clients" || data.NavPage == "client-detail" || data.NavPage == "client-fields")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/clients", "clients.title", (data.NavPage == "clients" && !strings.HasPrefix(data.CurrentPath, "/workspaces/"+data.Workspace.ID.String()+"/engagements")) || data.NavPage == "client-detail" || data.NavPage == "client-fields")
+					if data.EngagementEnabled {
+						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/engagements", "engagement.title", strings.HasPrefix(data.CurrentPath, "/workspaces/"+data.Workspace.ID.String()+"/engagements"))
+					}
 				}
 				if data.CatalogEnabled {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/catalog", "catalog.title", data.NavPage == "catalog")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/catalog", "catalog.title", data.NavPage == "catalog")
 				}
 				if data.FilesEnabled {
-					@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/files", "files.files", data.NavPage == "files")
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/files", "files.files", data.NavPage == "files")
 				}
 				@navTitle(data.T("navigation.settings"))
-				@navLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings", "navigation.settings", data.NavPage == "settings")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings", "navigation.settings", data.NavPage == "settings")
 			</ul>
 		</nav>
 	}
@@ -124,11 +131,11 @@ templ AccountNavigation(data viewmodel.PageData) {
 	<nav class="sidebar-navigation" aria-label={ data.T("common.account") }>
 		<ul class="menu w-full">
 			@navTitle(data.T("common.account"))
-			@navLi(data, "/account", "account.account", data.NavPage == "account")
-			@navLi(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")
-			@navLi(data, "/settings/language", "account.language_settings", data.NavPage == "language")
-			@navLi(data, "/security", "navigation.security", data.NavPage == "security")
-			@navLi(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")
+			@sidebarNavLi(data, "/account", "account.account", data.NavPage == "account")
+			@sidebarNavLi(data, "/notifications", "notifications.notifications", data.NavPage == "notifications")
+			@sidebarNavLi(data, "/settings/language", "account.language_settings", data.NavPage == "language")
+			@sidebarNavLi(data, "/security", "navigation.security", data.NavPage == "security")
+			@sidebarNavLi(data, "/sessions", "navigation.sessions", data.NavPage == "sessions")
 		</ul>
 	</nav>
 }

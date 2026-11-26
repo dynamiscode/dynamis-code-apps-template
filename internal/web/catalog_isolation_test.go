@@ -40,11 +40,11 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
 	detail := catalogDetailLinks(t, page.Body.String())[0]
 	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
-	match := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(page.Body.String())
+	match := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(page.Body.String())
 	if len(match) != 2 {
 		t.Fatal("missing entry")
 	}
-	entry := strings.TrimSuffix(match[1], "/edit")
+	entry := strings.TrimSuffix(match[1], "/field")
 	if r := request(routes, http.MethodPost, entry+"/prices", form, cookies, nil); r.Code != http.StatusSeeOther {
 		t.Fatal(r.Code)
 	}
@@ -66,11 +66,11 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	}
 	localPage := request(routes, http.MethodGet, otherPath, nil, cookies, nil)
 	localPage = request(routes, http.MethodGet, catalogDetailLinks(t, localPage.Body.String())[0], nil, cookies, nil)
-	localMatch := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/edit)"`).FindStringSubmatch(localPage.Body.String())
+	localMatch := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(localPage.Body.String())
 	if len(localMatch) != 2 {
 		t.Fatal("missing local entry")
 	}
-	localEntry := strings.TrimSuffix(localMatch[1], "/edit")
+	localEntry := strings.TrimSuffix(localMatch[1], "/field")
 	foreignPriceOnLocal := localEntry + strings.TrimPrefix(foreignPrice, foreign)
 	invalidEntry := url.Values{"csrf": {session.CSRFSecret}, "name": {"Rejected foreign draft"}, "duration_minutes": {"-3"}}
 	invalidPrice := url.Values{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"-1"}, "currency": {"DRAFT"}, "variant": {"Rejected foreign draft"}}

@@ -53,6 +53,10 @@ func (h *Handler) deleteClient(writer http.ResponseWriter, request *http.Request
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	clientID := clients.ParseClientIDOrZero(request.PathValue("clientId"))
+	if request.FormValue("confirm_delete") != "yes" {
+		h.renderClientDeleteConfirmation(writer, request, []clients.ClientID{clientID}, h.clientsPath(workspaceID)+"/"+clientID.String(), false)
+		return
+	}
 	if err := h.clients.Delete(request.Context(), principal, workspaceID, clientID, auditContext(request)); err != nil {
 		h.clientError(writer, request, err)
 		return

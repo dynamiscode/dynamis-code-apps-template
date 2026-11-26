@@ -560,6 +560,17 @@ func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
 		if kind := r.FormValue("kind"); kind == "won" || kind == "lost" {
 			path += "?kind=" + kind
 		}
+	} else if r.FormValue("return_to") == "board_view" {
+		values := url.Values{"view": {"board"}}
+		for _, key := range []string{"q", "assignee", "sort", "direction"} {
+			if value := r.FormValue(key); value != "" {
+				values.Set(key, value)
+			}
+		}
+		if stage := r.FormValue("filter_stage"); stage != "" {
+			values.Set("stage", stage)
+		}
+		path = "/workspaces/" + workspace.String() + "/engagements?" + values.Encode()
 	}
 	h.redirect(w, r, path)
 }
@@ -576,6 +587,9 @@ func (h *Handler) setEngagementLabel(w http.ResponseWriter, r *http.Request) {
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	err := h.engagement.SetLabel(r.Context(), actor, workspace, r.FormValue("label"), auditContext(r))
 	if errors.Is(err, engagement.ErrInvalidInput) {
+		if _, _, _, ok := h.workspaceSession(w, r, workspace, identity.WorkspaceUpdate); !ok {
+			return
+		}
 		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid_label")
 		return
 	}
@@ -612,6 +626,8 @@ func (h *Handler) createEngagement(w http.ResponseWriter, r *http.Request) {
 			key = "engagement.invalid_name"
 		} else if errors.Is(err, engagement.ErrInvalidStage) {
 			key = "engagement.invalid_stage"
+		} else if errors.Is(err, engagement.ErrInvalidNotes) {
+			key = "engagement.invalid_notes"
 		}
 		h.renderClientDetail(w, r, http.StatusUnprocessableEntity, key, nil)
 		return
@@ -642,6 +658,14 @@ func (h *Handler) renderEngagementStages(w http.ResponseWriter, r *http.Request,
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
+	archived := r.URL.Query().Get("status") == "archived"
+	visibleStages := stages[:0]
+	for _, stage := range stages {
+		if stage.Archived == archived {
+			visibleStages = append(visibleStages, stage)
+		}
+	}
+	stages = visibleStages
 	label, err := h.engagement.Label(r.Context(), actor, workspace)
 	if err != nil {
 		h.renderError(w, http.StatusInternalServerError)
@@ -654,12 +678,31 @@ func (h *Handler) renderEngagementStages(w http.ResponseWriter, r *http.Request,
 	}
 	path := "/workspaces/" + workspace.String() + "/engagement-stages"
 	data := viewmodel.PageData{Title: "Engagement stages", CSRF: csrf, ErrorKey: errorKey, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, EngagementLabel: label}
+	if r.Method == http.MethodPost {
+		switch {
+		case errorKey == "engagement.invalid" && r.URL.Path == path:
+			data.StageDraftName = r.PostFormValue("name")
+			data.StageDraftKind = r.PostFormValue("kind")
+		case errorKey == "engagement.invalid_label" && r.URL.Path == path+"/label":
+			data.StageLabelDraft = r.PostFormValue("label")
+		}
+	}
+	if archived {
+		data.EngagementStage = "archived"
+	}
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.stages")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = engagementStagesPage(data, stages, actor.Permissions[identity.WorkspaceUpdate]).Render(r.Context(), w)
+}
+
+func stageFilterQuery(archived bool) string {
+	if archived {
+		return "?status=archived"
+	}
+	return ""
 }
 
 func (h *Handler) createEngagementStage(w http.ResponseWriter, r *http.Request) {
@@ -674,6 +717,9 @@ func (h *Handler) createEngagementStage(w http.ResponseWriter, r *http.Request) 
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	_, err := h.engagement.CreateStage(r.Context(), actor, workspace, engagement.StageInput{Name: r.FormValue("name"), Kind: r.FormValue("kind")}, auditContext(r))
 	if errors.Is(err, engagement.ErrInvalidInput) {
+		if _, _, _, ok := h.workspaceSession(w, r, workspace, identity.WorkspaceUpdate); !ok {
+			return
+		}
 		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid")
 		return
 	}
@@ -708,12 +754,20 @@ func (h *Handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request
 		found := false
 		for i, stage := range stages {
 			if stage.ID == stageID {
-				j := -1
+				j := i
+				step := 0
 				if r.FormValue("direction") == "up" {
-					j = i - 1
+					step = -1
+				} else if r.FormValue("direction") == "down" {
+					step = 1
 				}
-				if r.FormValue("direction") == "down" {
-					j = i + 1
+				if step != 0 {
+					j += step
+					for j >= 0 && j < len(stages) && stages[j].Archived != stage.Archived {
+						j += step
+					}
+				} else {
+					j = -1
 				}
 				if j >= 0 && j < len(ids) {
 					ids[i], ids[j] = ids[j], ids[i]
@@ -765,5 +819,9 @@ func (h *Handler) finishStageMutation(w http.ResponseWriter, r *http.Request, wo
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
-	h.redirect(w, r, "/workspaces/"+workspace.String()+"/engagement-stages")
+	path := "/workspaces/" + workspace.String() + "/engagement-stages"
+	if r.URL.Query().Get("status") == "archived" {
+		path += "?status=archived"
+	}
+	h.redirect(w, r, path)
 }

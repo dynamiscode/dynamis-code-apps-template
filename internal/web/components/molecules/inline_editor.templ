@@ -1,0 +1,71 @@
+package molecules
+
+type InlineEditorProps struct {
+	Saved, Display, EmptyText, Value string
+	Label, InputLabel, EditLabel, SaveLabel, CancelLabel string
+	ID, Name, InputType, MaxLength string
+	Action, CancelURL, ClearURL, ClearLabel string
+	CSRF, Version, Field string
+	Error, RetryLabel, Confirm string
+	Draft, FormDraft, Conflict, Required, Heading, Empty bool
+	Class string
+	Attrs templ.Attributes
+}
+
+templ InlineEditor(props InlineEditorProps) {
+	<details class={ "group relative w-full", props.Class } data-inline-title data-inline-saved={ props.Saved } data-inline-dirty-on-load?={ props.Draft } data-inline-explicit-retry?={ props.Conflict } open?={ props.Draft } { props.Attrs... }>
+		<summary class={ "relative block w-full cursor-text list-none rounded-field pr-8 hover:bg-base-300 hover:outline hover:outline-1 hover:outline-base-content/30 group-open:invisible", templ.KV("break-all", !props.Heading), templ.KV("whitespace-pre-wrap", props.InputType == "textarea" && !props.Heading) }>
+			if props.Heading {
+				<h1 class="inline text-2xl font-bold">{ props.Display }</h1>
+			} else if props.Empty {
+				<span class="status-line">{ props.EmptyText }</span>
+			} else {
+				{ props.Display }
+			}
+			<svg class="absolute right-2 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 5 4 4M4 20l4-1 11-11a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
+			<span class="sr-only"> { props.EditLabel } { props.Label }</span>
+		</summary>
+		if props.Heading && props.Draft {
+			@ErrorAlert(props.Error)
+		}
+		<form class="absolute inset-x-0 top-0 z-10" action={ props.Action } method="post" data-dirty-track data-unsaved-warning data-dirty-on-load?={ props.FormDraft }>
+			<input type="hidden" name="csrf" value={ props.CSRF }/>
+			if props.Version != "" || props.Field != "" {
+				<input type="hidden" name="version" value={ props.Version }/>
+			}
+			if props.Field != "" {
+				<input type="hidden" name="field" value={ props.Field }/>
+			}
+			if props.InputLabel != "" {
+				<label class="sr-only" for={ props.ID }>{ props.InputLabel }</label>
+			}
+			if props.Heading {
+				<textarea id={ props.ID } name={ props.Name } rows="1" required maxlength={ props.MaxLength } data-inline-input class="textarea field-sizing-content w-full min-h-0 resize-none border-0 bg-base-100 p-0 text-2xl font-bold leading-normal">{ props.Value }</textarea>
+			} else if props.InputType == "textarea" {
+				<textarea id={ props.ID } name={ props.Name } maxlength={ props.MaxLength } required?={ props.Required } data-inline-input data-inline-multiline class="textarea w-full min-w-0" { templ.Attributes{"aria-invalid": templ.KV("true", props.Draft && props.Field != ""), "aria-describedby": templ.KV(props.ID + "-error", props.Draft && props.Field != "")}... }>{ props.Value }</textarea>
+			} else {
+				<input id={ props.ID } name={ props.Name } type={ props.InputType } maxlength={ props.MaxLength } required?={ props.Required } value={ props.Value } data-inline-input class="input w-full min-w-0" { templ.Attributes{"step": templ.KV("any", props.InputType == "number"), "aria-invalid": templ.KV("true", props.Draft && props.Field != ""), "aria-describedby": templ.KV(props.ID + "-error", props.Draft && props.Field != "")}... }/>
+			}
+			if props.Draft && props.Field != "" {
+				<div id={ props.ID + "-error" } role="alert" tabindex="-1" class="alert alert-error">{ props.Error }</div>
+			}
+			<div class="absolute right-0 top-full flex gap-1 rounded-box bg-base-100 p-1 shadow-lg">
+				if props.ClearURL != "" {
+					<span class="tooltip tooltip-bottom" data-tip={ props.ClearLabel }>
+						<button class="btn btn-ghost btn-square" type="submit" formaction={ props.ClearURL } formnovalidate aria-label={ props.ClearLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7 21-4-4a2 2 0 0 1 0-3l9-9a2 2 0 0 1 3 0l6 6a2 2 0 0 1 0 3l-7 7H7ZM7 10l7 7M14 21h7"/></svg></button>
+					</span>
+				}
+				if props.Conflict {
+					<button class="btn btn-sm" type="submit">{ props.RetryLabel }</button>
+				} else {
+					<span class="tooltip tooltip-bottom" data-tip={ props.SaveLabel }>
+						<button class="btn btn-ghost btn-square" type="submit" aria-label={ props.SaveLabel } { templ.Attributes{"data-confirm": templ.KV(props.Confirm, props.Confirm != "")}... }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg></button>
+					</span>
+				}
+				<span class="tooltip tooltip-bottom" data-tip={ props.CancelLabel }>
+					<a class="btn btn-ghost btn-square" href={ props.CancelURL } data-inline-cancel aria-label={ props.CancelLabel }><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
+				</span>
+			</div>
+		</form>
+	</details>
+}

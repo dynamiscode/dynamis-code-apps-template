@@ -15,7 +15,7 @@ templ webhooksPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<p class="eyebrow">{ data.T("navigation.settings_access") }</p>
 		if data.SelectedWebhook.ID != 0 {
-			<p><a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks" }>← { data.T("webhooks.back_to_webhooks") }</a></p>
+			@molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/settings/webhooks", data.T("webhooks.back_to_webhooks"))
 			<h1>{ data.SelectedWebhook.Name }</h1>
 			<h2>{ data.T("webhooks.delivery_history") }</h2>
 			if len(data.WebhookDeliveries) > 0 {

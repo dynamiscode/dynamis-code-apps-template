@@ -1,6 +1,7 @@
 package web
 
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
@@ -13,11 +14,13 @@ templ clientsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.PageHeading(data.T("clients.title"), "")
 		@clientList(data)
+		if data.CanDeleteClients {
+			@clientDeleteDialog(data)
+		}
 	}
 }
 
-// clientNewPage is the create page. The form is the whole page, so the list
-// never loads four fields it does not need and a phone gets a full-width form.
+// clientNewPage preserves the full-page create flow without JavaScript.
 templ clientNewPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, templates.DashboardHome) {
 		@molecules.BackLink(data.CurrentPath, data.T("clients.back"))
@@ -27,186 +30,91 @@ templ clientNewPage(data viewmodel.PageData) {
 			if data.ErrorKey != "" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
-			@clientCreateForm(data, data.CurrentPath+"/new")
+			@clientCreateForm(data, data.CurrentPath+"/new", false)
 		</div>
 	}
 }
 
 templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data, templates.DashboardHome) {
+		<div class="detail-split" data-detail-split>
+		<div class="detail-main min-w-0" id="detail-main" data-detail-main>
 		@molecules.BackLink(clientReturnHref(data.CurrentPath, data.ClientReturnQuery), data.T("clients.back"))
-		@molecules.PageHeading(data.Client.DisplayName, data.T("clients.title")) {
-			<div class="actions client-page-actions">
-				if data.CanManageFields {
-					<a class="btn btn-outline" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
-				}
+		<nav aria-label={ data.T("clients.title") }>
+			@atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: []atoms.BreadcrumbsProp{
+				{Label: data.T("clients.title"), Href: clientReturnHref(data.CurrentPath, data.ClientReturnQuery)},
+				{Label: data.Client.DisplayName},
+			}})
+		</nav>
+		<div class="relative">
+			<div class="pr-12">
+				@molecules.PageHeading(data.Client.DisplayName, "")
 			</div>
-		}
+			if data.CanEditClients || data.CanManageFields {
+				{{ actionPath := data.CurrentPath + "/" + data.Client.ID.String(); actions := []organisms.ListAction{}; if data.CanManageFields { actions = append(actions, organisms.ListAction{Label: data.T("clients.fields_link"), Icon: "edit", Href: data.FieldsPath}) }; if data.CanEditClients { if data.Client.ArchivedAt == nil { actions = append(actions, organisms.ListAction{Label: data.T("clients.archive"), Icon: "archive", PostPath: actionPath + "/archive"}) } else { actions = append(actions, organisms.ListAction{Label: data.T("common.restore"), Icon: "unarchive", PostPath: actionPath + "/unarchive"}) }; if data.CanDeleteClients { actions = append(actions, organisms.ListAction{Label: data.T("clients.delete_client"), Icon: "delete", PostPath: actionPath + "/delete", Confirm: data.T("clients.delete_client_confirm"), Danger: true, ClientDeleteName: data.Client.DisplayName}) } } }}
+				<div class="absolute right-0 top-0 z-20 [&_.list-action-items]:right-0">@organisms.ListActionsMenu(data, actions, true)</div>
+			}
+		</div>
 		if data.Client.PossibleDuplicate {
 			<div class="alert alert-warning my-4" role="status">{ data.T("clients.possible_duplicate") }</div>
 		}
+		<a class="link lg:hidden" href="#client-timeline-heading">{ data.T("clients.timeline_heading") }</a>
 		@clientDetail(data)
 		if data.EngagementEnabled {
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
-				<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
-				if data.CanEditClients {
-					if len(data.OpenEngagementStages) == 0 {
-						<p>{ data.T("engagement.no_open_stage") }</p>
-						if data.CanManageFields {
-							<a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
-						} else {
-							<p>{ data.T("engagement.ask_admin") }</p>
-						}
+				<div class="flex flex-wrap items-center justify-between gap-4">
+					<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
+					if data.CanEditClients && data.Client.ArchivedAt == nil {
+						{{ createPath := "/workspaces/" + data.Workspace.ID.String() + "/engagements/new?client=" + data.Client.ID.String() + "&from_client=" + data.Client.ID.String() }}
+						<a class="btn btn-primary" href={ templ.SafeURL(createPath) } hx-get={ createPath } hx-target="#engagement-create-modal" hx-swap="innerHTML" data-engagement-create>{ data.T("engagement.create") }</a>
+					}
+				</div>
+				if data.CanEditClients && len(data.OpenEngagementStages) == 0 {
+					<p>{ data.T("engagement.no_open_stage") }</p>
+					if data.CanManageFields {
+						<a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/engagement-stages" }>{ data.T("engagement.setup_stages") }</a>
 					} else {
-						<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements" } method="post">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							if data.ErrorKey == "engagement.invalid_name" {
-								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200", "aria-invalid": "true", "aria-describedby": "engagement-name-error"})
-								<p id="engagement-name-error">{ data.T(data.ErrorKey) }</p>
-							} else {
-								@molecules.TextField("engagement-name", data.T("engagement.name"), templ.Attributes{"name": "name", "value": data.EngagementName, "required": true, "maxlength": "200"})
-							}
-							<label for="engagement-stage">{ data.T("engagement.stage") }</label>
-							<select id="engagement-stage" name="stage" class="select select-bordered" required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
-								<option value="">{ data.T("engagement.select_stage") }</option>
-								for _, stage := range data.OpenEngagementStages {
-									<option value={ stage.ID.String() } selected?={ stage.ID.String() == data.EngagementStage }>{ stage.Name }</option>
-								}
-							</select>
-							if data.ErrorKey == "engagement.invalid_stage" {
-								<p id="engagement-stage-error">{ data.T(data.ErrorKey) }</p>
-							}
-							<label for="engagement-notes">{ data.T("engagement.notes") }</label>
-							<textarea id="engagement-notes" name="notes" maxlength="5000" class="textarea textarea-bordered">{ data.EngagementNotes }</textarea>
-							<button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
-						</form>
+						<p>{ data.T("engagement.ask_admin") }</p>
 					}
 				}
-				<ul>
-					for _, item := range data.Engagements {
-						<li>
-							<a class="rounded-field border border-base-300 px-1" href={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() }>{ item.Name }</a>
-							for _, stage := range data.EngagementStages {
-								if stage.ID == item.StageID {
-									<span>{ stage.Name }</span>
-								}
-							}
-							<p>{ item.Notes }</p>
-							if len(data.EngagementBookings[item.ID]) > 0 {
-								<h3>{ data.T("scheduling.bookings") }</h3>
-								<ul>
-									for _, booking := range data.EngagementBookings[item.ID] {
-										<li><a class="rounded-field border border-base-300 px-1" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/scheduling") }>{ booking.Start.Format("2006-01-02 15:04") } — { booking.EntryName }</a></li>
-									}
-								</ul>
-							}
-							if data.CanEditClients {
-								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage" } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<label for={ "stage-" + item.ID.String() }>{ data.T("engagement.move") }</label>
-									<select id={ "stage-" + item.ID.String() } name="stage" class="select select-bordered">
-										for _, stage := range data.EngagementStages {
-											if !stage.Archived {
-												<option value={ stage.ID.String() } selected?={ stage.ID == item.StageID }>{ stage.Name }</option>
-											}
+				if strings.HasPrefix(data.ErrorKey, "engagement.invalid_") {
+					{{ createData := data; createData.CurrentPath = "/workspaces/" + data.Workspace.ID.String() + "/engagements" }}
+					@engagementNewContent(createData, nil, data.Client, data.OpenEngagementStages, "", "", "", false)
+				}
+				if len(data.Engagements) == 0 {
+					<p>{ data.T("engagement.list_empty_unfiltered") }</p>
+				} else {
+					<ul class="detail-engagements my-4 space-y-2">
+						for _, item := range data.Engagements {
+							<li>
+								<a class="card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>
+									<span class="block break-words font-semibold group-hover:underline group-focus-visible:underline">{ item.Name }</span>
+									for _, stage := range data.EngagementStages {
+										if stage.ID == item.StageID {
+											<span class="mt-1 block break-words text-sm text-base-content">{ data.T("engagement.stage") }: { stage.Name }</span>
 										}
-									</select>
-									<button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
-								</form>
-							}
-							@engagementHistory(data, item.History)
-							for _, member := range data.EngagementMembers {
-								if member.UserID == item.AssigneeID {
-									<p>{ data.T("engagement.assignee") }: { member.Email }</p>
-								}
-							}
-							if data.CanEditClients {
-								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee" } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<label for={ "assignee-" + item.ID.String() }>{ data.T("engagement.assignee") }</label>
-									<select class="select select-bordered" id={ "assignee-" + item.ID.String() } name="assignee_id"><option value="">—</option>
-										for _, member := range data.EngagementMembers {
-											<option value={ member.UserID.String() } selected?={ member.UserID == item.AssigneeID }>{ member.Email }</option>
-										}
-									</select>
-									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_assignee") }</button>
-								</form>
-							}
-							<p>{ data.T("engagement.agreement") }:
-								if item.Agreement.Recorded {
-									<span>{ data.T("engagement.agreement_recorded") }</span>
-								} else {
-									<span>{ data.T("engagement.agreement_not_recorded") }</span>
-								}
-								{ item.Agreement.FileID }
-							</p>
-							if data.CanEditClients {
-								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement" } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ item.Agreement.Recorded }/> { data.T("engagement.agreement_recorded") }</label>
-									if data.FilesEnabled {
-										<label for={ "agreement-file-" + item.ID.String() }>{ data.T("engagement.agreement_file") }</label>
-										<input class="input input-bordered" id={ "agreement-file-" + item.ID.String() } name="file_id" value={ item.Agreement.FileID }/>
 									}
-									<button class="btn btn-primary" type="submit">{ data.T("engagement.agreement_save") }</button>
-								</form>
-							}
-							<p>{ data.T("engagement.quote") }: { data.T("engagement.quote_" + item.Quote.Status) } { item.Quote.Amount } { item.Quote.DateSent }</p>
-							if data.CanEditClients {
-								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote" } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<label for={ "quote-status-" + item.ID.String() }>{ data.T("engagement.quote") }</label>
-									<select class="select select-bordered" id={ "quote-status-" + item.ID.String() } name="status">
-										for _, status := range []string{"not_sent", "sent", "pending", "accepted", "declined"} {
-											<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
-										}
-									</select>
-									<label for={ "quote-amount-" + item.ID.String() }>{ data.T("engagement.quote_amount") }</label>
-									<input class="input input-bordered" type="number" min="0" max="999999999999.99" step="0.01" id={ "quote-amount-" + item.ID.String() } name="amount" value={ item.Quote.Amount }/>
-									<label for={ "quote-date-" + item.ID.String() }>{ data.T("engagement.quote_date") }</label>
-									<input class="input input-bordered" type="date" id={ "quote-date-" + item.ID.String() } name="date_sent" value={ item.Quote.DateSent }/>
-									<button class="btn btn-primary" type="submit">{ data.T("engagement.quote_save") }</button>
-								</form>
-							}
-							if item.NextAction.Text != "" {
-								<p>{ data.T("engagement.next_action") }: { item.NextAction.Text } { item.NextAction.DueDate }</p>
-								for _, member := range data.EngagementMembers {
-									if member.UserID == item.NextAction.OwnerID {
-										<p>{ data.T("engagement.owner") }: { member.Email }</p>
-									}
-								}
-							}
-							if data.CanEditClients {
-								<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/next-action" } method="post">
-									<input type="hidden" name="csrf" value={ data.CSRF }/>
-									<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
-									<label for={ "action-" + item.ID.String() }>{ data.T("engagement.next_action") }</label>
-									<input class="input input-bordered" id={ "action-" + item.ID.String() } name="text" maxlength="5000" value={ item.NextAction.Text }/>
-									<label for={ "due-" + item.ID.String() }>{ data.T("engagement.due_date") }</label>
-									<input class="input input-bordered" type="date" id={ "due-" + item.ID.String() } name="due_date" value={ item.NextAction.DueDate }/>
-									<label for={ "owner-" + item.ID.String() }>{ data.T("engagement.owner") }</label>
-									<select class="select select-bordered" id={ "owner-" + item.ID.String() } name="owner_id"><option value="">—</option>
-										for _, member := range data.EngagementMembers {
-											<option value={ member.UserID.String() } selected?={ member.UserID == item.NextAction.OwnerID }>{ member.Email }</option>
-										}
-									</select>
-									<button class="btn btn-primary" type="submit">{ data.T("engagement.save_action") }</button>
-									if item.NextAction.Text != "" {
-										<button class="btn btn-outline" type="submit" name="clear" value="1">{ data.T("engagement.clear_action") }</button>
-									}
-								</form>
-							}
-						</li>
-					}
-				</ul>
+								</a>
+							</li>
+						}
+					</ul>
+				}
 			</section>
+			<div id="engagement-create-modal"></div>
 		}
+		</div>
+		<div data-detail-divider role="separator" aria-orientation="vertical" aria-controls="detail-main" aria-label={ data.T("clients.resize_activity") } tabindex="-1" hidden></div>
+		<div class="detail-sidebar min-w-0">
+			<input class="range range-primary" data-detail-range type="range" min="320" max="1000" value="320" hidden aria-label={ data.T("clients.resize_main") }/>
+		@clientTimeline(data)
+		</div>
+		</div>
 	}
 }
 
 templ clientDetail(data viewmodel.PageData) {
 	<section id="client-detail" class="client-panel card my-4 p-6" aria-labelledby="client-heading">
 		<h2 id="client-heading" class="sr-only">{ data.T("clients.client") }</h2>
-		if data.ErrorKey != "" {
+		if data.ErrorKey != "" && data.ClientInlineField == "" {
 			if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
 				<div data-timeline-error-summary>
 					@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -216,70 +124,96 @@ templ clientDetail(data viewmodel.PageData) {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))
 			}
 		}
-		if data.CanEditClients {
-			<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
-				<input type="hidden" name="csrf" value={ data.CSRF }/>
-				<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-				@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
-					"name": "display_name", "required": true, "maxlength": "200",
-					"value": data.Client.DisplayName, "data-trim": "",
-				})
-				@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
-					"name": "email", "type": "email", "maxlength": "254", "value": data.Client.Email,
-				})
-				@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
-					"name": "phone", "maxlength": "50", "value": data.Client.Phone,
-				})
-				@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.Client.Notes, templ.Attributes{
-					"name": "notes", "maxlength": "5000",
-				})
-				<div class="actions">
-					@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.save"), Attrs: templ.Attributes{"type": "submit"}})
-				</div>
-			</form>
-		} else {
+		if !data.CanEditClients {
 			<p class="status-line">{ data.T("clients.read_only") }</p>
-			<dl>
-				<dt>{ data.T("clients.display_name") }</dt><dd>{ data.Client.DisplayName }</dd>
-				<dt>{ data.T("common.email") }</dt><dd>{ data.Client.Email }</dd>
-				<dt>{ data.T("clients.phone") }</dt><dd>{ data.Client.Phone }</dd>
-				<dt>{ data.T("clients.notes") }</dt><dd>{ data.Client.Notes }</dd>
-			</dl>
+		}
+		<dl class="detail-values grid grid-cols-1 gap-y-1">
+			<dt class="text-sm font-semibold">{ data.T("clients.display_name") }</dt><dd class="min-w-0 break-words">@clientInlineField(data, "display_name", data.T("clients.display_name"), data.Client.DisplayName, "text", "200", true)</dd>
+			<dt class="mt-3 text-sm font-semibold">{ data.T("common.email") }</dt><dd class="min-w-0 break-words">@clientInlineField(data, "email", data.T("common.email"), data.Client.Email, "email", "254", false)</dd>
+			<dt class="mt-3 text-sm font-semibold">{ data.T("clients.phone") }</dt><dd class="min-w-0 break-words">@clientInlineField(data, "phone", data.T("clients.phone"), data.Client.Phone, "tel", "50", false)</dd>
+		</dl>
+		@clientValues(data)
+		<dl class="mt-6">
+			<dt class="text-sm font-semibold">{ data.T("clients.notes") }</dt><dd class="break-words">
+				if data.CanEditClients {
+					{{ hasDraft := data.ClientInlineField == "notes"; conflict := hasDraft && data.ErrorKey == "clients.error_changed"; value := data.Client.Notes; version := strconv.FormatInt(data.Client.Version, 10); if hasDraft { value = data.ClientInlineValue; if !conflict { version = data.ClientInlineVersion } } }}
+					@molecules.NotesEditor(molecules.NotesEditorProps{
+						ID: "inline-notes", Name: "value", Label: data.T("clients.notes")+" "+data.T("ui.optional"),
+						EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"), RetryLabel: data.T("ui.retry"),
+						EmptyText: data.T("clients.value_none"), Saved: data.Client.Notes, Value: value, Rendered: renderEngagementMarkdown(data.Client.Notes),
+						Action: data.CurrentPath + "/" + data.Client.ID.String() + "/field", CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-detail",
+						CSRF: data.CSRF, Version: version, Field: "notes", Error: data.T(data.ErrorKey), Warning: data.T("notes.source_warning"),
+						BoldLabel: data.T("engagement.bold"), ItalicLabel: data.T("engagement.italic"), ListLabel: data.T("engagement.bulleted_list"), SourceLabel: data.T("notes.source"), MaxLength: "5000",
+						LinkLabel: data.T("notes.link"), LinkURLLabel: data.T("notes.link_url"), LinkApplyLabel: data.T("notes.link_apply"), LinkCancelLabel: data.T("notes.link_cancel"), LinkInvalidLabel: data.T("notes.link_invalid"),
+						Draft: hasDraft, FormDraft: hasDraft, Conflict: conflict, Empty: data.Client.Notes == "",
+					})
+				} else if data.Client.Notes == "" {
+					<span class="status-line">{ data.T("clients.value_none") }</span>
+				} else {
+					<div class="engagement-markdown">@templ.Raw(renderEngagementMarkdown(data.Client.Notes))</div>
+				}
+			</dd>
+		</dl>
+		if data.CanEditClients && data.ClientEditRejected {
+			<details data-detail-editor data-detail-discard-message={ data.T("ui.unsaved") } data-detail-dirty-on-load open>
+				<summary class="btn btn-ghost btn-sm">{ data.T("ui.edit") } { data.T("clients.client") }</summary>
+				<dialog open data-detail-dialog aria-labelledby="client-edit-dialog-title">
+					<div class="modal-box">
+						<h2 id="client-edit-dialog-title">{ data.T("ui.edit") } { data.T("clients.client") }</h2>
+						@molecules.ErrorAlert(data.T(data.ErrorKey))
+						<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
+							<input type="hidden" name="csrf" value={ data.CSRF }/>
+							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
+							@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
+								"name": "display_name", "required": true, "maxlength": "200",
+								"value": data.ClientDraft.DisplayName, "data-trim": "",
+							})
+							@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
+								"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email,
+							})
+							@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
+								"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone,
+							})
+							@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{
+								"name": "notes", "maxlength": "5000",
+							})
+							<div class="modal-action">
+								<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+								<button type="button" class="btn" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
+								@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.save"), Attrs: templ.Attributes{"type": "submit"}})
+							</div>
+						</form>
+					</div>
+				</dialog>
+			</details>
 		}
 		if data.Client.ArchivedAt != nil {
 			@molecules.StatusLine(data.T("clients.archived_status"), nil)
 		}
-		if data.CanEditClients {
-			<div class="client-lifecycle">
-				if data.Client.ArchivedAt != nil {
-					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/unarchive" }>
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Button(atoms.ButtonProps{Label: data.T("common.restore"), Attrs: templ.Attributes{"type": "submit"}})
-					</form>
-				}
-				<details>
-					<summary class="btn btn-sm">{ data.T("common.more_actions") }</summary>
-				if data.Client.ArchivedAt == nil {
-					<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/archive" }>
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						@atoms.Button(atoms.ButtonProps{Label: data.T("clients.archive"), Attrs: templ.Attributes{"type": "submit"}})
-					</form>
-				}
-				if data.CanDeleteClients {
-					<div class="client-delete">
-						<p class="warning alert alert-warning py-2">{ data.T("clients.delete_client_confirm") }</p>
-						<form method="post" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/delete" }>
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							@atoms.Button(atoms.ButtonProps{Class: "btn-error", Label: data.T("clients.delete_client"), Attrs: templ.Attributes{"type": "submit", "data-confirm": data.T("clients.delete_client_confirm")}})
-						</form>
-					</div>
-				}
-				</details>
-			</div>
-		}
-		@clientValues(data)
-		@clientTimeline(data)
 	</section>
+		if data.CanDeleteClients {
+			@clientDeleteDialog(data)
+		}
+}
+
+templ clientInlineField(data viewmodel.PageData, field, label, saved, inputType, maxLength string, required bool) {
+	if data.CanEditClients {
+		{{ hasDraft := data.ClientInlineField == field; conflict := hasDraft && data.ErrorKey == "clients.error_changed"; value := saved; version := strconv.FormatInt(data.Client.Version, 10); inputLabel := label; if !required { inputLabel += " " + data.T("ui.optional") }; if hasDraft { value = data.ClientInlineValue; if !conflict { version = data.ClientInlineVersion } } }}
+		@molecules.InlineEditor(molecules.InlineEditorProps{
+			Saved: saved, Display: saved, Empty: saved == "", EmptyText: data.T("clients.value_none"), Value: value,
+			Label: label, InputLabel: inputLabel, EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"),
+			ID: "inline-" + field, Name: "value", InputType: inputType, MaxLength: maxLength, Required: required,
+			Action: data.CurrentPath + "/" + data.Client.ID.String() + "/field", CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-detail",
+			CSRF: data.CSRF, Version: version, Field: field, Draft: hasDraft, FormDraft: hasDraft, Conflict: conflict,
+			Error: data.T(data.ErrorKey), RetryLabel: data.T("ui.retry"), Class: "min-w-0",
+		})
+	} else {
+		if saved == "" {
+			<span class="status-line">{ data.T("clients.value_none") }</span>
+		} else {
+			{ saved }
+		}
+	}
 }
 
 templ clientTimeline(data viewmodel.PageData) {
@@ -376,47 +310,107 @@ templ clientTimeline(data viewmodel.PageData) {
 }
 
 templ clientValues(data viewmodel.PageData) {
-	<section id="client-values" class="client-panel card my-4 p-6 client-values" aria-labelledby="client-values-heading">
-		<h2 id="client-values-heading">{ data.T("clients.values_heading") }</h2>
+	<div id="client-values">
 		if len(data.ClientValues) > 0 {
-			for _, value := range data.ClientValues {
-				if data.CanEditClients {
-					<form class="client-value card card-compact p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post">
-						<input type="hidden" name="csrf" value={ data.CSRF }/>
-						<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-						@atoms.Label(atoms.LabelProps{For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
-						if value.Type == "number" {
-							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: clientValueDisplayValue(value.Value)})
-						} else if value.Type == "date" {
-							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: clientValueDisplayValue(value.Value)})
-						} else if value.Type == "yes_no" {
-							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueYesNoOptions(data, value)})
-						} else if value.Type == "single_choice" {
-							@atoms.Select(atoms.SelectProps{ID: "value-" + value.FieldID.String(), Name: "value", Options: clientValueChoiceOptions(data, value)})
+			<dl class="detail-values mt-6 grid grid-cols-1 gap-y-1">
+				for _, value := range data.ClientValues {
+					<dt class="mt-3 text-sm font-semibold">{ value.Label }</dt>
+					<dd class="min-w-0 break-words">
+						if data.CanEditClients {
+							if value.Type == "yes_no" || value.Type == "single_choice" {
+								@clientValueEditor(data, value)
+							} else {
+								@clientTextValue(data, value)
+							}
+						} else if value.Value == nil {
+							<span class="status-line">{ data.T("clients.value_none") }</span>
 						} else {
-							@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: clientValueDisplayValue(value.Value)})
+							{ clientValueDisplay(data, value) }
 						}
-						<div class="actions">
-							@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})
-						</div>
-					</form>
-					if value.Value != nil {
-						<form class="client-value-clear card card-compact mt-2 p-4 bg-base-200" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
-							<input type="hidden" name="csrf" value={ data.CSRF }/>
-							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-							@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
-						</form>
+					</dd>
+				}
+			</dl>
+		}
+		if data.CanManageFields {
+			<a class="btn btn-outline btn-sm mt-4" href={ data.FieldsPath }>{ data.T("clients.add_field") }</a>
+		}
+	</div>
+}
+
+templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
+	{{ hasDraft := data.ClientValueDraftField == value.FieldID.String(); saved := clientValueDisplayValue(value.Value); inputValue := saved; inputType := value.Type; if inputType != "number" && inputType != "date" { inputType = "text" }; action := data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(); clearURL := ""; if value.Value != nil { clearURL = action + "/clear" }; if hasDraft { inputValue = data.ClientValueDraft; inputType = "text" } }}
+	<div class="client-value min-w-0">
+		if hasDraft {
+			@molecules.ErrorAlert(data.T(data.ErrorKey))
+		}
+		@molecules.InlineEditor(molecules.InlineEditorProps{
+			Saved: saved, Display: clientValueDisplay(data, value), Empty: value.Value == nil, EmptyText: data.T("clients.value_none"), Value: inputValue,
+			Label: value.Label, InputLabel: value.Label + " " + data.T("ui.optional"), EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"),
+			ID: "value-" + value.FieldID.String(), Name: "value", InputType: inputType, MaxLength: "500",
+			Action: action, CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values", ClearURL: clearURL, ClearLabel: data.T("clients.value_clear"),
+			CSRF: data.CSRF, Version: strconv.FormatInt(data.Client.Version, 10), Draft: hasDraft, FormDraft: hasDraft, Class: "min-w-0",
+		})
+	</div>
+}
+
+templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow) {
+	{{ hasDraft := data.ClientValueDraftField == value.FieldID.String(); inputValue := clientValueDisplayValue(value.Value); if hasDraft { inputValue = data.ClientValueDraft } }}
+	if hasDraft {
+		@molecules.ErrorAlert(data.T(data.ErrorKey))
+	}
+	<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post" data-confirm-select?={ value.Type == "yes_no" || value.Type == "single_choice" } data-dirty-track data-unsaved-warning data-dirty-on-load?={ hasDraft }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
+		@atoms.Label(atoms.LabelProps{Class: "sr-only", For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
+		if value.Type == "yes_no" || value.Type == "single_choice" {
+			<select class="select w-full" id={ "value-" + value.FieldID.String() } name="value">
+				if hasDraft {
+					<option value={ inputValue } selected>{ inputValue }</option>
+				}
+				if value.Type == "yes_no" {
+					for _, option := range clientValueYesNoOptions(data, value) {
+						<option value={ option.Value } disabled?={ option.Disabled } selected?={ !hasDraft && option.Selected }>{ option.Label }</option>
 					}
 				} else {
-					<dl>
-						<dt>{ value.Label }</dt>
-						<dd>{ clientValueDisplay(data, value) }</dd>
-					</dl>
+					for _, option := range clientValueChoiceOptions(data, value) {
+						<option value={ option.Value } disabled?={ option.Disabled } selected?={ !hasDraft && option.Selected }>{ option.Label }</option>
+					}
 				}
-			}
+			</select>
+		} else if value.Type == "number" && !hasDraft {
+			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: inputValue})
+		} else if value.Type == "date" && !hasDraft {
+			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: inputValue})
 		} else {
-			<p class="status-line">{ data.T("clients.values_none") }</p>
+			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: inputValue})
 		}
-	</section>
+		<div class="actions" data-confirm-select-fallback>
+			<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values" }>{ data.T("common.cancel") }</a>
+			@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})
+		</div>
+		if value.Type == "yes_no" || value.Type == "single_choice" {
+			@confirmSelectDialog(data, value.Label)
+		}
+	</form>
+	if value.Value != nil {
+		<form class="client-value-clear mt-2" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
+			<input type="hidden" name="csrf" value={ data.CSRF }/>
+			<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
+			@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})
+		</form>
+	}
+}
+
+templ confirmSelectDialog(data viewmodel.PageData, field string) {
+	<dialog class="modal" aria-label={ data.T("ui.confirm_change") } data-confirm-select-dialog>
+		<div class="modal-box">
+			<h2>{ data.T("ui.confirm_change") }</h2>
+			<p>{ field }: <strong data-confirm-select-value></strong></p>
+			<div class="modal-action">
+				<button type="button" class="btn" data-confirm-select-cancel>{ data.T("common.cancel") }</button>
+				<button type="button" class="btn btn-primary" data-confirm-select-accept>{ data.T("ui.confirm") }</button>
+			</div>
+		</div>
+	</dialog>
 }
 

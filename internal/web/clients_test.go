@@ -257,11 +257,11 @@ func TestClientsListTemplShellLoadsRealtimeAssetsAndKeepsNativeForms(t *testing.
 	if page.Code != http.StatusOK || page.Header().Get("Content-Language") != "es" ||
 		!strings.Contains(body, `href="/assets/clients.css"`) || htmx < 0 || app < 0 ||
 		!strings.Contains(body, `method="get"`) ||
-		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || hxPostOutsideColumns(body) {
-		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d get=%t post=%t hxGet=%t hxPost=%t",
+		!strings.Contains(body, `method="post"`) || !pageSizeIsLive(body) || !strings.Contains(body, `hx-target="#client-create-content"`) {
+		t.Fatalf("Clients page contract: status=%d locale=%q css=%t htmx=%d app=%d get=%t post=%t hxGet=%t",
 			page.Code, page.Header().Get("Content-Language"), strings.Contains(body, `href="/assets/clients.css"`), htmx, app,
 			strings.Contains(body, `method="get"`), strings.Contains(body, `method="post"`),
-			strings.Contains(body, `hx-get=`), hxPostOutsideColumns(body))
+			strings.Contains(body, `hx-get=`))
 	}
 }
 
@@ -298,10 +298,9 @@ func TestClientDetailUsesSharedTemplComponents(t *testing.T) {
 	}, env.cookies, nil)
 	detail := request(env.routes, http.MethodGet, created.Header().Get("Location"), nil, env.cookies, nil)
 	body := detail.Body.String()
-	// shortcut: main (#498) renders the detail page inside the app shell; only the shared components are asserted now
-	if detail.Code != http.StatusOK || !strings.Contains(body, `id="client-display-name"`) ||
-		!strings.Contains(body, `class="input w-full"`) ||
-		!strings.Contains(body, `class="btn btn-primary" type="submit"`) {
+	if detail.Code != http.StatusOK || !strings.Contains(body, `id="inline-display_name"`) ||
+		!strings.Contains(body, `name="field" value="display_name"`) ||
+		!strings.Contains(body, `name="field" value="notes"`) {
 		t.Fatalf("client detail rendering or script boundary is incorrect: %s", body)
 	}
 }
@@ -332,6 +331,40 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 	}, env.viewerCookies, nil)
 	if viewerWrite.Code != http.StatusForbidden {
 		t.Fatalf("viewer create = %d, want 403", viewerWrite.Code)
+	}
+}
+
+func TestClientModalCreateRetainsDraftAndRedirects(t *testing.T) {
+	env := newClientsTestEnv(t)
+	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
+	if !strings.Contains(page.Body.String(), `data-client-dialog`) || !strings.Contains(page.Body.String(), `data-client-create`) {
+		t.Fatal("clients page lacks the create dialog or its link")
+	}
+	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), `data-client-dialog`) || strings.Contains(viewer.Body.String(), `data-client-create`) {
+		t.Fatal("viewer can access client creation")
+	}
+	headers := map[string]string{"HX-Request": "true"}
+	invalid := request(env.routes, http.MethodPost, env.listPath()+"/new", url.Values{
+		"csrf": {env.csrf}, "client_modal": {"1"}, "display_name": {"Ada"},
+		"email": {"Ada <ada@example.com>"}, "phone": {"123"}, "notes": {"Remember this"},
+	}, env.cookies, headers)
+	body := invalid.Body.String()
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(body, "The email address is invalid.") ||
+		!strings.Contains(body, `value="Ada &lt;ada@example.com&gt;"`) || !strings.Contains(body, `value="123"`) ||
+		!strings.Contains(body, "Remember this") || strings.Contains(body, `id="client-new-page"`) {
+		t.Fatalf("modal validation lost draft or error: %d %s", invalid.Code, body)
+	}
+	created := request(env.routes, http.MethodPost, env.listPath()+"/new", url.Values{
+		"csrf": {env.csrf}, "client_modal": {"1"}, "display_name": {"Ada"},
+	}, env.cookies, headers)
+	location := created.Header().Get("X-Client-Location")
+	if created.Code != http.StatusNoContent || !strings.HasPrefix(location, env.listPath()+"/") {
+		t.Fatalf("modal create = %d, location %q", created.Code, location)
+	}
+	detail := request(env.routes, http.MethodGet, location, nil, env.cookies, nil)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "Ada") {
+		t.Fatalf("created client detail = %d", detail.Code)
 	}
 }
 
@@ -509,7 +542,7 @@ func TestClientsListUsesResponsiveTableAndSavedColumns(t *testing.T) {
 	}
 	response = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), `data-column="displayName"`) ||
-		!strings.Contains(response.Body.String(), `class="list-row-link `) ||
+		!strings.Contains(response.Body.String(), `class="list-row-link"`) ||
 		strings.Contains(response.Body.String(), `>Ada Lovelace<`) {
 		t.Fatalf("hidden column remains visible: %d %s", response.Code, response.Body.String())
 	}

@@ -25,7 +25,10 @@ type localeState struct {
 
 type localeWriter struct {
 	http.ResponseWriter
-	context context.Context
+	context             context.Context
+	engagementWorkspace identity.WorkspaceID
+	engagementLabel     string
+	engagementLoaded    bool
 }
 
 func (w *localeWriter) Flush() {
@@ -85,7 +88,11 @@ func (h *Handler) localizePage(writer http.ResponseWriter, data *viewmodel.PageD
 	data.Theme = h.pageTheme(writer)
 	data.Catalog = h.catalog
 	data.CatalogEnabled = h.catalogService != nil
+	data.EngagementEnabled = h.engagement != nil
 	if state, ok := writer.(*localeWriter); ok {
+		if state.engagementLoaded && state.engagementWorkspace == data.Workspace.ID {
+			data.EngagementLabel = state.engagementLabel
+		}
 		if values, ok := state.context.Value(localeContextKey{}).(localeState); ok {
 			data.ReturnPath = values.returnPath
 			if data.Profile.Email == "" && values.userEmail != "" {

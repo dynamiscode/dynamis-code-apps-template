@@ -84,9 +84,9 @@ templ memberRows(data viewmodel.PageData) {
 				for _, row := range data.ListRows {
 					@organisms.ListRow("") {
 						@organisms.ListCells(data, row, "")
-						<td class="list-actions-cell">@molecules.ListRowMenu(data) {
+						@organisms.ListActionsContentCell(data) {
 							@memberActions(data, row.Member, "table")
-						}</td>
+						}
 					}
 				}
 			</tbody>

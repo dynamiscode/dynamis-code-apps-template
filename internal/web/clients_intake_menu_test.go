@@ -78,3 +78,21 @@ func TestClientIntakeMenuStates(t *testing.T) {
 		})
 	}
 }
+
+func TestClientManageMenuAuthorizationAndPlacement(t *testing.T) {
+	env := newClientsTestEnv(t)
+	owner := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil).Body.String()
+	newClient := strings.Index(owner, `data-client-create`)
+	manage := strings.Index(owner, `>Manage</summary>`)
+	if newClient < 0 || manage < newClient || !strings.Contains(owner, ">Manage form</a>") || !strings.Contains(owner, ">Manage custom fields</a>") {
+		t.Fatal("owner must have the management menu after New client")
+	}
+	toolbar := owner[strings.Index(owner, `<div class="list-create">`):]
+	if strings.Contains(strings.SplitN(toolbar, `<div id="list-filter-bar">`, 2)[0], `href="/workspaces/`+env.workspaceID.String()+`/engagements"`) {
+		t.Fatal("clients toolbar must not link to the bulleted list")
+	}
+	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil).Body.String()
+	if strings.Contains(viewer, ">Manage form</a>") || strings.Contains(viewer, ">Manage custom fields</a>") {
+		t.Fatal("viewer must not see management actions")
+	}
+}

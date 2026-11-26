@@ -395,6 +395,8 @@ func TestGenerateWithoutClientsPrunesClientsSurfaceAndBuilds(t *testing.T) {
 		"internal/engagement/engagement.go", "internal/engagement/assignee.go", "internal/engagement/next_action.go", "internal/engagement/quote.go",
 		"internal/engagement/list.go", "internal/engagement/list_test.go", "internal/engagement/dashboard.go",
 		"internal/web/engagement_dashboard_test.go",
+		"internal/web/engagement_notes.go", "internal/web/engagement_notes_test.go",
+		"internal/web/engagement_new.go", "internal/web/engagement_new.templ", "internal/web/engagement_new_templ.go", "internal/web/engagement_new_search_test.go",
 		"internal/web/engagement_list.go", "internal/web/engagement_list.templ", "internal/web/engagement_list_templ.go",
 		"internal/web/engagement_board.go", "internal/web/engagement_board.templ", "internal/web/engagement_board_templ.go",
 		"internal/web/client_timeline.go", "internal/web/client_timeline_test.go",

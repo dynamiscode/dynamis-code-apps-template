@@ -120,6 +120,10 @@ func (h *Handler) renderClientList(
 		return
 	}
 	query := request.URL.Query()
+	if len(query["archived"]) == 1 && clients.ValidArchivedSelector(query.Get("archived")) && query.Get("archived") != "" {
+		query.Add("filter", clientArchiveFilter+":equals:"+query.Get("archived"))
+		query.Del("archived")
+	}
 	fields, err := h.clients.ListFields(request.Context(), principal, workspaceID, clients.ListFieldsInput{})
 	if err != nil {
 		h.clientError(writer, request, err)
@@ -215,7 +219,7 @@ func (h *Handler) renderClientList(
 		h.clientError(writer, request, err)
 		return
 	}
-	archived := query.Get("archived") != "" && query.Get("archived") != clients.ArchivedActive
+	archived := form.Archived != "" && form.Archived != clients.ArchivedActive
 	view := h.listViewState(request, principal, workspaceID, listviews.ListClients, archived)
 	intakeEnabled := h.intake != nil && principal.Permissions[identity.WorkspaceUpdate]
 	intakeActive, intakeReady, intakeUnavailable, intakeLink := false, false, false, ""
@@ -246,7 +250,7 @@ func (h *Handler) renderClientList(
 		ListColumns: columns, ListRows: rows, ListTotal: page.Total, ListStart: listStart(pageNumber, limit), Filter: filterView,
 		ClientPreservedQuery: clientPreservedQuery(query), ListPreservedQuery: filterView.Preserved,
 		ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
-		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filters) > 0,
+		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filter.Filters) > 0,
 		HiddenClientSort:       hiddenSort,
 		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix, ClientReturnQuery: cloneClientQuery(query).Encode(),
 		CanEditClients:   principal.Permissions[identity.ResourcesWrite],
@@ -261,16 +265,10 @@ func (h *Handler) renderClientList(
 
 func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Request, status int, component func(viewmodel.PageData) templ.Component, data viewmodel.PageData) {
 	if h.engagement != nil {
-		actor, _, _, ok := h.workspaceSession(writer, request, data.Workspace.ID, identity.ResourcesRead)
+		_, _, _, ok := h.workspaceSession(writer, request, data.Workspace.ID, identity.ResourcesRead)
 		if !ok {
 			return
 		}
-		label, err := h.engagement.Label(request.Context(), actor, data.Workspace.ID)
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
-		}
-		data.EngagementLabel = label
 	}
 	data.FilesEnabled = h.filesEnabled
 	data.ClientsEnabled = h.clientsEnabled
@@ -346,12 +344,16 @@ func (h *Handler) createClient(writer http.ResponseWriter, request *http.Request
 	client, err := h.clients.Create(request.Context(), principal, workspaceID, draft, auditContext(request))
 	if err != nil {
 		if errors.Is(err, clients.ErrInvalidInput) {
-			// A refused create always returns the create form with the draft, even
-			// when the post came from the list: the list carries no form of its own.
+			// Modal submissions receive the same form and draft without replacing the page.
 			h.renderClientNew(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), &draft)
 			return
 		}
 		h.clientError(writer, request, err)
+		return
+	}
+	if request.Header.Get("HX-Request") == "true" && request.FormValue("client_modal") == "1" {
+		writer.Header().Set("X-Client-Location", h.clientsPath(workspaceID)+"/"+client.ID.String())
+		writer.WriteHeader(http.StatusNoContent)
 		return
 	}
 	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+client.ID.String())
@@ -361,8 +363,7 @@ func (h *Handler) clientNew(writer http.ResponseWriter, request *http.Request) {
 	h.renderClientNew(writer, request, http.StatusOK, "", nil)
 }
 
-// renderClientNew is the client create page: one full page for the form, so the
-// list keeps search, views, and filters instead of an inline form or a modal.
+// renderClientNew renders the full-page fallback or the modal's validation response.
 func (h *Handler) renderClientNew(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -395,6 +396,12 @@ func (h *Handler) renderClientNew(
 	}
 	if draft != nil {
 		data.ClientDraft = *draft
+	}
+	if request.Header.Get("HX-Request") == "true" && request.FormValue("client_modal") == "1" {
+		h.renderClientPage(writer, request, status, func(data viewmodel.PageData) templ.Component {
+			return clientCreateContent(data, true)
+		}, data)
+		return
 	}
 	h.renderClientPage(writer, request, status, clientNewPage, data)
 }
@@ -440,8 +447,9 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		h.clientError(writer, request, err)
 		return
 	}
+	editDraft := clients.Input{DisplayName: client.DisplayName, Email: client.Email, Phone: client.Phone, Notes: client.Notes}
 	if draft != nil {
-		client.DisplayName, client.Email, client.Phone, client.Notes = draft.DisplayName, draft.Email, draft.Phone, draft.Notes
+		editDraft = *draft
 	}
 	page := 1
 	if raw := request.URL.Query().Get("timeline_page"); raw != "" {
@@ -451,7 +459,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			return
 		}
 	}
-	entries, err := h.clients.ListTimelineEntriesPage(request.Context(), principal, workspaceID, clientID, 50, page)
+	entries, err := h.clients.ListTimelineEntriesNewestPage(request.Context(), principal, workspaceID, clientID, 50, page)
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
@@ -502,7 +510,8 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			return
 		}
 	}
-	if h.scheduling != nil && len(engagements) > 0 {
+	if h.scheduling != nil && request.PathValue("engagementId") != "" && len(engagements) > 0 {
+		engagementID := engagement.ParseID(request.PathValue("engagementId"))
 		resources, _, err := h.scheduling.List(request.Context(), principal, workspaceID)
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
@@ -515,7 +524,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 				return
 			}
 			for _, booking := range bookings {
-				if booking.EngagementID != nil {
+				if booking.EngagementID != nil && *booking.EngagementID == engagementID {
 					engagementBookings[*booking.EngagementID] = append(engagementBookings[*booking.EngagementID], booking)
 				}
 			}
@@ -547,9 +556,9 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	title := client.DisplayName
 	var agreementFiles appfiles.Page
 	var agreementFilesAvailable bool
-	var actionHistory []engagement.ActionHistoryEntry
+	var activity []engagement.ActivityEntry
 	var historyPrevious, historyNext string
-	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.agreement_page" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
+	if request.PathValue("engagementId") != "" && (request.Method == http.MethodGet || errorKey == "engagement.invalid_notes" || errorKey == "engagement.notes_conflict" || errorKey == "engagement.invalid_name" || errorKey == "engagement.invalid_assignee" || errorKey == "engagement.invalid_quote" || errorKey == "engagement.invalid_agreement_file" || errorKey == "engagement.agreement_page" || errorKey == "engagement.invalid_next_action" || errorKey == "engagement.action_conflict" || (errorKey == "engagement.invalid_move" && request.FormValue("return_to") == "detail")) {
 		component = engagementDetailPage
 		id := engagement.ParseID(request.PathValue("engagementId"))
 		var selected []engagement.Engagement
@@ -574,7 +583,7 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			}
 		}
 		var hasMore bool
-		actionHistory, hasMore, err = h.engagement.ListActionHistory(request.Context(), principal, workspaceID, id, historyPage)
+		activity, hasMore, err = h.engagement.ListActivity(request.Context(), principal, workspaceID, id, historyPage)
 		if err != nil {
 			h.renderError(writer, http.StatusInternalServerError)
 			return
@@ -619,13 +628,29 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		FieldsPath:        h.clientFieldsPath(workspaceID),
 		CanManageFields:   principal.Permissions[identity.WorkspaceUpdate],
 		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		ClientDraft: editDraft, ClientEditRejected: draft != nil,
+		ClientInlineField: func() string {
+			if errorKey != "" && request.Method == http.MethodPost && strings.HasSuffix(request.URL.Path, "/field") {
+				return request.FormValue("field")
+			}
+			return ""
+		}(),
+		ClientInlineValue:   request.FormValue("value"),
+		ClientInlineVersion: request.FormValue("version"),
+		ClientValueDraftField: func() string {
+			if errorKey != "" && request.Method == http.MethodPost && !strings.HasSuffix(request.URL.Path, "/clear") {
+				return request.PathValue("fieldId")
+			}
+			return ""
+		}(),
+		ClientValueDraft: request.FormValue("value"),
 		CanDeleteClients: principal.Permissions[identity.WorkspaceUpdate],
 		Engagements:      engagements, EngagementBookings: engagementBookings, EngagementStages: stages, EngagementMembers: members, EngagementEnabled: h.engagement != nil,
-		ActionHistory: actionHistory, ActionHistoryPrevious: historyPrevious, ActionHistoryNext: historyNext,
+		Activity: activity, ActivityPrevious: historyPrevious, ActivityNext: historyNext,
 		AgreementFiles: agreementFiles.Files, AgreementFilesTotal: agreementFiles.Total, AgreementFilesAvailable: agreementFilesAvailable,
 		AgreementSelectedFile: request.FormValue("selected_file_id"), AgreementDraftFile: request.FormValue("file_id"), AgreementDraftRecorded: request.FormValue("recorded") == "1",
 		AgreementFilesPager: newListPager(h.clientsPath(workspaceID)+"/"+clientID.String()+"/engagements/"+request.PathValue("engagementId"), nil, agreementFiles.Page, 100, agreementFiles.Total),
-		EngagementNotes:     engagementNotes, OpenEngagementStages: openStages,
+		EngagementNotes:     engagementNotes, EngagementNotesRevision: request.FormValue("notes_revision"), OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
 		ActionConflictText: request.FormValue("text"), ActionConflictDueDate: request.FormValue("due_date"), ActionConflictClear: errorKey == "engagement.action_conflict" && request.FormValue("clear") == "1",
@@ -714,6 +739,54 @@ func (h *Handler) clientValueError(writer http.ResponseWriter, request *http.Req
 	}
 }
 
+func (h *Handler) changeClientProperty(writer http.ResponseWriter, request *http.Request) {
+	if h.clients == nil {
+		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	principal, ok := h.mutationPrincipal(writer, request)
+	if !ok {
+		return
+	}
+	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
+	clientID := clients.ParseClientIDOrZero(request.PathValue("clientId"))
+	version, err := strconv.ParseInt(request.FormValue("version"), 10, 64)
+	if err != nil || version < 1 {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
+	if _, ok := request.PostForm["value"]; !ok {
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
+	value := request.FormValue("value")
+	var input clients.UpdateInput
+	switch request.FormValue("field") {
+	case "display_name":
+		input.DisplayName = &value
+	case clients.FieldEmail:
+		input.Email = &value
+	case clients.FieldPhone:
+		input.Phone = &value
+	case clients.FieldNotes:
+		input.Notes = &value
+	default:
+		h.renderError(writer, http.StatusBadRequest)
+		return
+	}
+	_, err = h.clients.Update(request.Context(), principal, workspaceID, clientID, version, input, auditContext(request))
+	switch {
+	case errors.Is(err, clients.ErrPreconditionFailed):
+		h.renderClientDetail(writer, request, http.StatusConflict, "clients.error_changed", nil)
+	case errors.Is(err, clients.ErrInvalidInput):
+		h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), nil)
+	case err != nil:
+		h.clientError(writer, request, err)
+	default:
+		h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+	}
+}
+
 func (h *Handler) changeClient(writer http.ResponseWriter, request *http.Request) {
 	if h.clients == nil {
 		h.renderError(writer, http.StatusNotFound)
@@ -734,12 +807,12 @@ func (h *Handler) changeClient(writer http.ResponseWriter, request *http.Request
 		clients.UpdateInput{DisplayName: &displayName, Email: &email, Phone: &phone, Notes: &notes},
 		auditContext(request))
 	if err != nil {
+		draft := clients.Input{DisplayName: displayName, Email: email, Phone: phone, Notes: notes}
 		if errors.Is(err, clients.ErrPreconditionFailed) {
-			h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed", nil)
+			h.renderClientDetail(writer, request, http.StatusPreconditionFailed, "clients.error_changed", &draft)
 			return
 		}
 		if errors.Is(err, clients.ErrInvalidInput) {
-			draft := clients.Input{DisplayName: displayName, Email: email, Phone: phone, Notes: notes}
 			h.renderClientDetail(writer, request, http.StatusUnprocessableEntity, clientErrorKey(err), &draft)
 			return
 		}

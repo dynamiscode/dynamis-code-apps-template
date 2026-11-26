@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -33,14 +32,11 @@ func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
 				t.Fatalf("home: status=%d writer=%v", page.Code, tc.writer)
 			}
 			list := request(env.routes, http.MethodGet, home+"/engagements", nil, tc.cookies, nil)
-			if strings.Contains(list.Body.String(), `href="`+clientsPath+`">Create engagement</a>`) != tc.writer {
+			if strings.Contains(list.Body.String(), `href="`+home+`/engagements/new" hx-get="`+home+`/engagements/new"`) != tc.writer {
 				t.Fatalf("engagement list create link: status=%d writer=%v", list.Code, tc.writer)
 			}
-			if tc.writer && !strings.Contains(list.Body.String(), `class="btn btn-outline" href="`+clientsPath+`">Create engagement</a>`) {
-				t.Fatal("engagement create link lacks a visible boundary")
-			}
 			page = request(env.routes, http.MethodGet, clientsPath, nil, tc.cookies, nil)
-			if page.Code != http.StatusOK || strings.Contains(page.Body.String(), "Select a client to create an engagement.") != tc.writer {
+			if page.Code != http.StatusOK {
 				t.Fatalf("clients: status=%d writer=%v", page.Code, tc.writer)
 			}
 		})
@@ -57,7 +53,7 @@ func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
 		t.Fatalf("Spanish home: status=%d", page.Code)
 	}
 	page = request(env.routes, http.MethodGet, clientsPath, nil, env.cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Selecciona un cliente para crear una gestión.") {
+	if page.Code != http.StatusOK {
 		t.Fatalf("Spanish clients: status=%d", page.Code)
 	}
 }
@@ -74,8 +70,33 @@ func TestEngagementLabelThroughWeb(t *testing.T) {
 		t.Fatalf("view: %d %s", r.Code, r.Body.String())
 	}
 	r = request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/clients", nil, env.viewerCookies, nil)
-	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), "Matter stages") {
-		t.Fatalf("navigation: %d %s", r.Code, r.Body.String())
+	if r.Code != http.StatusOK || strings.Contains(r.Body.String(), `href="`+path+`"`) {
+		t.Fatalf("clients stage settings: %d %s", r.Code, r.Body.String())
+	}
+	for _, suffix := range []string{"", "/engagements", "/clients", "/client-fields"} {
+		page := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+suffix, nil, env.viewerCookies, nil)
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `href="/workspaces/`+env.workspaceID.String()+`/engagements">Matter</a>`) {
+			t.Fatalf("custom sidebar on %s: %d", suffix, page.Code)
+		}
+	}
+	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := env.auth.CreateWorkspace(context.Background(), owner, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherPage := request(env.routes, http.MethodGet, "/workspaces/"+other.String(), nil, env.cookies, nil)
+	if strings.Contains(otherPage.Body.String(), ">Matter</a>") || !strings.Contains(otherPage.Body.String(), ">Engagements</a>") {
+		t.Fatalf("other workspace label: %d", otherPage.Code)
+	}
+	if err := env.auth.UpdateWorkspaceLocale(context.Background(), owner, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	spanish := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements", nil, env.viewerCookies, nil)
+	if spanish.Code != http.StatusOK || !strings.Contains(spanish.Body.String(), ">Matter</a>") {
+		t.Fatalf("Spanish custom label: %d", spanish.Code)
 	}
 	r = request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.viewerCSRF}, "label": {"Job"}}, env.viewerCookies, nil)
 	if r.Code != http.StatusForbidden {
@@ -86,8 +107,107 @@ func TestEngagementLabelThroughWeb(t *testing.T) {
 		t.Fatalf("reset: %d", r.Code)
 	}
 	r = request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if !strings.Contains(r.Body.String(), "Engagement stages") {
+	if !strings.Contains(r.Body.String(), "Etapas de gestión") {
 		t.Fatalf("default: %s", r.Body.String())
+	}
+	spanish = request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements", nil, env.viewerCookies, nil)
+	if !strings.Contains(spanish.Body.String(), ">Gestiones</a>") {
+		t.Fatalf("Spanish default: %d", spanish.Code)
+	}
+}
+
+func TestEngagementNewPage(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	owner, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, owner, env.workspaceID, clients.Input{DisplayName: "Example client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stage, err := engagement.NewService(env.db, config.SQLite, env.auth).CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/engagements/new"
+	modal := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
+	if modal.Code != http.StatusOK || !strings.Contains(modal.Body.String(), `data-engagement-dialog`) || strings.Contains(modal.Body.String(), "<!doctype html>") {
+		t.Fatalf("modal: %d", modal.Code)
+	}
+	picker := request(env.routes, http.MethodGet, path+"?q=Example", nil, env.cookies, nil)
+	if picker.Code != http.StatusOK || !strings.Contains(picker.Body.String(), "Example client") || !strings.Contains(picker.Body.String(), `value="select:`+client.ID.String()+`"`) {
+		t.Fatalf("picker: %d %s", picker.Code, picker.Body.String())
+	}
+	form := request(env.routes, http.MethodGet, path+"?client="+client.ID.String(), nil, env.cookies, nil)
+	if form.Code != http.StatusOK || !strings.Contains(form.Body.String(), `name="client" value="`+client.ID.String()+`"`) || !strings.Contains(form.Body.String(), stage.ID.String()) {
+		t.Fatalf("form: %d %s", form.Code, form.Body.String())
+	}
+	draft := url.Values{"csrf": {env.csrf}, "client": {client.ID.String()}, "name": {""}, "stage": {stage.ID.String()}, "notes": {"Draft notes"}}
+	invalid := request(env.routes, http.MethodPost, path, draft, env.cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Draft notes") || !strings.Contains(invalid.Body.String(), "Enter a valid name") {
+		t.Fatalf("invalid: %d %s", invalid.Code, invalid.Body.String())
+	}
+	draft.Set("name", "New matter")
+	created := request(env.routes, http.MethodPost, path, draft, env.cookies, nil)
+	if created.Code != http.StatusSeeOther || !strings.Contains(created.Header().Get("Location"), "/clients/"+client.ID.String()+"/engagements/") {
+		t.Fatalf("create: %d %s", created.Code, created.Header().Get("Location"))
+	}
+	detail := request(env.routes, http.MethodGet, created.Header().Get("Location"), nil, env.cookies, nil)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "New matter") || !strings.Contains(detail.Body.String(), "Draft notes") {
+		t.Fatalf("detail: %d", detail.Code)
+	}
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		denied := request(env.routes, method, path, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil)
+		if denied.Code != http.StatusForbidden {
+			t.Fatalf("viewer %s: %d", method, denied.Code)
+		}
+	}
+}
+
+func TestStageDraftRecoveryAndAuthorization(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	name := strings.Repeat("N", 201)
+	invalid := url.Values{"csrf": {env.csrf}, "name": {name}, "kind": {"won"}}
+	page := request(env.routes, http.MethodPost, path, invalid, env.cookies, nil)
+	if page.Code != http.StatusUnprocessableEntity || !strings.Contains(page.Body.String(), `value="`+name+`"`) || !strings.Contains(page.Body.String(), `value="won" selected`) {
+		t.Fatalf("stage draft: %d %s", page.Code, page.Body.String())
+	}
+	denied := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.viewerCSRF}, "name": {name}, "kind": {"won"}}, env.viewerCookies, nil)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer invalid stage: %d", denied.Code)
+	}
+	created := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"New stage"}, "kind": {"won"}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther || created.Header().Get("Location") != path {
+		t.Fatalf("create: %d location %q", created.Code, created.Header().Get("Location"))
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "New stage") || strings.Contains(page.Body.String(), name) {
+		t.Fatalf("saved stage: %d %s", page.Code, page.Body.String())
+	}
+}
+
+func TestEngagementLabelDraftRecoveryAndAuthorization(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	saved := request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.csrf}, "label": {"Matter"}}, env.cookies, nil)
+	if saved.Code != http.StatusSeeOther {
+		t.Fatalf("save label: %d", saved.Code)
+	}
+	label := strings.Repeat("L", 101)
+	page := request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.csrf}, "label": {label}}, env.cookies, nil)
+	if page.Code != http.StatusUnprocessableEntity || !strings.Contains(page.Body.String(), `value="`+label+`"`) || !strings.Contains(page.Body.String(), "Matter") {
+		t.Fatalf("label draft: %d %s", page.Code, page.Body.String())
+	}
+	denied := request(env.routes, http.MethodPost, path+"/label", url.Values{"csrf": {env.viewerCSRF}, "label": {label}}, env.viewerCookies, nil)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer invalid label: %d", denied.Code)
+	}
+	page = request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Matter") || strings.Contains(page.Body.String(), label) {
+		t.Fatalf("saved label: %d %s", page.Code, page.Body.String())
 	}
 }
 
@@ -129,6 +249,78 @@ func TestStageNameExamples(t *testing.T) {
 	}
 }
 
+func TestStageSettingsOrderAndBreadcrumb(t *testing.T) {
+	env := newClientsTestEnv(t)
+	base := "/workspaces/" + env.workspaceID.String()
+	path := base + "/engagement-stages"
+	for _, stage := range []struct{ name, kind string }{
+		{"Lost prospect", "lost"}, {"Active work", "open"}, {"Won project", "won"}, {"Another open", "open"},
+	} {
+		response := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {stage.name}, "kind": {stage.kind}}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("create %s: %d", stage.name, response.Code)
+		}
+	}
+	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, `href="`+base+`/engagements">Engagements</a>`) || !strings.Contains(body, `aria-current="page"`) || !strings.Contains(body, `>Stages</span>`) {
+		t.Fatalf("breadcrumb: %d", page.Code)
+	}
+	previous := -1
+	for _, text := range []string{"Lost prospect", "Active work", "Won project", "Another open"} {
+		index := strings.Index(body, text)
+		if index <= previous {
+			t.Fatalf("missing or unordered %q", text)
+		}
+		previous = index
+	}
+	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), `name="direction"`) || strings.Contains(viewer.Body.String(), `name="confirm_archive"`) {
+		t.Fatal("viewer sees stage management actions")
+	}
+}
+
+func TestStageFiltersPreserveVisibleReordering(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	for _, name := range []string{"First stage", "Archived stage", "Last stage"} {
+		response := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {name}, "kind": {"open"}}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("create %s: %d", name, response.Code)
+		}
+	}
+	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := engagement.NewService(env.db, config.SQLite, env.auth)
+	stages, err := service.ListStages(context.Background(), owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(env.routes, http.MethodPost, path+"/"+stages[1].ID.String()+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("archive: %d", response.Code)
+	}
+	response = request(env.routes, http.MethodPost, path+"/reorder", url.Values{"csrf": {env.csrf}, "stage": {stages[2].ID.String()}, "direction": {"up"}}, env.cookies, nil)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("reorder: %d", response.Code)
+	}
+	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	body := page.Body.String()
+	first, last := strings.Index(body, "First stage"), strings.Index(body, "Last stage")
+	if page.Code != http.StatusOK || last < 0 || first < last || strings.Contains(body, "Archived stage") {
+		t.Fatalf("active order: %d %s", page.Code, body)
+	}
+	if err := env.auth.UpdateWorkspaceLocale(context.Background(), owner, "es", identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	page = request(env.routes, http.MethodGet, path+"?status=archived", nil, env.viewerCookies, nil)
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Archived stage") || !strings.Contains(page.Body.String(), "Filtrar") || !strings.Contains(page.Body.String(), "Archivada") {
+		t.Fatalf("Spanish archived page: %d %s", page.Code, page.Body.String())
+	}
+}
+
 func TestStagesThroughWeb(t *testing.T) {
 	env := newClientsTestEnv(t)
 	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
@@ -140,7 +332,7 @@ func TestStagesThroughWeb(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
-	created = request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"Won"}, "kind": {"won"}}, env.cookies, nil)
+	created = request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"Completed project"}, "kind": {"won"}}, env.cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create second = %d", created.Code)
 	}
@@ -185,9 +377,19 @@ func TestStagesThroughWeb(t *testing.T) {
 	if deniedReorder.Code != http.StatusForbidden {
 		t.Fatalf("viewer reorder = %d", deniedReorder.Code)
 	}
-	list := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "Archived") || strings.Index(list.Body.String(), "Won") > strings.Index(list.Body.String(), "Prospect") {
-		t.Fatalf("list = %d %s", list.Code, list.Body.String())
+	for _, tc := range []struct {
+		query, present, absent string
+	}{
+		{"", "Completed project", "Prospect"},
+		{"?status=archived", "Prospect", "Completed project"},
+		{"?status=unexpected", "Completed project", "Prospect"},
+	} {
+		for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
+			list := request(env.routes, http.MethodGet, path+tc.query, nil, cookies, nil)
+			if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), tc.present) || strings.Contains(list.Body.String(), tc.absent) || !strings.Contains(list.Body.String(), `name="status"`) {
+				t.Fatalf("list %s = %d %s", tc.query, list.Code, list.Body.String())
+			}
+		}
 	}
 	denied := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.viewerCSRF}, "name": {"Blocked"}, "kind": {"won"}}, env.viewerCookies, nil)
 	if denied.Code != http.StatusForbidden {
@@ -224,10 +426,28 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatal(err)
 	}
 	page = request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
-	for _, want := range []string{`for="engagement-name"`, `id="engagement-name"`, `name="name"`, `required`, `maxlength="200"`, `name="stage"`, stage.ID.String(), second.ID.String()} {
-		if !strings.Contains(page.Body.String(), want) {
-			t.Fatalf("creation form missing %q", want)
-		}
+	createPath := "/workspaces/" + env.workspaceID.String() + "/engagements/new?client=" + client.ID.String() + "&from_client=" + client.ID.String()
+	if !strings.Contains(page.Body.String(), `data-engagement-create`) || !strings.Contains(page.Body.String(), `hx-target="#engagement-create-modal"`) ||
+		!strings.Contains(page.Body.String(), `/assets/htmx.min.js`) || strings.Contains(page.Body.String(), `id="engagement-name"`) {
+		t.Fatalf("client page must link to modal instead of showing inline form: %s", page.Body.String())
+	}
+	form := request(env.routes, http.MethodGet, createPath, nil, env.cookies, nil)
+	if form.Code != http.StatusOK || !strings.Contains(form.Body.String(), `name="client" value="`+client.ID.String()+`"`) ||
+		!strings.Contains(form.Body.String(), `name="from_client" value="`+client.ID.String()+`"`) || !strings.Contains(form.Body.String(), stage.ID.String()) || !strings.Contains(form.Body.String(), second.ID.String()) {
+		t.Fatalf("preselected create form = %d %s", form.Code, form.Body.String())
+	}
+	modal := request(env.routes, http.MethodGet, createPath, nil, env.cookies, map[string]string{"HX-Request": "true"})
+	if modal.Code != http.StatusOK || !strings.Contains(modal.Body.String(), `data-engagement-dialog`) || !strings.Contains(modal.Body.String(), `name="client" value="`+client.ID.String()+`"`) {
+		t.Fatalf("preselected create modal = %d %s", modal.Code, modal.Body.String())
+	}
+	invalidModalDraft := request(env.routes, http.MethodPost, "/workspaces/"+env.workspaceID.String()+"/engagements/new", url.Values{
+		"csrf": {env.csrf}, "client": {client.ID.String()}, "from_client": {client.ID.String()},
+		"name": {""}, "stage": {second.ID.String()}, "notes": {"Preserve draft"},
+	}, env.cookies, nil)
+	if invalidModalDraft.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidModalDraft.Body.String(), "Preserve draft") ||
+		!strings.Contains(invalidModalDraft.Body.String(), `name="from_client" value="`+client.ID.String()+`"`) ||
+		!strings.Contains(invalidModalDraft.Body.String(), `href="`+path+`"`) {
+		t.Fatalf("preselected create validation = %d %s", invalidModalDraft.Code, invalidModalDraft.Body.String())
 	}
 	invalidName := strings.Repeat("x", 201)
 	invalidCreate := request(env.routes, http.MethodPost, path+"/engagements", url.Values{"csrf": {env.csrf}, "name": {invalidName}, "stage": {second.ID.String()}, "notes": {"Keep these notes"}}, env.cookies, nil)
@@ -257,6 +477,13 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if err != nil || len(items) != 1 || items[0].Name != "Engagement" {
 		t.Fatalf("engagements: %+v %v", items, err)
 	}
+	clientTiles := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	itemDetail := path + "/engagements/" + items[0].ID.String()
+	if clientTiles.Code != http.StatusOK || !strings.Contains(clientTiles.Body.String(), `href="`+itemDetail+`"`) ||
+		!strings.Contains(clientTiles.Body.String(), "Second") || strings.Contains(clientTiles.Body.String(), `action="`+itemDetail+`/stage"`) ||
+		strings.Contains(clientTiles.Body.String(), `action="`+itemDetail+`/quote"`) {
+		t.Fatalf("client engagement tiles: %d %s", clientTiles.Code, clientTiles.Body.String())
+	}
 	openStage := items[0].StageID
 	actionPath := path + "/engagements/" + items[0].ID.String() + "/next-action"
 	quotePath := path + "/engagements/" + items[0].ID.String() + "/quote"
@@ -269,27 +496,140 @@ func TestEngagementThroughWeb(t *testing.T) {
 	detailPath := path + "/engagements/" + items[0].ID.String()
 	namePath := detailPath + "/name"
 	writerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
-	if strings.Count(writerDetail.Body.String(), "<details>") != 6 || strings.Contains(writerDetail.Body.String(), "engagement.stage") || !strings.Contains(writerDetail.Body.String(), "Stage: ") {
-		t.Fatalf("detail disclosures or stage translation: %s", writerDetail.Body.String())
+	if strings.Contains(writerDetail.Body.String(), "engagement.stage") || !strings.Contains(writerDetail.Body.String(), `for="engagement-stage"`) ||
+		!strings.Contains(writerDetail.Body.String(), `action="`+detailPath+`/notes"`) ||
+		!strings.Contains(writerDetail.Body.String(), `name="notes_revision" value="`+engagement.NotesRevision(items[0].Notes)+`"`) ||
+		!strings.Contains(writerDetail.Body.String(), `action="`+detailPath+`/stage"`) {
+		t.Fatal("detail summary or editable forms missing")
 	}
-	if !strings.Contains(writerDetail.Body.String(), "Back to client: Client") || strings.Count(writerDetail.Body.String(), `<summary class="btn btn-outline">`) != 6 {
-		t.Fatal("detail navigation or edit affordances missing")
+	for _, field := range []struct {
+		path, label, selected, save string
+	}{
+		{detailPath + "/stage", `for="engagement-stage"`, `value="` + openStage.String() + `" selected`, "Save"},
+		{assigneePath, `for="engagement-assignee"`, `value=""`, "Save assignee"},
+	} {
+		formStart := strings.Index(writerDetail.Body.String(), `action="`+field.path+`"`)
+		if formStart < 0 {
+			t.Fatalf("selector form %s missing", field.path)
+		}
+		sectionStart := strings.LastIndex(writerDetail.Body.String()[:formStart], "<section")
+		if sectionStart < 0 {
+			t.Fatalf("selector section %s missing", field.path)
+		}
+		sectionEnd := strings.Index(writerDetail.Body.String()[sectionStart:], "</section>")
+		if sectionEnd < 0 {
+			t.Fatalf("selector section %s is unclosed", field.path)
+		}
+		section := writerDetail.Body.String()[sectionStart : sectionStart+sectionEnd]
+		for _, want := range []string{`method="post"`, `name="csrf" value="` + env.csrf + `"`, field.label, field.selected, `type="submit"`, field.save, "data-unsaved-warning", "data-confirm-select", "data-confirm-select-dialog", "Confirm change", "data-confirm-select-value"} {
+			if !strings.Contains(section, want) {
+				t.Fatalf("selector %s missing %q", field.path, want)
+			}
+		}
+		if strings.Contains(section, "<details") || strings.Contains(section, "<summary") {
+			t.Fatalf("selector %s is hidden behind disclosure", field.path)
+		}
+	}
+	for _, want := range []string{
+		`<nav aria-label="Clients">`,
+		`href="/workspaces/` + env.workspaceID.String() + `/clients">Clients</a>`,
+		`href="` + path + `">Client</a>`,
+		`aria-current="page" class="break-words font-semibold">Engagement</span>`,
+		`>Engagement</h1>`,
+	} {
+		if !strings.Contains(writerDetail.Body.String(), want) {
+			t.Fatalf("detail breadcrumb missing %q", want)
+		}
+	}
+	if strings.Contains(writerDetail.Body.String(), "Back to client: Client") {
+		t.Fatal("detail has a duplicate back link")
+	}
+	if strings.Contains(writerDetail.Body.String(), `<p class="eyebrow">Client</p>`) {
+		t.Fatal("detail repeats client name as an eyebrow")
 	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
-	for _, detail := range []*httptest.ResponseRecorder{writerDetail, viewerDetail} {
-		for _, want := range []string{"Assignee: Unassigned", "Next action: No next action"} {
-			if !strings.Contains(detail.Body.String(), want) {
-				t.Fatalf("unassigned detail missing %q", want)
-			}
+	if !strings.Contains(writerDetail.Body.String(), `for="engagement-assignee"`) || !strings.Contains(writerDetail.Body.String(), ">Unassigned</option>") ||
+		!strings.Contains(writerDetail.Body.String(), "Next action: No next action") {
+		t.Fatal("writer unassigned detail missing")
+	}
+	for _, want := range []string{"Assignee: Unassigned", "Next action: No next action"} {
+		if !strings.Contains(viewerDetail.Body.String(), want) {
+			t.Fatalf("unassigned detail missing %q", want)
 		}
 	}
 	if !strings.Contains(writerDetail.Body.String(), namePath) || strings.Contains(viewerDetail.Body.String(), namePath) {
 		t.Fatalf("name form visibility: writer=%d viewer=%d", writerDetail.Code, viewerDetail.Code)
 	}
+	notesPath := detailPath + "/notes"
+	if !strings.Contains(writerDetail.Body.String(), notesPath) || strings.Contains(viewerDetail.Body.String(), notesPath) {
+		t.Fatal("notes form must be available only to writers")
+	}
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"csrf": {env.viewerCSRF}, "notes": {"Denied"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer notes edit: %d", got.Code)
+	}
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"notes": {"Denied"}}, env.cookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("notes edit without CSRF: %d", got.Code)
+	}
+	foreignNotesPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + otherClient.ID.String() + "/engagements/" + items[0].ID.String() + "/notes"
+	if got := request(env.routes, http.MethodPost, foreignNotesPath, url.Values{"csrf": {env.csrf}, "notes": {"Denied"}}, env.cookies, nil); got.Code != http.StatusNotFound {
+		t.Fatalf("notes edit with wrong client: %d", got.Code)
+	}
+	notes := "## Plan\n\n**Important** and [safe](https://example.com)\n\n<script>alert(1)</script>"
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"csrf": {env.csrf}, "notes": {notes}}, env.cookies, nil); got.Code != http.StatusSeeOther {
+		t.Fatalf("notes edit: %d", got.Code)
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Notes != notes {
+		t.Fatalf("notes persisted: %+v %v", got, err)
+	}
+	staleDraft := "Unsaved draft from another editor"
+	conflict := request(env.routes, http.MethodPost, notesPath, url.Values{
+		"csrf": {env.csrf}, "notes": {staleDraft}, "notes_revision": {engagement.NotesRevision("")},
+	}, env.cookies, nil)
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), staleDraft) ||
+		!strings.Contains(conflict.Body.String(), "Important") ||
+		!strings.Contains(conflict.Body.String(), `name="notes_revision" value="`+engagement.NotesRevision(notes)+`"`) ||
+		!strings.Contains(conflict.Body.String(), `data-notes-conflict`) || !strings.Contains(conflict.Body.String(), "Retry save") {
+		t.Fatalf("stale notes conflict: status=%d body=%s", conflict.Code, conflict.Body.String())
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Notes != notes {
+		t.Fatalf("stale notes changed persisted value: %+v %v", got, err)
+	}
+	retry := request(env.routes, http.MethodPost, notesPath, url.Values{
+		"csrf": {env.csrf}, "notes": {staleDraft}, "notes_revision": {engagement.NotesRevision(notes)},
+	}, env.cookies, nil)
+	if retry.Code != http.StatusSeeOther {
+		t.Fatalf("notes retry: %d", retry.Code)
+	}
+	if got, err := svc.Get(ctx, owner, env.workspaceID, items[0].ID); err != nil || got.Notes != staleDraft {
+		t.Fatalf("notes retry persisted value: %+v %v", got, err)
+	}
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"csrf": {env.csrf}, "notes": {notes}}, env.cookies, nil); got.Code != http.StatusSeeOther {
+		t.Fatalf("legacy notes edit: %d", got.Code)
+	}
+	detail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(detail.Body.String(), "<strong>Important</strong>") || strings.Contains(detail.Body.String(), "<script>alert(1)</script>") {
+		t.Fatal("detail must render Markdown without active HTML")
+	}
+	tooLong := strings.Repeat("n", 5001)
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"csrf": {env.csrf}, "notes": {tooLong}, "notes_revision": {engagement.NotesRevision(notes)}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), tooLong) ||
+		!strings.Contains(got.Body.String(), `name="notes_revision" value="`+engagement.NotesRevision(notes)+`"`) {
+		t.Fatalf("invalid notes must retain draft and revision: %d", got.Code)
+	}
+	previewPath := "/workspaces/" + env.workspaceID.String() + "/engagements/notes-preview"
+	preview := request(env.routes, http.MethodPost, previewPath, url.Values{"csrf": {env.csrf}, "notes": {notes}}, env.cookies, nil)
+	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "<strong>Important</strong>") || strings.Contains(preview.Body.String(), "<script>alert(1)</script>") {
+		t.Fatalf("unsafe or invalid preview: %d %s", preview.Code, preview.Body.String())
+	}
+	if got := request(env.routes, http.MethodPost, previewPath, url.Values{"csrf": {env.viewerCSRF}, "notes": {notes}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+		t.Fatalf("viewer preview: %d", got.Code)
+	}
+	if got := request(env.routes, http.MethodPost, notesPath, url.Values{"csrf": {env.csrf}, "notes": {"Other person"}}, env.cookies, nil); got.Code != http.StatusSeeOther {
+		t.Fatalf("restore notes: %d", got.Code)
+	}
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.viewerCSRF}, "name": {"Denied"}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer rename: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) || !strings.Contains(got.Body.String(), "<details open>") {
+	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) || !strings.Contains(got.Body.String(), `data-inline-dirty-on-load open`) {
 		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
 	}
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
@@ -366,14 +706,17 @@ func TestEngagementThroughWeb(t *testing.T) {
 		if strings.Contains(localized.Body.String(), "engagement.stage") || !strings.Contains(localized.Body.String(), "Etapa") {
 			t.Fatalf("Spanish stage translation missing on %s", localizedPath)
 		}
-	}
-	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
-		detail := request(env.routes, http.MethodGet, detailPath, nil, cookies, nil)
-		for _, want := range []string{"Asignado a: Sin asignar", "Próxima acción: Sin próxima acción"} {
-			if !strings.Contains(detail.Body.String(), want) {
-				t.Fatalf("Spanish unassigned detail missing %q", want)
-			}
+		if localizedPath == detailPath && (!strings.Contains(localized.Body.String(), `<nav aria-label="Clientes">`) || !strings.Contains(localized.Body.String(), `>Clientes</a>`)) {
+			t.Fatal("Spanish detail breadcrumb missing")
 		}
+	}
+	spanishWriter := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	if !strings.Contains(spanishWriter.Body.String(), ">Sin asignar</option>") || !strings.Contains(spanishWriter.Body.String(), "Próxima acción: Sin próxima acción") {
+		t.Fatal("Spanish writer unassigned detail missing")
+	}
+	spanishViewer := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(spanishViewer.Body.String(), "Asignado a: Sin asignar") || !strings.Contains(spanishViewer.Body.String(), "Próxima acción: Sin próxima acción") {
+		t.Fatal("Spanish viewer unassigned detail missing")
 	}
 	spanishSaved := request(env.routes, http.MethodGet, detailPath+"?saved=1", nil, env.cookies, nil)
 	if !strings.Contains(spanishSaved.Body.String(), "Gestión guardada.") {
@@ -412,7 +755,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if denied := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer assign: %d", denied.Code)
 	}
-	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "<details open>") || !strings.Contains(invalid.Body.String(), "Select a valid workspace member.") {
+	if invalid := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil); invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Select a valid workspace member.") {
 		t.Fatalf("invalid assign: %d", invalid.Code)
 	}
 	invalidAssignee := request(env.routes, http.MethodPost, assigneePath, url.Values{"csrf": {env.csrf}, "assignee_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
@@ -474,6 +817,21 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("action form missing %q", want)
 		}
 	}
+	for _, want := range []string{
+		`data-inline-title`,
+		`<dialog class="relative" open data-detail-dialog aria-labelledby="engagement-action-dialog-title">`,
+		`<dialog class="relative" open data-detail-dialog aria-labelledby="engagement-agreement-dialog-title">`,
+		`<dialog class="relative" open data-detail-dialog aria-labelledby="engagement-quote-dialog-title">`,
+	} {
+		if !strings.Contains(writerAction.Body.String(), want) {
+			t.Fatalf("detail editor missing %q", want)
+		}
+	}
+	for _, path := range []string{actionPath, detailPath + "/agreement", quotePath} {
+		if count := strings.Count(writerAction.Body.String(), `action="`+path+`"`); count != 1 {
+			t.Fatalf("detail editor %s has %d forms, want one", path, count)
+		}
+	}
 	viewerAction := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	if strings.Contains(viewerAction.Body.String(), `action="`+actionPath+`"`) || !strings.Contains(viewerAction.Body.String(), "Call client") || !strings.Contains(viewerAction.Body.String(), "2020-01-01") {
 		t.Fatal("viewer action form or summary")
@@ -483,6 +841,9 @@ func TestEngagementThroughWeb(t *testing.T) {
 		if invalidAction.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidAction.Body.String(), want) {
 			t.Fatalf("invalid action missing %q: %d", want, invalidAction.Code)
 		}
+	}
+	if !strings.Contains(invalidAction.Body.String(), `data-detail-dirty-on-load open`) {
+		t.Fatal("invalid action draft must reopen its editor")
 	}
 	invalidOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
 	for _, want := range []string{`aria-describedby="engagement-next-action-owner-error"`, `id="engagement-next-action-owner-error"`, `<option value="invalid" selected disabled>invalid — Unavailable</option>`} {
@@ -519,7 +880,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("stale action mutated engagement: %+v %v", got, err)
 		}
 	}
-	conflict := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"0"}, "csrf": {env.csrf}, "text": {"Draft call"}, "due_date": {"2026-11-24"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
+	conflict = request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"0"}, "csrf": {env.csrf}, "text": {"Draft call"}, "due_date": {"2026-11-24"}, "owner_id": {env.ownerID.String()}}, env.cookies, nil)
 	for _, want := range []string{"Call client", `value="Draft call"`, `value="2026-11-24"`, `name="version" value="1"`, "Retry save"} {
 		if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), want) {
 			t.Fatalf("conflict missing %q: %d", want, conflict.Code)
@@ -541,8 +902,16 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("client action redirect: %d %s", updated.Code, updated.Header().Get("Location"))
 	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), "Signed agreement recorded") || strings.Contains(viewer.Body.String(), agreementPath) || !strings.Contains(viewer.Body.String(), "Other person") || !strings.Contains(viewer.Body.String(), "Call client") || !strings.Contains(viewer.Body.String(), "120.50") || strings.Contains(viewer.Body.String(), quotePath) || strings.Contains(viewer.Body.String(), assigneePath) || strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
-		t.Fatalf("viewer: %d notes=%v create=%v", viewer.Code, strings.Contains(viewer.Body.String(), "Other person"), strings.Contains(viewer.Body.String(), "Create engagement"))
+	if viewer.Code != http.StatusOK || !strings.Contains(viewer.Body.String(), `href="`+detailPath+`"`) ||
+		strings.Contains(viewer.Body.String(), "Create engagement") || strings.Contains(viewer.Body.String(), actionPath) {
+		t.Fatalf("viewer client engagement tile: %d", viewer.Code)
+	}
+	viewerEngagement := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if viewerEngagement.Code != http.StatusOK || !strings.Contains(viewerEngagement.Body.String(), "Signed agreement recorded") ||
+		!strings.Contains(viewerEngagement.Body.String(), "Other person") || !strings.Contains(viewerEngagement.Body.String(), "Call client") ||
+		!strings.Contains(viewerEngagement.Body.String(), "120.50") || strings.Contains(viewerEngagement.Body.String(), agreementPath) ||
+		strings.Contains(viewerEngagement.Body.String(), quotePath) || strings.Contains(viewerEngagement.Body.String(), assigneePath) {
+		t.Fatalf("viewer engagement detail: %d", viewerEngagement.Code)
 	}
 	due := request(env.routes, http.MethodGet, "/workspaces/"+env.workspaceID.String()+"/engagements/due", nil, env.viewerCookies, nil)
 	if due.Code != http.StatusOK || !strings.Contains(due.Body.String(), "Call client") {
@@ -565,7 +934,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 		t.Fatalf("items: %v %v", items, err)
 	}
 	movePath := detailPath + "/stage"
-	detail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	detail = request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
 	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), `action="`+movePath+`"`) || !strings.Contains(detail.Body.String(), `name="return_to" value="detail"`) {
 		t.Fatalf("writer detail stage form: %d", detail.Code)
 	}
@@ -576,11 +945,19 @@ func TestEngagementThroughWeb(t *testing.T) {
 	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.viewerCSRF}, "stage": {target.ID.String()}}, env.viewerCookies, nil); got.Code != http.StatusForbidden {
 		t.Fatalf("viewer move: %d", got.Code)
 	}
-	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
-		t.Fatalf("move: %d location=%q", got.Code, got.Header().Get("Location"))
-	}
 	if err := svc.ArchiveStage(ctx, owner, env.workspaceID, openStage, identity.AuditContext{}); err != nil {
 		t.Fatal(err)
+	}
+	archivedCurrent := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
+	if !strings.Contains(archivedCurrent.Body.String(), `<option value="`+openStage.String()+`" selected disabled>Second — Unavailable</option>`) {
+		t.Fatal("current archived stage must remain visible and unavailable")
+	}
+	archivedViewer := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
+	if !strings.Contains(archivedViewer.Body.String(), "Stage: Second") || strings.Contains(archivedViewer.Body.String(), `action="`+movePath+`"`) {
+		t.Fatal("viewer must see archived stage without an editor")
+	}
+	if got := request(env.routes, http.MethodPost, movePath, url.Values{"csrf": {env.csrf}, "stage": {target.ID.String()}, "return_to": {"detail"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
+		t.Fatalf("move: %d location=%q", got.Code, got.Header().Get("Location"))
 	}
 	if got := request(env.routes, http.MethodGet, path, nil, env.cookies, nil); strings.Contains(got.Body.String(), `<option value="`+openStage.String()+`"`) {
 		t.Fatal("archived stage offered as a move target")
@@ -607,7 +984,7 @@ func TestEngagementThroughWeb(t *testing.T) {
 			archivedName = stage.Name
 		}
 	}
-	for _, historyPath := range []string{path, detailPath} {
+	for _, historyPath := range []string{detailPath} {
 		viewer = request(env.routes, http.MethodGet, historyPath, nil, env.viewerCookies, nil)
 		body := viewer.Body.String()
 		if viewer.Code != http.StatusOK || archivedName == "" || !strings.Contains(body, archivedName+"</span>") || !strings.Contains(body, "Won") || !strings.Contains(body, "data-engagement-history") || !strings.Contains(body, "History Actor") || !strings.Contains(body, "Jan 2, 2025 3:04 PM UTC") || strings.Contains(body, "Move stage") {

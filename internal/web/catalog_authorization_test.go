@@ -53,11 +53,11 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 			}
 			detail := seedLink[1]
 			ownerPage = request(routes, http.MethodGet, detail, nil, ownerCookies, nil)
-			match := regexp.MustCompile(`action="([^"]+/edit)"`).FindStringSubmatch(ownerPage.Body.String())
+			match := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/field)"`).FindStringSubmatch(ownerPage.Body.String())
 			if len(match) != 2 {
 				t.Fatal("missing edit form")
 			}
-			entry := strings.TrimSuffix(match[1], "/edit")
+			entry := strings.TrimSuffix(match[1], "/field")
 			r := request(routes, http.MethodPost, entry+"/prices", url.Values{"csrf": {ownerSession.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Visit"}}, ownerCookies, nil)
 			if r.Code != http.StatusSeeOther {
 				t.Fatal(r.Code)
@@ -72,7 +72,7 @@ func TestCatalogWebRoleMatrix(t *testing.T) {
 			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Seed") {
 				t.Fatalf("read: %d", page.Code)
 			}
-			if strings.Contains(page.Body.String(), `name="name"`) != writable || strings.Contains(page.Body.String(), "/archive") != writable || strings.Contains(page.Body.String(), "/prices/") != writable {
+			if strings.Contains(page.Body.String(), `name="field" value="name"`) != writable || strings.Contains(page.Body.String(), "/archive") != writable || strings.Contains(page.Body.String(), "/prices/") != writable {
 				t.Fatal("incorrect write controls")
 			}
 			want := http.StatusForbidden

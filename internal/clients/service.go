@@ -284,13 +284,19 @@ func (s *Service) Update(
 	version int64,
 	input UpdateInput,
 	audit identity.AuditContext,
-) (Client, error) {
+) (updated Client, err error) {
 	if version < 1 || (input.DisplayName == nil && input.Email == nil && input.Phone == nil && input.Notes == nil) {
 		return Client{}, ErrInvalidInput
 	}
 	if err := normalizeUpdate(&input); err != nil {
 		return Client{}, err
 	}
+	defer func() {
+		var state interface{ SQLState() string }
+		if errors.As(err, &state) && state.SQLState() == "40001" {
+			err = ErrPreconditionFailed
+		}
+	}()
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return Client{}, err
@@ -323,11 +329,28 @@ func (s *Service) Update(
 	}
 	client.Version++
 	client.UpdatedAt = s.now().UTC()
-	result, err := s.exec(ctx, tx, `
-		UPDATE clients SET display_name = ?, email = ?, phone = ?, notes = ?, version = ?, updated_at = ?
-		WHERE workspace_id = ? AND id = ? AND version = ?
-	`, client.DisplayName, client.Email, client.Phone, client.Notes, client.Version,
-		formatTime(client.UpdatedAt), workspaceID, clientID, version)
+	assignments := make([]string, 0, 6)
+	args := make([]any, 0, 9)
+	if input.DisplayName != nil {
+		assignments = append(assignments, "display_name = ?")
+		args = append(args, client.DisplayName)
+	}
+	if input.Email != nil {
+		assignments = append(assignments, "email = ?")
+		args = append(args, client.Email)
+	}
+	if input.Phone != nil {
+		assignments = append(assignments, "phone = ?")
+		args = append(args, client.Phone)
+	}
+	if input.Notes != nil {
+		assignments = append(assignments, "notes = ?")
+		args = append(args, client.Notes)
+	}
+	assignments = append(assignments, "version = ?", "updated_at = ?")
+	args = append(args, client.Version, formatTime(client.UpdatedAt), workspaceID, clientID, version)
+	result, err := s.exec(ctx, tx, `UPDATE clients SET `+strings.Join(assignments, ", ")+
+		` WHERE workspace_id = ? AND id = ? AND version = ?`, args...)
 	if err != nil {
 		return Client{}, err
 	}

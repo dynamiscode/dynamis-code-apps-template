@@ -17,6 +17,72 @@ type ActionHistoryEntry struct {
 	Text, DueDate, OwnerName, Outcome, ActorName, CreatedAt string
 }
 
+type ActivityEntry struct {
+	Kind, Text, DueDate, OwnerName, Outcome, ActorName, CreatedAt string
+	FromStageID, ToStageID                                        StageID
+}
+
+func (s *Service) ListActivity(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, page int) ([]ActivityEntry, bool, error) {
+	if page < 1 || page > 1000000 {
+		return nil, false, ErrInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Rollback()
+	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+		return nil, false, identity.ErrForbidden
+	}
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `
+		SELECT kind, action_text, due_date, owner_name, outcome, actor_name, created_at, from_stage_id, to_stage_id
+		FROM (
+			SELECT 'action' AS kind, h.id AS source_id, h.action_text, h.due_date,
+				COALESCE(NULLIF(owner.display_name, ''), owner.email, '') AS owner_name, h.outcome,
+				COALESCE(NULLIF(actor.display_name, ''), actor.email, '') AS actor_name,
+				h.created_at, 0 AS from_stage_id, 0 AS to_stage_id
+			FROM engagement_action_history h
+			LEFT JOIN users owner ON owner.id = h.owner_id
+			LEFT JOIN users actor ON actor.id = h.actor_user_id
+			WHERE h.workspace_id = ? AND h.engagement_id = ?
+			UNION ALL
+			SELECT 'stage' AS kind, h.id AS source_id, '', '', '', '',
+				COALESCE(NULLIF(actor.display_name, ''), actor.email, ''),
+				h.created_at, h.from_stage_id, h.to_stage_id
+			FROM engagement_stage_history h
+			LEFT JOIN users actor ON actor.id = h.actor_user_id
+			WHERE h.workspace_id = ? AND h.engagement_id = ?
+		) activity
+		ORDER BY REPLACE(created_at, 'Z', '') DESC, kind DESC, source_id DESC
+		LIMIT ? OFFSET ?`), workspaceID, engagementID, workspaceID, engagementID, 51, (page-1)*50)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	var activity []ActivityEntry
+	for rows.Next() {
+		var entry ActivityEntry
+		if err := rows.Scan(&entry.Kind, &entry.Text, &entry.DueDate, &entry.OwnerName, &entry.Outcome, &entry.ActorName, &entry.CreatedAt, &entry.FromStageID, &entry.ToStageID); err != nil {
+			return nil, false, err
+		}
+		activity = append(activity, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	hasMore := len(activity) > 50
+	if hasMore {
+		activity = activity[:50]
+	}
+	return activity, hasMore, nil
+}
+
 func (s *Service) ListActionHistory(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, engagementID ID, page int) ([]ActionHistoryEntry, bool, error) {
 	if page < 1 || page > 1000000 {
 		return nil, false, ErrInvalidInput

@@ -46,13 +46,13 @@ func TestActionHistoryVisibleToReaders(t *testing.T) {
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String() + "/engagements/" + item.ID.String()
 	page := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	for _, want := range []string{"Action history", "History completed", "History replaced", "History cleared", "History reopened", "Completed:", "Replaced:", "Cleared:", "Reopened:", "History Person", "2025-02-03", "Jan 2, 2025 3:04 PM UTC"} {
+	for _, want := range []string{"Activity", "History completed", "History replaced", "History cleared", "History reopened", "Completed:", "Replaced:", "Cleared:", "Reopened:", "History Person", "2025-02-03", "Jan 2, 2025 3:04 PM UTC"} {
 		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
 			t.Fatalf("history missing %q: status %d", want, page.Code)
 		}
 	}
 	spanish := request(env.routes, http.MethodGet, path, nil, append(append([]*http.Cookie{}, env.viewerCookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
-	for _, want := range []string{"Historial de acciones", "Completada:", "2 de enero de 2025 15:04 UTC"} {
+	for _, want := range []string{"Actividad", "Completada:", "2 de enero de 2025 15:04 UTC"} {
 		if !strings.Contains(spanish.Body.String(), want) {
 			t.Fatalf("Spanish history missing %q", want)
 		}
@@ -81,6 +81,74 @@ func TestActionHistoryVisibleToReaders(t *testing.T) {
 	}
 	if _, _, err := svc.ListActionHistory(ctx, identity.Principal{}, env.workspaceID, item.ID, 1); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("unauthorized history: %v", err)
+	}
+}
+
+func TestActivityInterleavesAndPaginates(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	actor, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := engagement.NewService(env.db, config.SQLite, env.auth)
+	first, err := svc.CreateStage(ctx, actor, env.workspaceID, engagement.StageInput{Name: "First", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := svc.CreateStage(ctx, actor, env.workspaceID, engagement.StageInput{Name: "Second", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, actor, env.workspaceID, clients.Input{DisplayName: "Activity client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item, err := svc.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Activity case", ClientID: client.ID, StageID: first.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := svc.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Other case", ClientID: client.ID, StageID: first.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.db.ExecContext(ctx, `UPDATE users SET display_name = 'Activity Person' WHERE id = ?`, env.ownerID); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 49 {
+		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, due_date, owner_id, actor_user_id, outcome, created_at) VALUES (?, ?, ?, '2025-02-03', ?, ?, 'completed', '2025-01-02T15:04:00Z')`, env.workspaceID, item.ID, fmt.Sprintf("Action %d", i), env.ownerID, env.ownerID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, stages := range [][2]engagement.StageID{{first.ID, second.ID}, {second.ID, first.ID}} {
+		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_stage_history (workspace_id, engagement_id, actor_user_id, from_stage_id, to_stage_id, created_at) VALUES (?, ?, ?, ?, ?, '2025-01-02T15:04:00Z')`, env.workspaceID, item.ID, env.ownerID, stages[0], stages[1]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, row := range []struct {
+		id   engagement.ID
+		text string
+	}{{item.ID, "Fractional"}, {other.ID, "Other engagement"}} {
+		if _, err := env.db.ExecContext(ctx, `INSERT INTO engagement_action_history (workspace_id, engagement_id, action_text, outcome, created_at) VALUES (?, ?, ?, 'cleared', '2025-01-02T15:04:00.1Z')`, env.workspaceID, row.id, row.text); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page, more, err := svc.ListActivity(ctx, actor, env.workspaceID, item.ID, 1)
+	if err != nil || !more || len(page) != 50 {
+		t.Fatalf("first page: %d entries, more=%v, err=%v", len(page), more, err)
+	}
+	if page[0].Text != "Fractional" || page[1].Kind != "stage" || page[1].FromStageID != second.ID || page[1].ToStageID != first.ID || page[2].Kind != "stage" || page[2].FromStageID != first.ID || page[2].ToStageID != second.ID || page[1].ActorName != "Activity Person" {
+		t.Fatalf("activity order or stage details: %+v", page[:3])
+	}
+	if page[3].Text != "Action 48" || page[3].OwnerName != "Activity Person" || page[3].ActorName != "Activity Person" || page[3].Outcome != "completed" || page[3].DueDate != "2025-02-03" || page[49].Text != "Action 2" {
+		t.Fatalf("action details or order: %+v ... %+v", page[3], page[49])
+	}
+	page, more, err = svc.ListActivity(ctx, actor, env.workspaceID, item.ID, 2)
+	if err != nil || more || len(page) != 2 || page[0].Text != "Action 1" || page[1].Text != "Action 0" {
+		t.Fatalf("second page: %+v, more=%v, err=%v", page, more, err)
+	}
+	if _, _, err := svc.ListActivity(ctx, identity.Principal{}, env.workspaceID, item.ID, 1); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("unauthorized activity: %v", err)
 	}
 }
 

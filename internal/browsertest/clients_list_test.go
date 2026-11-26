@@ -129,6 +129,134 @@ func acceptDialogs(tab context.Context) {
 	})
 }
 
+func TestDropdownActionsUseUnboxedTiles(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	click(t, tab, `.list-toolbar > details:has(.list-views-panel) > summary`)
+	eventually(t, tab, `Boolean(document.querySelector('.list-views-panel .list-view-option'))`, "views menu did not open")
+	if !eval[bool](t, tab, `(() => {
+		const item = document.querySelector('.list-views-panel .list-view-option');
+		const style = getComputedStyle(item);
+		return parseFloat(style.borderWidth) === 0 && item.getBoundingClientRect().height >= 44;
+	})()`) {
+		t.Fatal("view options must be unboxed touch-sized tiles")
+	}
+	click(t, tab, `.list-create a[href$="/engagements"]`)
+	waitVisible(t, tab, `#engagement-view .list-create details > summary`)
+	click(t, tab, `#engagement-view .list-create details > summary`)
+	if !eval[bool](t, tab, `(() => {
+		const items = [...document.querySelectorAll('#engagement-view .list-create .dropdown-content .menu > li > a')];
+		return items.length >= 2 && items.every(item => {
+			const style = getComputedStyle(item);
+			return parseFloat(style.borderWidth) === 0 && item.getBoundingClientRect().height >= 44;
+		});
+	})()`) {
+		t.Fatal("engagement settings actions must be unboxed touch-sized tiles")
+	}
+}
+
+func TestClientFilterTriggerMatchesToolbarControls(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	waitVisible(t, tab, "#list-filter-add summary")
+	if !eval[bool](t, tab, `(() => {
+		const filter = document.querySelector('#list-filter-add summary');
+		const columns = document.querySelector('.list-toolbar > details:has(.list-columns-panel) > summary');
+		const a = getComputedStyle(filter), b = getComputedStyle(columns);
+		return a.height === b.height && a.borderWidth === b.borderWidth &&
+			a.borderRadius === b.borderRadius && a.backgroundColor === b.backgroundColor &&
+			a.fontSize === b.fontSize && getComputedStyle(filter, '::after').content === getComputedStyle(columns, '::after').content;
+	})()`) {
+		t.Fatal("filter trigger must match the columns control")
+	}
+	run(t, tab, chromedp.Focus("#list-filter-add summary"), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('#list-filter-add details').open`, "keyboard did not open filter")
+}
+
+func TestClientSelectionAndNameHoverIndependently(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	waitVisible(t, tab, ".list-view-table tbody .list-select-cell")
+	moveTo := func(selector string) {
+		t.Helper()
+		point := eval[[]float64](t, tab, fmt.Sprintf(`(() => {
+			const r = document.querySelector(%s).getBoundingClientRect();
+			return [r.left + r.width / 2, r.top + r.height / 2];
+		})()`, jsString(selector)))
+		call(t, tab, input.DispatchMouseEvent, input.DispatchMouseEventParams{Type: input.DispatchMouseEventTypeMouseMoved, X: point[0], Y: point[1]})
+	}
+	moveTo(".list-view-table tbody .list-linked-cell")
+	if !eval[bool](t, tab, `(() => {
+		const row = document.querySelector('.list-view-table tbody tr');
+		const name = row.querySelector('.list-linked-cell');
+		const select = row.querySelector('.list-select-cell');
+		const initials = name.querySelector('.list-initials');
+		return getComputedStyle(name).backgroundColor !== getComputedStyle(select).backgroundColor &&
+			getComputedStyle(initials).backgroundColor !== getComputedStyle(name).backgroundColor;
+	})()`) {
+		t.Fatal("name hover must not highlight selection or hide the initials")
+	}
+	moveTo(".list-view-table tbody .list-select-cell")
+	if !eval[bool](t, tab, `(() => {
+		const row = document.querySelector('.list-view-table tbody tr');
+		return getComputedStyle(row.querySelector('.list-select-cell')).backgroundColor !==
+			getComputedStyle(row.querySelector('.list-linked-cell')).backgroundColor;
+	})()`) {
+		t.Fatal("selection cell must highlight independently")
+	}
+}
+
+func TestClientRowActionsCoverCellAndOverlayRows(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	waitVisible(t, tab, ".list-view-table tbody .list-actions-cell summary")
+	if !eval[bool](t, tab, `(() => {
+		const cell = document.querySelector('.list-view-table tbody .list-actions-cell');
+		const summary = cell.querySelector('summary');
+		const a = cell.getBoundingClientRect(), b = summary.getBoundingClientRect();
+		return Math.abs(a.left-b.left)<1 && Math.abs(a.right-b.right)<1 &&
+			Math.abs(a.top-b.top)<1 && Math.abs(a.bottom-b.bottom)<1 &&
+			parseFloat(getComputedStyle(summary).borderWidth) === 0;
+	})()`) {
+		t.Fatal("row actions trigger must cover the cell without a border")
+	}
+	run(t, tab, chromedp.Focus(".list-view-table tbody .list-actions-cell summary"), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table tbody .list-actions-cell details').open`, "keyboard did not open row actions")
+	if !eval[bool](t, tab, `(() => {
+		const panel = document.querySelector('.list-view-table tbody .list-actions-cell details[open] .dropdown-content');
+		const item = panel.querySelector('.list-action-item');
+		const r = item.getBoundingClientRect();
+		const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+		return panel.contains(hit) && parseFloat(getComputedStyle(item).borderWidth) === 0 &&
+			getComputedStyle(panel).backgroundColor === getComputedStyle(document.querySelector('.list-view-table tbody .list-actions-cell')).backgroundColor;
+	})()`) {
+		t.Fatal("row actions must overlay rows with an unboxed item and row-matching surface")
+	}
+}
+
+func TestClientsSortableHeaderCoversCell(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	header := `.list-view-table th[data-column="displayName"]`
+	waitVisible(t, tab, header+` > a`)
+	if !eval[bool](t, tab, `(() => {
+		const th = document.querySelector('.list-view-table th[data-column="displayName"]');
+		const link = th.querySelector('a');
+		const cell = th.getBoundingClientRect(), target = link.getBoundingClientRect();
+		const style = getComputedStyle(link), icon = getComputedStyle(link, '::after');
+		return Math.abs(cell.left - target.left) < 1 && Math.abs(cell.right - target.right) < 1 &&
+			Math.abs(cell.top - target.top) < 1 && Math.abs(cell.bottom - target.bottom) < 1 &&
+			parseFloat(style.borderWidth) === 0 && icon.content !== 'none' &&
+			style.justifyContent === 'space-between';
+	})()`) {
+		t.Fatal("sort link must cover its header cell without a border, with the indicator on the right")
+	}
+	run(t, tab, chromedp.Focus(header+` > a`), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table th[data-column="displayName"]').getAttribute('aria-sort') === 'ascending'`, "keyboard sorting did not activate ascending order")
+	run(t, tab, chromedp.Focus(header+` > a`), chromedp.KeyEvent("\r"))
+	eventually(t, tab, `document.querySelector('.list-view-table th[data-column="displayName"]').getAttribute('aria-sort') === 'descending'`, "keyboard sorting did not activate descending order")
+}
+
 func TestClientTimelineDialog(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)

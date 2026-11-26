@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/url"
 
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -12,6 +13,26 @@ import (
 type engagementBoardColumn struct {
 	Stage engagement.Stage
 	Page  engagement.Page
+}
+
+func engagementBoardListURL(data viewmodel.PageData, path, stage, search, assignee string) string {
+	values := url.Values{"stage": {stage}}
+	if search != "" {
+		values.Set("q", search)
+	}
+	if assignee != "" {
+		values.Set("assignee", assignee)
+	}
+	for _, column := range data.ListColumns {
+		if column.SortDirection == "ascending" {
+			values.Set("sort", column.Key)
+			values.Set("direction", "asc")
+		} else if column.SortDirection == "descending" {
+			values.Set("sort", column.Key)
+			values.Set("direction", "desc")
+		}
+	}
+	return path + "?" + values.Encode()
 }
 
 func boardHasMoveTarget(stages []engagement.Stage, current engagement.StageID) bool {

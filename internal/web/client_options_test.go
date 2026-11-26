@@ -115,6 +115,17 @@ func TestClientChoiceValuesUseASelectAndViewersReadLabels(t *testing.T) {
 	if !strings.Contains(owner, `id="value-`+fieldShort+`"`) || !strings.Contains(owner, `<option value="`+optionShort+`"`) {
 		t.Fatalf("owner detail has no select of the field's options: %s", owner)
 	}
+	if !strings.Contains(owner, `<form action="`+valuePath+`"`) ||
+		!strings.Contains(owner, `for="value-`+fieldShort+`"`) {
+		t.Fatalf("choice selector is not immediately visible and labeled: %s", owner)
+	}
+	formStart := strings.Index(owner, `action="`+valuePath+`"`)
+	formEnd := strings.Index(owner[formStart:], "</form>")
+	if formEnd < 0 || !strings.Contains(owner[formStart:formStart+formEnd], "data-confirm-select-dialog") ||
+		!strings.Contains(owner[formStart:formStart+formEnd], "Tier:") ||
+		!strings.Contains(owner[formStart:formStart+formEnd], `name="version"`) {
+		t.Fatal("choice confirmation or version missing from its form")
+	}
 
 	refused := request(env.routes, http.MethodPost, valuePath, url.Values{
 		"csrf": {env.csrf}, "version": {"1"}, "value": {"Gold"},
@@ -122,15 +133,24 @@ func TestClientChoiceValuesUseASelectAndViewersReadLabels(t *testing.T) {
 	if refused.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("typed label as a choice value = %d, want 422", refused.Code)
 	}
+	if !strings.Contains(refused.Body.String(), `<option value="Gold" selected>Gold</option>`) ||
+		!strings.Contains(refused.Body.String(), `data-dirty-on-load`) {
+		t.Fatalf("invalid choice draft not preserved: %s", refused.Body.String())
+	}
 	set := request(env.routes, http.MethodPost, valuePath, url.Values{
 		"csrf": {env.csrf}, "version": {"1"}, "value": {optionShort},
 	}, env.cookies, nil)
 	if set.Code != http.StatusSeeOther || set.Header().Get("Location") != detail {
 		t.Fatalf("set choice value = %d location %q: %s", set.Code, set.Header().Get("Location"), set.Body.String())
 	}
+	saved := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if !strings.Contains(saved, `<option value="`+optionShort+`" selected>Gold</option>`) ||
+		!strings.Contains(saved, `action="`+valuePath+`/clear"`) {
+		t.Fatalf("saved choice not selected or clear unavailable: %s", saved)
+	}
 
 	viewer := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil).Body.String()
-	if !strings.Contains(viewer, "<dd>Gold</dd>") {
+	if !strings.Contains(viewer, `<dd class="min-w-0 break-words">Gold</dd>`) {
 		t.Fatalf("viewer does not read the option label: %s", viewer)
 	}
 	if strings.Contains(viewer, "<select") || strings.Contains(viewer, optionShort) {

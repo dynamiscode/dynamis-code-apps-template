@@ -28,9 +28,9 @@ templ ListHeader(data viewmodel.PageData, actionsLabel string) {
 }
 
 
-// ListRow is one table row. A non-empty href makes a tap or click on the row open that href.
+// ListRow is one table row. Navigation belongs to individual cells.
 templ ListRow(href string) {
-	<tr class="list-row" data-row-href={ href }>
+	<tr class="list-row">
 		{ children... }
 	</tr>
 }
@@ -38,19 +38,35 @@ templ ListRow(href string) {
 
 // ListRowWith is a table row with extra attributes, for lists whose scripts find a row by an attribute.
 templ ListRowWith(href string, attrs templ.Attributes) {
-	<tr class="list-row" data-row-href={ href } { actionattrs.ScalarAttributes(attrs)... }>
+	<tr class="list-row" { actionattrs.ScalarAttributes(attrs)... }>
 		{ children... }
 	</tr>
 }
 
 
+// ListLinkedCell makes the whole cell a native link without affecting neighboring controls.
+templ ListLinkedCell(href string, attrs templ.Attributes) {
+	<td class="list-linked-cell" { actionattrs.ScalarAttributes(attrs)... }>
+		<a class="list-row-link" href={ templ.SafeURL(href) }>{ children... }</a>
+	</td>
+}
+
 // ListCells renders the visible cells. The first visible cell links to href when href is set.
 templ ListCells(data viewmodel.PageData, row viewmodel.ListRow, href string) {
 	for _, column := range data.ListColumns {
 		if column.Visible {
-			<td data-column={ column.Key } data-label={ molecules.ClientColumnLabelText(data, column) } title={ data.ClientListCellValue(column, row) }>
-				@ListCellValue(data, row, column, href)
-			</td>
+			if href != "" && column.Key == data.ClientListLinkKey() {
+				@ListLinkedCell(href, templ.Attributes{"data-column": column.Key, "data-label": molecules.ClientColumnLabelText(data, column), "title": data.ClientListCellValue(column, row)}) {
+					<span class="list-identity">
+						<span class="list-initials" aria-hidden="true">{ molecules.ListInitials(data.ClientListCellValue(column, row)) }</span>
+						<span class="list-name">@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</span>
+					</span>
+				}
+			} else {
+				<td data-column={ column.Key } data-label={ molecules.ClientColumnLabelText(data, column) } title={ data.ClientListCellValue(column, row) }>
+					@ListCellValue(data, row, column, href)
+				</td>
+			}
 		}
 	}
 }
@@ -62,7 +78,7 @@ templ ListCellValue(data viewmodel.PageData, row viewmodel.ListRow, column viewm
 	if href != "" && column.Key == data.ClientListLinkKey() {
 		<span class="list-identity">
 			<span class="list-initials" aria-hidden="true">{ molecules.ListInitials(data.ClientListCellValue(column, row)) }</span>
-			<span class="list-name"><a class="list-row-link rounded-field border border-base-300 px-1" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
+			<span class="list-name"><a class="list-row-link" href={ href }>@molecules.ListHighlight(data.ClientListCellValue(column, row), data.ListSearch)</a></span>
 		</span>
 	} else if molecules.ListBadgeColumn(column.Key) {
 		<span class={ "badge badge-sm list-badge list-badge-" + row.CellText(column.Key) }>{ data.ClientListCellValue(column, row) }</span>

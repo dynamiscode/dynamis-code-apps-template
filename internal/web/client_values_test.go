@@ -36,6 +36,19 @@ func TestClientValuesSetAndClearThroughForms(t *testing.T) {
 		!strings.Contains(page.Body.String(), `action="`+valuePath+`"`) {
 		t.Fatalf("owner detail has no value form: %d %s", page.Code, page.Body.String())
 	}
+	fieldID := clients.FieldID(fieldKey).String()
+	for _, want := range []string{
+		`data-inline-saved=""`, `for="value-` + fieldID + `"`,
+		`id="value-` + fieldID + `"`, `data-inline-input`, `data-inline-cancel`,
+		`name="csrf" value="` + env.csrf + `"`, `name="version" value="1"`,
+	} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("empty text value missing %q: %s", want, page.Body.String())
+		}
+	}
+	if strings.Contains(page.Body.String(), `formaction="`+valuePath+`/clear"`) {
+		t.Fatalf("empty text value offers clear: %s", page.Body.String())
+	}
 
 	set := request(env.routes, http.MethodPost, valuePath, url.Values{
 		"csrf": {env.csrf}, "version": {"1"}, "value": {"<i>Friend</i>"},
@@ -46,6 +59,10 @@ func TestClientValuesSetAndClearThroughForms(t *testing.T) {
 	shown := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
 	if !strings.Contains(shown, "&lt;i&gt;Friend&lt;/i&gt;") || strings.Contains(shown, "<i>Friend</i>") {
 		t.Fatalf("stored value is not rendered as text: %s", shown)
+	}
+	if !strings.Contains(shown, `data-inline-saved="&lt;i&gt;Friend&lt;/i&gt;"`) ||
+		!strings.Contains(shown, `formaction="`+valuePath+`/clear"`) {
+		t.Fatalf("saved text value lacks raw value or clear action: %s", shown)
 	}
 
 	blank := request(env.routes, http.MethodPost, valuePath, url.Values{
@@ -59,6 +76,14 @@ func TestClientValuesSetAndClearThroughForms(t *testing.T) {
 	}, env.cookies, nil)
 	if stale.Code != http.StatusPreconditionFailed {
 		t.Fatalf("stale value = %d, want 412", stale.Code)
+	}
+	if !strings.Contains(stale.Body.String(), `value="Stale"`) || !strings.Contains(stale.Body.String(), `value="2"`) {
+		t.Fatalf("stale value draft or current version missing: %s", stale.Body.String())
+	}
+	if !strings.Contains(stale.Body.String(), `data-inline-saved="&lt;i&gt;Friend&lt;/i&gt;"`) ||
+		!strings.Contains(stale.Body.String(), `data-inline-dirty-on-load`) ||
+		!strings.Contains(stale.Body.String(), `data-inline-cancel`) {
+		t.Fatalf("stale text editor lost saved value or recovery controls: %s", stale.Body.String())
 	}
 
 	cleared := request(env.routes, http.MethodPost, valuePath+"/clear", url.Values{
@@ -116,10 +141,28 @@ func TestClientValuesUseTypedInputsAndValidate(t *testing.T) {
 	}
 
 	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
+	if !strings.Contains(page, `href="`+fieldsPath+`">Add field</a>`) ||
+		!strings.Contains(page, `<span>Manage custom fields</span>`) ||
+		strings.Contains(page, `id="client-values-heading"`) {
+		t.Fatalf("custom fields actions or layout missing: %s", page)
+	}
 	for _, want := range []string{`type="number"`, `type="date"`, `<option value="true">`, `<option value="false">`} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("detail page lacks %s: %s", want, page)
 		}
+	}
+	if strings.Count(page, `data-inline-input`) < 2 {
+		t.Fatal("number and date fields do not offer inline editing")
+	}
+	yesStart := strings.Index(page, `<form action="`+detail+`/values/`+fieldIDs["yes_no"]+`"`)
+	if yesStart < 0 || !strings.Contains(page[yesStart:], `for="value-`+fieldIDs["yes_no"]+`"`) {
+		t.Fatalf("yes/no selector is not immediately visible and labeled: %s", page)
+	}
+	yesEnd := strings.Index(page[yesStart:], "</form>")
+	if yesEnd < 0 || !strings.Contains(page[yesStart:yesStart+yesEnd], "data-confirm-select-dialog") ||
+		!strings.Contains(page[yesStart:yesStart+yesEnd], "Field yes_no:") ||
+		!strings.Contains(page[yesStart:yesStart+yesEnd], `name="version"`) {
+		t.Fatal("yes/no confirmation or version missing from its form")
 	}
 
 	invalid := request(env.routes, http.MethodPost, detail+"/values/"+fieldIDs["number"], url.Values{
@@ -135,11 +178,24 @@ func TestClientValuesUseTypedInputsAndValidate(t *testing.T) {
 		t.Fatalf("set yes/no = %d: %s", yes.Code, yes.Body.String())
 	}
 	shown := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(shown, `<option selected value="true">`) {
+	if !strings.Contains(shown, `<option value="true" selected>`) {
 		t.Fatalf("stored yes/no value is not selected: %s", shown)
 	}
+	if !strings.Contains(shown, `action="`+detail+`/values/`+fieldIDs["yes_no"]+`/clear"`) {
+		t.Fatalf("stored yes/no value cannot be cleared: %s", shown)
+	}
+	conflict := request(env.routes, http.MethodPost, detail+"/values/"+fieldIDs["yes_no"], url.Values{
+		"csrf": {env.csrf}, "version": {"1"}, "value": {"false"},
+	}, env.cookies, nil)
+	if conflict.Code != http.StatusPreconditionFailed || !strings.Contains(conflict.Body.String(), `<option value="false" selected>`) ||
+		!strings.Contains(conflict.Body.String(), `data-dirty-on-load`) {
+		t.Fatalf("yes/no conflict lost draft: %d %s", conflict.Code, conflict.Body.String())
+	}
 	viewerPage := request(env.routes, http.MethodGet, detail, nil, env.viewerCookies, nil).Body.String()
-	if !strings.Contains(viewerPage, "<dd>Yes</dd>") {
+	if strings.Contains(viewerPage, `href="`+fieldsPath+`"`) {
+		t.Fatalf("viewer can manage custom fields: %s", viewerPage)
+	}
+	if !strings.Contains(viewerPage, `<dd class="min-w-0 break-words">Yes</dd>`) {
 		t.Fatalf("viewer does not see the yes/no value as Yes: %s", viewerPage)
 	}
 }

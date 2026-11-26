@@ -1,0 +1,52 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/clients"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+
+templ clientDeleteDialog(data viewmodel.PageData) {
+	<dialog id="client-delete-dialog" class="modal" aria-labelledby="client-delete-title" aria-describedby="client-delete-warning" data-client-delete-dialog>
+		<div class="modal-box w-full max-w-lg">
+			<h2 id="client-delete-title" class="text-xl font-bold">{ data.T("clients.delete_client") }</h2>
+			<p id="client-delete-warning" class="alert alert-warning my-4" data-client-delete-warning></p>
+			<ul class="list-disc pl-6" data-client-delete-names></ul>
+			<form method="dialog" class="modal-action">
+				<button class="btn btn-outline" type="button" data-client-delete-cancel>{ data.T("common.cancel") }</button>
+				<button class="btn btn-error" type="button" data-client-delete-confirm>{ data.T("clients.delete_client") }</button>
+			</form>
+		</div>
+	</dialog>
+}
+
+templ clientDeletePage(data viewmodel.PageData, action, back string, selected []clients.Client, bulk bool) {
+	@templates.DashboardShell(data, templates.DashboardHome) {
+		<section class="card p-6" aria-labelledby="confirm-client-delete">
+			<h1 id="confirm-client-delete">{ data.T("clients.delete_client") }</h1>
+			if bulk {
+				<p>{ data.T("clients.bulk_delete_confirm") }</p>
+			} else {
+				<p>{ data.T("clients.delete_client_confirm") }</p>
+			}
+			<ul>
+				for _, client := range selected {
+					<li>{ client.DisplayName }</li>
+				}
+			</ul>
+			<form method="post" action={ templ.SafeURL(action) }>
+				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="confirm_delete" value="yes"/>
+				if bulk {
+					<input type="hidden" name="action" value="delete"/>
+					<input type="hidden" name="return" value={ back }/>
+					for _, client := range selected {
+						<input type="hidden" name="client_id" value={ client.ID.String() }/>
+					}
+				}
+				<div class="actions">
+					<a class="btn btn-outline" href={ templ.SafeURL(back) }>{ data.T("common.cancel") }</a>
+					<button class="btn btn-error" type="submit">{ data.T("clients.delete_client") }</button>
+				</div>
+			</form>
+		</section>
+	}
+}

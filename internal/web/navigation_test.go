@@ -60,6 +60,51 @@ func TestAccountNavigationCurrentPage(t *testing.T) {
 		if !strings.Contains(body.String(), `aria-current="page" href="`+path+`"`) || strings.Count(body.String(), `aria-current="page"`) != 1 {
 			t.Errorf("%s: expected one current navigation link", page)
 		}
+		if !strings.Contains(body.String(), `<nav class="sidebar-navigation" aria-label=`) || !strings.Contains(body.String(), `<ul class="menu w-full">`) || !strings.Contains(body.String(), `class="menu-title`) || strings.Contains(body.String(), `class="border`) {
+			t.Errorf("%s: expected semantic sidebar links without borders", page)
+		}
+	}
+}
+
+func TestWorkspaceSidebarNavigationPermissions(t *testing.T) {
+	_, _, workspaceID, _ := testWeb(t, 10)
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := "/workspaces/" + workspaceID.String()
+	for _, tc := range []struct {
+		name    string
+		data    viewmodel.PageData
+		present []string
+		absent  []string
+	}{
+		{"viewer settings", viewmodel.PageData{NavSection: "settings", NavPage: "invitations", Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Viewer}}, []string{base + "/settings/members", base + "/settings/tokens", base + "/settings/export"}, []string{base + "/settings/email", base + "/settings/audit", base + "/settings/provisioning", base + "/intake"}},
+		{"owner settings", viewmodel.PageData{NavSection: "settings", NavPage: "email", ClientsEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Owner}}, []string{base + "/settings/email", base + "/settings/audit", base + "/settings/provisioning", base + "/intake"}, nil},
+		{"workspace features disabled", viewmodel.PageData{NavPage: "workspace", Workspace: identity.WorkspaceSummary{ID: workspaceID}}, []string{base + "/settings"}, []string{base + "/clients", base + "/engagements", base + "/catalog", base + "/files"}},
+		{"workspace features enabled", viewmodel.PageData{NavPage: "catalog", ClientsEnabled: true, EngagementEnabled: true, CatalogEnabled: true, FilesEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID}}, []string{base + "/clients", base + "/engagements", base + "/catalog", base + "/files"}, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.data.Catalog, tc.data.Locale = catalog, "en"
+			var body bytes.Buffer
+			if err := organisms.WorkspaceNav(tc.data).Render(context.Background(), &body); err != nil {
+				t.Fatal(err)
+			}
+			html := body.String()
+			if !strings.Contains(html, `<nav class="sidebar-navigation" aria-label=`) || !strings.Contains(html, `<ul class="menu w-full">`) || !strings.Contains(html, `class="menu-title`) || strings.Count(html, `aria-current="page"`) != 1 || strings.Contains(html, `class="border`) || strings.Contains(html, `class="btn`) {
+				t.Errorf("sidebar semantics or current page incorrect: %s", html)
+			}
+			for _, path := range tc.present {
+				if !strings.Contains(html, `href="`+path+`"`) {
+					t.Errorf("missing destination %s", path)
+				}
+			}
+			for _, path := range tc.absent {
+				if strings.Contains(html, `href="`+path+`"`) {
+					t.Errorf("unexpected destination %s", path)
+				}
+			}
+		})
 	}
 }
 

@@ -1,13 +1,10 @@
 package web
 
 import (
-	"context"
-	"io"
+	"strings"
 	"testing"
 
-	"github.com/a-h/templ"
-
-	"example.com/dynamis-code/apps-template/internal/web/components/organisms"
+	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
@@ -16,24 +13,21 @@ func TestClientListStreamsRows(t *testing.T) {
 }
 
 func TestClientListPreservesRendering(t *testing.T) {
-	assertListPreservesRendering(t, clientListView, func(data viewmodel.PageData) templ.Component {
-		originalResults := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-			limit := clientPageLimit(data.ClientQuery.Limit)
-			if err := organisms.ListResults(data, limit, listPageSizeOptions(limit, listPageSizes), data.ClientQuerySuffix, clientBody(data), templ.NopComponent).Render(ctx, w); err != nil {
-				return err
-			}
-			if !data.ListFragment {
-				return nil
-			}
-			if _, err := io.WriteString(w, `<div id="client-list-scope" hx-swap-oob="true">`); err != nil {
-				return err
-			}
-			if err := clientScope(data).Render(ctx, w); err != nil {
-				return err
-			}
-			_, err := io.WriteString(w, `</div>`)
-			return err
-		})
-		return organisms.ListScreen(data, "clients.search", clientListTools(data), originalResults)
-	})
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []bool{false, true} {
+		data := viewmodel.PageData{Catalog: catalog, Locale: "en", ListFragment: fragment}
+		var out strings.Builder
+		if err := clientListView(data).Render(t.Context(), &out); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out.String(), `id="list-filter-add"`) || strings.Contains(out.String(), `id="client-list-scope"`) {
+			t.Fatal("client list must offer filters without separate scope buttons")
+		}
+		if strings.Contains(out.String(), `id="list-filter-add" hx-swap-oob="true"`) != fragment {
+			t.Fatal("filter controls must be refreshed only for results fragments")
+		}
+	}
 }

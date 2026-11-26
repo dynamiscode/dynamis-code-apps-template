@@ -38,9 +38,9 @@ type PageData struct {
 	Client                     clients.Client
 	Engagements                []engagement.Engagement
 	EngagementBookings         map[engagement.ID][]scheduling.Booking
-	ActionHistory              []engagement.ActionHistoryEntry
-	ActionHistoryPrevious      string
-	ActionHistoryNext          string
+	Activity                   []engagement.ActivityEntry
+	ActivityPrevious           string
+	ActivityNext               string
 	EngagementDashboard        *engagement.DashboardPage
 	DashboardPrevious          string
 	DashboardNext              string
@@ -48,6 +48,9 @@ type PageData struct {
 	OpenEngagementStages       []engagement.Stage
 	EngagementName             string
 	EngagementStage            string
+	StageDraftName             string
+	StageDraftKind             string
+	StageLabelDraft            string
 	EngagementAssignee         string
 	EngagementOwner            string
 	ActionConflictText         string
@@ -71,11 +74,18 @@ type PageData struct {
 	EngagementEnabled          bool
 	EngagementLabel            string
 	EngagementNotes            string
+	EngagementNotesRevision    string
 	ClientValues               []ClientValueRow
 	ClientTimeline             []clients.TimelineEntry
 	TimelinePage               int
 	TimelineDraft              TimelineDraft
 	ClientDraft                clients.Input
+	ClientEditRejected         bool
+	ClientInlineField          string
+	ClientInlineValue          string
+	ClientInlineVersion        string
+	ClientValueDraftField      string
+	ClientValueDraft           string
 	ClientFields               []ClientFieldRow
 	FieldDraft                 clients.FieldInput
 	CanManageFields            bool

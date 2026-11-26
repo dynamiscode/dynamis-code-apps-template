@@ -59,11 +59,11 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	deletePath := detailPath + "/delete"
 
 	ownerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(ownerDetail, `action="`+archivePath+`"`) || !strings.Contains(ownerDetail, `action="`+deletePath+`"`) || !strings.Contains(ownerDetail, "data-confirm=") {
+	if !strings.Contains(ownerDetail, `action="`+archivePath+`"`) || !strings.Contains(ownerDetail, `action="`+deletePath+`"`) || !strings.Contains(ownerDetail, "data-client-delete") {
 		t.Fatalf("owner detail lacks archive or confirmed delete: %s", ownerDetail)
 	}
-	if !strings.Contains(ownerDetail, `<p class="warning alert alert-warning py-2">Permanently delete this client, its values, engagements, and engagement history? This cannot be undone.</p>`) {
-		t.Fatalf("owner detail does not explain permanent deletion without JavaScript: %s", ownerDetail)
+	if !strings.Contains(ownerDetail, `data-confirm="Permanently delete this client, its values, engagements, and engagement history? This cannot be undone."`) || strings.Contains(ownerDetail, "data-detail-editor") {
+		t.Fatalf("owner detail lacks delete confirmation or still has the full editor: %s", ownerDetail)
 	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil).Body.String()
 	if strings.Contains(viewerDetail, archivePath) || strings.Contains(viewerDetail, deletePath) {
@@ -85,6 +85,10 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	var archivedAt *string
 	if err := env.db.QueryRow("SELECT archived_at FROM clients WHERE id = ?", key).Scan(&archivedAt); err != nil || archivedAt == nil {
 		t.Fatalf("archived_at after archive = %v, %v; want set", archivedAt, err)
+	}
+	archivedDetail := request(env.routes, http.MethodGet, detailPath, nil, memberCookies, nil).Body.String()
+	if !strings.Contains(archivedDetail, `action="`+unarchivePath+`"`) || strings.Contains(archivedDetail, `action="`+archivePath+`"`) || strings.Contains(archivedDetail, deletePath) {
+		t.Fatalf("archived member detail should offer restore only: %s", archivedDetail)
 	}
 
 	defaultList := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
@@ -110,7 +114,14 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	if refused := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {memberCSRF}}, memberCookies, nil); refused.Code != http.StatusForbidden {
 		t.Fatalf("member delete = %d, want 403", refused.Code)
 	}
-	deleted := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	unconfirmed := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if unconfirmed.Code != http.StatusOK || !strings.Contains(unconfirmed.Body.String(), "Ada") || !strings.Contains(unconfirmed.Body.String(), `name="confirm_delete"`) {
+		t.Fatalf("unconfirmed deletion should display a confirmation: %d %s", unconfirmed.Code, unconfirmed.Body.String())
+	}
+	if present := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil); present.Code != http.StatusOK {
+		t.Fatalf("unconfirmed deletion changed client: %d", present.Code)
+	}
+	deleted := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}, "confirm_delete": {"yes"}}, env.cookies, nil)
 	if deleted.Code != http.StatusSeeOther || deleted.Header().Get("Location") != env.listPath() {
 		t.Fatalf("owner delete = %d location %q: %s", deleted.Code, deleted.Header().Get("Location"), deleted.Body.String())
 	}

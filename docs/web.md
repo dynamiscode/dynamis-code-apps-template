@@ -20,6 +20,8 @@ matches another client in the workspace by email or phone.
 
 Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and their unconverted price options for workspace resource readers, with an option to include archived entries. Owners and admins can create, edit, archive, unarchive, or delete unused entries and add, edit, or remove fixed or manual prices; members and viewers see no write controls. Fixed amounts are non-negative decimals, while manual options have no preset amount. Creation requires an initial price; removing the last price is rejected. New rows can only be added to active entries. To repair a legacy price-less entry, show archived entries, unarchive it if necessary, add its actual price, and archive it again if appropriate; no prices are invented. Entries reported in use cannot be deleted and should be archived, and booked entries are protected; sale linkage remains deferred. Catalog entries and prices are scoped to their workspace. Workspace home and workspace sidebar link to the enabled catalog. Catalog navigation was previously omitted from the sidebar because feature availability was not populated consistently across pages; keep the shared page data feature flag populated and mark the catalog page current.
 
+When creating a catalog entry, an entered amount creates a fixed price; an empty amount creates a manual price. Currency and other price options are under advanced settings.
+
 Catalog profile: the resource schedule shows bookings in the workspace time zone. Writers can select a catalog entry and start time; readers see the schedule without booking controls. Invalid, overlapping, and out-of-hours requests retain the draft and show an error.
 
 Member and invitation pages explain role permissions, ownership transfer,
@@ -27,13 +29,17 @@ invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
 SCIM, exports, and audit history into role-aware sidebar sections.
 For workspace resource readers, workspace home shows overdue and due-today action counts (UTC), up to five individual actions in each category, and paginated counts of work in open stages, including archived stages. Preview links open the engagement; view-all links open the corresponding action queue filter. Counts link to the queue or stage-filtered engagement list. These links work without JavaScript.
-The Clients list links to the workspace engagement list and engagement stages.
+The Clients list links to the workspace engagement list. Owners and administrators
+can open stage and label settings from the engagement list's settings menu.
 The engagement list supports ordinary GET search, stage and assignee filters,
-and bounded pagination; links open each engagement or its client. Search matches
-literal substrings in engagement and client names, folds ASCII letters only, and
-compares non-ASCII characters as typed on SQLite and PostgreSQL. Workspace
-resource readers can use the list without JavaScript. Writers can follow Create
-engagement to the Clients list, choose a client, and use its creation form. On the stage board,
+sortable headers, and bounded pagination; links open each engagement or its client.
+Search matches literal substrings in engagement and client names, folds ASCII
+letters only, and compares non-ASCII characters as typed on SQLite and PostgreSQL.
+Writers can select engagements and confirm an atomic bulk move to an available
+stage; the page-wide action is available without JavaScript. Workspace resource
+readers can use the list without JavaScript. Writers can create an engagement
+from the list by choosing a client, name, stage, and notes.
+The client picker supports search and pagination without JavaScript. On the stage board,
 writers can move an engagement using its labeled form; targets exclude archived
 and current stages. A successful move returns to the selected board kind, including
 without JavaScript. Readers do not see move controls.
@@ -41,23 +47,45 @@ Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. Archiving
 requires explicit confirmation, explains that existing work stays in the stage,
 and prevents moves into it. The forms work without JavaScript.
-On a client detail page, readers can see engagements and their stage history.
-History shows stage names including archived stages, the actor's display name
-(or email when unset, and unavailable when the account no longer exists), and a
-locale-formatted UTC time. Each engagement name links to a detail page with its existing information
-and a return link to the client. Readers can view paginated action history on the
-engagement detail, including recorded outcomes, text, due date, owner, actor,
-and localized time. Unavailable identities are labeled. Writers can edit its quote and next action on
-that page; readers see their summaries. Invalid quote and next-action submissions
+On a client detail page, full-width engagement tiles show the stage and link to each
+engagement. Writers can open creation with that client preselected, with a
+full-page fallback when JavaScript is unavailable. Engagement details combine
+stage moves and action history in one paginated activity feed, newest first.
+Entries include the actor and localized UTC time; unavailable identities are
+labeled. Stage moves show archived stage names. Action events include the
+recorded outcome, text, due date, and owner. Client details show the existing
+authored timeline. On wide screens, a draggable divider adjusts the activity
+column while preserving a minimum width for each column. Clicking the divider
+opens a slider; arrow keys, Home, and End also resize the columns. On narrow
+screens, activity follows the main content. Without JavaScript, the columns use
+their default widths.
+Writers can edit the engagement's quote and next action; readers see their summaries.
+Invalid quote and next-action submissions
 retain entered values and associate determinable field errors with their controls.
 Unrecognized selection values appear as unavailable. Cancel returns to the saved
 detail. Successful detail edits show localized confirmation after redirect, including without JavaScript. Writers can create an engagement with notes and move it to an
 unarchived stage.
+Detail pages show saved values until editing begins. Writers can edit engagement
+titles, client name, email, phone, and custom text values in place. Client
+contact fields save independently with a version check; a conflict retains the
+draft and requires an explicit retry. Engagement stage and assignee, and
+independently saved client choice fields, remain visible as selectors; saving
+requires an explicit action. Related engagement, client, and catalog fields
+use grouped editors. Ordinary forms remain available without JavaScript, and
+rejected edits retain their drafts.
+Notes support GitHub Flavored Markdown. On engagement details, writers see an
+editable notes composer with explicit save and unsaved-change feedback; readers
+see rendered notes. Writers can preview without saving, and the text area remains
+usable without JavaScript. Notes preserve
+whitespace and accept at most 5,000 Unicode code points. Rendering disables raw
+HTML and unsafe links. Notes edits require workspace write permission, verify the
+client relationship, and produce an audit event.
 Creation requires a selected unarchived open stage. When none exists, administrators
 can open stage setup; other writers are directed to an administrator. Client deletion warns that its
 engagements and their history are permanently deleted too.
 Owners and admins can set or reset the workspace work item label on the stages
-page. Client pages use that label; the default is engagement.
+page. The sidebar, engagement list, and client pages use that workspace's label;
+the localized default is engagement.
 Readers see next actions on client details; writers can set, change, or clear
 them. Stale edit or clear submissions are rejected with conflict feedback, the
 current action, and the submitted draft. Writers can review both and explicitly

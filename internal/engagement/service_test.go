@@ -323,6 +323,35 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if err := svc.SetName(ctx, otherOwner, other, created.ID, "Denied", identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("foreign rename: %v", err)
 	}
+	if err := svc.SetNotes(ctx, viewer, boot.WorkspaceID, created.ID, "Denied", nil, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer notes: %v", err)
+	}
+	if err := svc.SetNotes(ctx, otherOwner, other, created.ID, "Denied", nil, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("foreign notes: %v", err)
+	}
+	for _, invalid := range []string{string([]byte{0xff}), strings.Repeat("x", 5001)} {
+		if err := svc.SetNotes(ctx, owner, boot.WorkspaceID, created.ID, invalid, nil, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("invalid notes: %v", err)
+		}
+	}
+	markdown := "    code block\n\n**Contact** the client.  \n"
+	revision := NotesRevision("Other person")
+	if err := svc.SetNotes(ctx, owner, boot.WorkspaceID, created.ID, markdown, &revision, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SetNotes(ctx, owner, boot.WorkspaceID, created.ID, "stale draft", &revision, identity.AuditContext{}); !errors.Is(err, ErrNotesConflict) {
+		t.Fatalf("stale notes: %v", err)
+	}
+	if err := svc.SetNotes(ctx, owner, boot.WorkspaceID, created.ID, markdown, &revision, identity.AuditContext{}); !errors.Is(err, ErrNotesConflict) {
+		t.Fatalf("stale unchanged notes: %v", err)
+	}
+	if got, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil || got.Notes != markdown {
+		t.Fatalf("stored notes: %+v %v", got, err)
+	}
+	var notesAudits int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type = 'engagement.notes_updated'`, boot.WorkspaceID).Scan(&notesAudits); err != nil || notesAudits != 1 {
+		t.Fatalf("notes audit = %d, %v", notesAudits, err)
+	}
 	if err := svc.SetName(ctx, owner, boot.WorkspaceID, created.ID, string([]byte{0xff}), identity.AuditContext{}); !errors.Is(err, ErrInvalidName) {
 		t.Fatalf("invalid UTF-8 rename: %v", err)
 	}

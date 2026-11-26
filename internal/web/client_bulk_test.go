@@ -79,3 +79,38 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 		t.Fatalf("unknown bulk action = %d, want 400", bad.Code)
 	}
 }
+
+func TestClientBulkDeleteRequiresConfirmation(t *testing.T) {
+	env := newClientsTestEnv(t)
+	var paths []string
+	for _, name := range []string{"Ada", "Bea", "Cleo"} {
+		created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {name}}, env.cookies, nil)
+		paths = append(paths, created.Header().Get("Location"))
+	}
+	values := url.Values{"csrf": {env.csrf}, "action": {"delete"}, "return": {env.listPath()}, "client_id": {
+		strings.TrimPrefix(paths[0], env.listPath()+"/"), strings.TrimPrefix(paths[1], env.listPath()+"/"),
+	}}
+	prompt := request(env.routes, http.MethodPost, env.listPath()+"/bulk", values, env.cookies, nil)
+	if prompt.Code != http.StatusOK || !strings.Contains(prompt.Body.String(), "Ada") || !strings.Contains(prompt.Body.String(), "Bea") || strings.Contains(prompt.Body.String(), "Cleo") {
+		t.Fatalf("confirmation scope = %d %s", prompt.Code, prompt.Body.String())
+	}
+	for _, path := range paths {
+		if got := request(env.routes, http.MethodGet, path, nil, env.cookies, nil); got.Code != http.StatusOK {
+			t.Fatalf("unconfirmed deletion changed %s: %d", path, got.Code)
+		}
+	}
+	values.Set("confirm_delete", "yes")
+	deleted := request(env.routes, http.MethodPost, env.listPath()+"/bulk", values, env.cookies, nil)
+	if deleted.Code != http.StatusSeeOther {
+		t.Fatalf("confirmed bulk deletion = %d", deleted.Code)
+	}
+	for i, path := range paths {
+		want := http.StatusNotFound
+		if i == 2 {
+			want = http.StatusOK
+		}
+		if got := request(env.routes, http.MethodGet, path, nil, env.cookies, nil); got.Code != want {
+			t.Fatalf("detail %s = %d, want %d", path, got.Code, want)
+		}
+	}
+}

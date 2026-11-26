@@ -36,6 +36,7 @@ import (
 
 //go:embed assets/app.css assets/clients.css assets/components.css assets/tokens.css
 //go:embed assets/alpine-components.js assets/htmx.min.js assets/js/alpine.min.js
+//go:embed assets/notes-editor.js assets/notes-editor.css
 var files embed.FS
 
 type Handler struct {
@@ -224,6 +225,7 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog", h.catalogCreate)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices", h.catalogCreatePrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/edit", h.catalogEdit)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/field", h.catalogEdit)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/edit", h.catalogEditPrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/prices/{priceId}/delete", h.catalogDeletePrice)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/catalog/{entryId}/archive", h.catalogArchive)
@@ -246,15 +248,21 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/new", h.createClient)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}", h.clientDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}", h.changeClient)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/field", h.changeClientProperty)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements", h.createEngagement)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}", h.engagementDetail)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/name", h.setEngagementName)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/notes", h.setEngagementNotes)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/stage", h.moveEngagement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/next-action", h.setEngagementNextAction)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/quote", h.setEngagementQuote)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/agreement", h.setEngagementAgreement)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/clients/{clientId}/engagements/{engagementId}/assignee", h.setEngagementAssignee)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements", h.listEngagements)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/bulk-move", h.bulkMoveEngagements)
+	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/new", h.newEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/new", h.newEngagement)
+	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/notes-preview", h.previewEngagementNotes)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/board", h.engagementBoard)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/engagements/due", h.dueEngagements)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/engagements/{engagementId}/action/{operation}", h.changeQueuedAction)
@@ -593,6 +601,14 @@ func (h *Handler) workspaceSession(
 	}
 	principal.AuthMethod = session.AuthMethod
 	principal.AuthLevel = session.AuthLevel
+	if state, ok := writer.(*localeWriter); ok && h.engagement != nil && principal.Permissions[identity.ResourcesRead] && (!state.engagementLoaded || state.engagementWorkspace != workspaceID) {
+		label, err := h.engagement.Label(request.Context(), principal, workspaceID)
+		if err != nil {
+			h.renderError(writer, http.StatusInternalServerError)
+			return identity.Principal{}, identity.Session{}, "", false
+		}
+		state.engagementWorkspace, state.engagementLabel, state.engagementLoaded = workspaceID, label, true
+	}
 	return principal, session, csrf, true
 }
 

@@ -569,6 +569,8 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/clients.go" || relative == "internal/web/clients_test.go" || relative == "internal/web/clients_scope_test.go" || relative == "internal/web/clients_intake_menu_test.go" ||
 		relative == "internal/web/clients_stream_test.go" ||
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
+		relative == "internal/web/engagement_notes.go" || relative == "internal/web/engagement_notes_test.go" ||
+		relative == "internal/web/engagement_new.go" || relative == "internal/web/engagement_new.templ" || relative == "internal/web/engagement_new_templ.go" || relative == "internal/web/engagement_new_search_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
 		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
@@ -831,6 +833,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/client-fields")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/clients")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements\"")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/new")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/notes-preview")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
 		value = removeLinesContaining(value, "h.changeQueuedAction")

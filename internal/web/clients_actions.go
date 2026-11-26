@@ -11,7 +11,7 @@ import (
 func clientRowActions(data viewmodel.PageData, row viewmodel.ListRow) []organisms.ListAction {
 	href := data.CurrentPath + "/" + row.ID
 	open := organisms.ListAction{Label: data.T("ui.open"), Icon: "open", Href: clientDetailHref(data, row.ID)}
-	remove := organisms.ListAction{Label: data.T("clients.delete_client"), Icon: "delete", PostPath: href + "/delete", Confirm: data.T("clients.delete_client_confirm"), Danger: true}
+	remove := organisms.ListAction{Label: data.T("clients.delete_client"), Icon: "delete", PostPath: href + "/delete", Confirm: data.T("clients.delete_client_confirm"), Danger: true, ClientDeleteName: row.CellText(data.ClientListLinkKey())}
 	// Each action appears only when the viewer may use it; the server enforces the same rules.
 	actions := []organisms.ListAction{open}
 	if row.Archived {

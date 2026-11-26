@@ -70,8 +70,18 @@ func TestSchedulingBookingWeb(t *testing.T) {
 		t.Fatalf("schedule: %d %s", page.Code, page.Body)
 	}
 	clientPage := request(h.Routes(), http.MethodGet, "/workspaces/"+workspace.String()+"/clients/"+client.ID.String(), nil, cookies, nil)
-	if clientPage.Code != http.StatusOK || !strings.Contains(clientPage.Body.String(), "Visit") || !strings.Contains(clientPage.Body.String(), "2026-11-23 09:00") {
-		t.Fatalf("engagement bookings: %d %s", clientPage.Code, clientPage.Body)
+	engagementDetailPath := "/workspaces/" + workspace.String() + "/clients/" + client.ID.String() + "/engagements/" + eng.ID.String()
+	tileStart := strings.Index(clientPage.Body.String(), `<ul class="detail-engagements`)
+	tileEnd := -1
+	if tileStart >= 0 {
+		tileEnd = strings.Index(clientPage.Body.String()[tileStart:], `</ul>`)
+	}
+	if clientPage.Code != http.StatusOK || tileEnd < 0 || !strings.Contains(clientPage.Body.String()[tileStart:tileStart+tileEnd], engagementDetailPath) || strings.Contains(clientPage.Body.String()[tileStart:tileStart+tileEnd], "Visit") {
+		t.Errorf("client engagement tile: %d %s", clientPage.Code, clientPage.Body)
+	}
+	engagementPage := request(h.Routes(), http.MethodGet, engagementDetailPath, nil, cookies, nil)
+	if engagementPage.Code != http.StatusOK || !strings.Contains(engagementPage.Body.String(), "Visit") || !strings.Contains(engagementPage.Body.String(), "2026-11-23 09:00") {
+		t.Errorf("engagement bookings: %d %s", engagementPage.Code, engagementPage.Body)
 	}
 	bookings, _, err := s.Schedule(ctx, actor, workspace, r.ID)
 	if err != nil || len(bookings) != 1 {
@@ -79,6 +89,46 @@ func TestSchedulingBookingWeb(t *testing.T) {
 	}
 	statusPath := path + "/" + r.ID.String() + "/bookings/" + bookings[0].ID.String() + "/status"
 	movePath := path + "/" + r.ID.String() + "/bookings/" + bookings[0].ID.String() + "/move"
+	if !strings.Contains(page.Body.String(), `data-inline-saved="2026-11-23T09:00"`) {
+		t.Fatalf("missing inline booking start: %s", page.Body)
+	}
+	moveFormStart := strings.Index(page.Body.String(), `action="`+movePath+`"`)
+	if moveFormStart < 0 {
+		t.Fatal("missing move form")
+	}
+	moveFormEnd := strings.Index(page.Body.String()[moveFormStart:], "</form>")
+	if moveFormEnd < 0 {
+		t.Fatal("unterminated move form")
+	}
+	moveForm := page.Body.String()[moveFormStart : moveFormStart+moveFormEnd]
+	for _, want := range []string{`type="datetime-local"`, `name="start"`, `value="2026-11-23T09:00"`, `data-inline-input`, `data-confirm="`, `type="submit"`, `data-inline-cancel`} {
+		if !strings.Contains(moveForm, want) {
+			t.Fatalf("move form missing %q: %s", want, moveForm)
+		}
+	}
+	engagementPath := path + "/bookings/" + bookings[0].ID.String() + "/engagement"
+	engagementFormStart := strings.Index(page.Body.String(), `action="`+engagementPath+`"`)
+	if engagementFormStart < 0 {
+		t.Fatal("missing engagement form")
+	}
+	engagementFormEnd := strings.Index(page.Body.String()[engagementFormStart:], "</form>")
+	if engagementFormEnd < 0 {
+		t.Fatal("unterminated engagement form")
+	}
+	engagementForm := page.Body.String()[engagementFormStart : engagementFormStart+engagementFormEnd]
+	for _, want := range []string{`data-confirm-select`, `name="engagement_id"`, `value="` + eng.ID.String() + `" selected`, `data-confirm-select-dialog`, `data-confirm-select-fallback`, `type="submit"`} {
+		if !strings.Contains(engagementForm, want) {
+			t.Fatalf("engagement form missing %q: %s", want, engagementForm)
+		}
+	}
+	response = request(h.Routes(), http.MethodPost, engagementPath, url.Values{"csrf": {session.CSRFSecret}, "engagement_id": {""}}, cookies, nil)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("clear engagement without JavaScript: %d %s", response.Code, response.Body)
+	}
+	response = request(h.Routes(), http.MethodPost, engagementPath, url.Values{"csrf": {session.CSRFSecret}, "engagement_id": {eng.ID.String()}}, cookies, nil)
+	if response.Code != http.StatusSeeOther {
+		t.Fatalf("restore engagement without JavaScript: %d %s", response.Code, response.Body)
+	}
 	invalidMove := request(h.Routes(), http.MethodPost, movePath, url.Values{"csrf": {session.CSRFSecret}, "start": {"2026-11-23T08:00"}}, cookies, nil)
 	if invalidMove.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidMove.Body.String(), "outside working hours") || !strings.Contains(invalidMove.Body.String(), `value="2026-11-23T08:00"`) {
 		t.Fatalf("invalid move: %d %s", invalidMove.Code, invalidMove.Body)
@@ -93,6 +143,21 @@ func TestSchedulingBookingWeb(t *testing.T) {
 	}
 	if !strings.Contains(page.Body.String(), statusPath) {
 		t.Fatal("missing outcome controls")
+	}
+	if err := s.SetTimeZone(ctx, actor, workspace, "America/New_York"); err != nil {
+		t.Fatal(err)
+	}
+	page = request(h.Routes(), http.MethodGet, path, nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), "America/New_York") || !strings.Contains(page.Body.String(), `data-inline-saved="2026-11-23T05:00"`) {
+		t.Fatalf("missing workspace time zone: %s", page.Body)
+	}
+	engagementPage = request(h.Routes(), http.MethodGet, engagementDetailPath, nil, cookies, nil)
+	if engagementPage.Code != http.StatusOK || !strings.Contains(engagementPage.Body.String(), "2026-11-23 05:00") || !strings.Contains(engagementPage.Body.String(), "America/New_York") {
+		t.Errorf("engagement bookings time zone: %d %s", engagementPage.Code, engagementPage.Body)
+	}
+	invalidMove = request(h.Routes(), http.MethodPost, movePath, url.Values{"csrf": {session.CSRFSecret}, "start": {"2026-03-08T02:30"}}, cookies, nil)
+	if invalidMove.Code != http.StatusUnprocessableEntity || !strings.Contains(invalidMove.Body.String(), `value="2026-03-08T02:30"`) || !strings.Contains(invalidMove.Body.String(), `data-inline-dirty-on-load`) {
+		t.Fatalf("DST gap move draft: %d %s", invalidMove.Code, invalidMove.Body)
 	}
 	response = request(h.Routes(), http.MethodPost, statusPath, url.Values{"csrf": {session.CSRFSecret}, "status": {"no-show"}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {

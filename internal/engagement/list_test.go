@@ -89,7 +89,8 @@ func TestListWorkspaceFiltersAndPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.Create(ctx, otherOwner, other, Input{Name: "Alpha", ClientID: foreignClient.ID, StageID: foreignStage.ID}, identity.AuditContext{}); err != nil {
+	foreign, err := svc.Create(ctx, otherOwner, other, Input{Name: "Alpha", ClientID: foreignClient.ID, StageID: foreignStage.ID}, identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	check := func(in ListInput, total int, want ...ID) {
@@ -106,6 +107,13 @@ func TestListWorkspaceFiltersAndPages(t *testing.T) {
 	}
 	check(ListInput{Page: 1, Limit: 2}, 3, ids[2], ids[1])
 	check(ListInput{Page: 2, Limit: 2}, 3, ids[0])
+	check(ListInput{Page: 1, Limit: 1, Sort: "name", Direction: "asc"}, 3, ids[1])
+	check(ListInput{Page: 2, Limit: 1, Sort: "name", Direction: "asc"}, 3, ids[0])
+	check(ListInput{Page: 3, Limit: 1, Sort: "name", Direction: "asc"}, 3, ids[2])
+	check(ListInput{Page: 1, Limit: 2, Sort: "name", Direction: "desc"}, 3, ids[2], ids[0])
+	check(ListInput{Page: 1, Limit: 3, Sort: "stage", Direction: "asc"}, 3, ids[0], ids[1], ids[2])
+	check(ListInput{Page: 1, Limit: 3, Sort: "assignee", Direction: "asc"}, 3, ids[1], ids[2], ids[0])
+	check(ListInput{Page: 1, Limit: 3, Sort: "client", Direction: "asc"}, 3, ids[0], ids[1], ids[2])
 	check(ListInput{Page: 3, Limit: 2}, 3)
 	check(ListInput{Page: 1, Limit: 10, Search: "acME"}, 3, ids[2], ids[1], ids[0])
 	check(ListInput{Page: 1, Limit: 10, Search: "%"}, 1, ids[1])
@@ -116,6 +124,27 @@ func TestListWorkspaceFiltersAndPages(t *testing.T) {
 	if _, err := svc.List(ctx, viewer, other, ListInput{Page: 1, Limit: 10}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("foreign access: %v", err)
 	}
+	if err := svc.MoveMany(ctx, viewer, boot.WorkspaceID, []ID{ids[0]}, stage2.ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("viewer bulk move: %v", err)
+	}
+	if err := svc.MoveMany(ctx, owner, boot.WorkspaceID, []ID{ids[0], 999999999}, stage2.ID, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("bulk move with missing engagement: %v", err)
+	}
+	if err := svc.MoveMany(ctx, owner, boot.WorkspaceID, []ID{ids[0], foreign.ID}, stage2.ID, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("bulk move with foreign engagement: %v", err)
+	}
+	var historyCount int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagement_stage_history WHERE workspace_id = ? AND engagement_id = ?`, boot.WorkspaceID, ids[0]).Scan(&historyCount); err != nil || historyCount != 0 {
+		t.Fatalf("failed bulk move retained history: %d, %v", historyCount, err)
+	}
+	check(ListInput{Page: 1, Limit: 10, StageID: stage.ID}, 2, ids[1], ids[0])
+	if err := svc.MoveMany(ctx, owner, boot.WorkspaceID, []ID{ids[0], ids[1]}, foreignStage.ID, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("bulk move to foreign stage: %v", err)
+	}
+	if err := svc.MoveMany(ctx, owner, boot.WorkspaceID, []ID{ids[0], ids[1]}, stage2.ID, identity.AuditContext{}); err != nil {
+		t.Fatalf("bulk move: %v", err)
+	}
+	check(ListInput{Page: 1, Limit: 10, StageID: stage2.ID}, 3, ids[2], ids[1], ids[0])
 	accentClient, err := cs.Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "ÉCOLE!_100%"}, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
