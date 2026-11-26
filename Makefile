@@ -20,6 +20,8 @@ js-check:
 
 doc-links:
 	node --test scripts/check-doc-link-anchors.test.mjs
+	node --test scripts/check-review-images.test.mjs
+	node scripts/check-review-images.mjs
 	./scripts/check-doc-links.sh
 	node --test scripts/check-formal-verification.test.mjs
 	node scripts/check-formal-verification.mjs
