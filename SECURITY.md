@@ -7,10 +7,11 @@ customized generated applications remain the operator's responsibility.
 
 ## Report a vulnerability
 
-Use the repository Security tab and private vulnerability reporting. If that
-channel is unavailable, contact the repository owner through its configured
-private channel. Do not file a public issue containing exploit details,
-credentials, personal data, or signed URLs.
+Use the repository Security tab and private vulnerability reporting. For
+instructions, see [privately reporting a security vulnerability](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/report-privately).
+If that channel is unavailable, contact the repository owner through its
+configured private channel. Do not file a public issue containing exploit
+details, credentials, personal data, or signed URLs.
 
 Include affected version, impact, reproduction, and suggested remediation if
 known. Maintainers acknowledge reports, coordinate disclosure, issue a

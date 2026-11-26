@@ -102,6 +102,16 @@ func (h *handler) updateCatalog(writer http.ResponseWriter, request *http.Reques
 		writeProblem(writer, request, http.StatusForbidden, "forbidden", "Access is denied.")
 		return
 	}
+	ifMatch := request.Header.Get("If-Match")
+	if ifMatch == "" {
+		writeProblem(writer, request, http.StatusPreconditionRequired, "precondition-required", "If-Match is required.")
+		return
+	}
+	revision, ok := parseETag(ifMatch)
+	if !ok {
+		writeProblem(writer, request, http.StatusPreconditionFailed, "precondition-failed", "The entity tag is invalid or stale.")
+		return
+	}
 	var body struct {
 		Name            string `json:"name"`
 		DurationMinutes *int   `json:"durationMinutes"`
@@ -110,7 +120,7 @@ func (h *handler) updateCatalog(writer http.ResponseWriter, request *http.Reques
 		h.badJSON(writer, request, err)
 		return
 	}
-	err := h.catalogService.Update(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), body.Name, body.DurationMinutes)
+	err := h.catalogService.Update(request.Context(), principal, workspaceID, catalog.ParseEntryID(request.PathValue("entryId")), body.Name, body.DurationMinutes, revision)
 	h.catalogEditResult(writer, request, err)
 }
 
@@ -148,6 +158,8 @@ func (h *handler) catalogEditResult(writer http.ResponseWriter, request *http.Re
 		writeProblem(writer, request, http.StatusUnprocessableEntity, "invalid-input", "Catalog entry or price is invalid.")
 	case errors.Is(err, catalog.ErrNotFound):
 		writeProblem(writer, request, http.StatusNotFound, "not-found", "Catalog entry or price not found.")
+	case errors.Is(err, catalog.ErrConflict):
+		writeProblem(writer, request, http.StatusPreconditionFailed, "precondition-failed", "The entity tag is invalid or stale.")
 	case errors.Is(err, catalog.ErrLastPrice):
 		writeProblem(writer, request, http.StatusConflict, "last-price", "Catalog entry must have at least one price.")
 	case err != nil:

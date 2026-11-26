@@ -271,6 +271,9 @@ func LoadFrom(lookup LookupEnv) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if !httpConfig.Secure && strings.HasPrefix(publicURL, "https://") {
+		return Config{}, fmt.Errorf("HTTP_SECURE=false cannot be used with an HTTPS APP_PUBLIC_URL")
+	}
 	mcpConfig, err := loadMCP(lookup, publicURL)
 	if err != nil {
 		return Config{}, err
@@ -521,7 +524,7 @@ func loadBootstrap(lookup LookupEnv) (Bootstrap, error) {
 }
 
 func loadHTTP(lookup LookupEnv) (HTTP, error) {
-	secure, err := boolValue(lookup, "HTTP_SECURE", false)
+	secure, err := boolValue(lookup, "HTTP_SECURE", true)
 	if err != nil {
 		return HTTP{}, err
 	}
@@ -625,6 +628,13 @@ func loadHTTP(lookup LookupEnv) (HTTP, error) {
 	address := strings.TrimSpace(valueOrDefault(lookup, "HTTP_ADDRESS", "127.0.0.1:8080"))
 	if address == "" {
 		return HTTP{}, fmt.Errorf("HTTP_ADDRESS must not be empty")
+	}
+	if !secure {
+		host, _, err := net.SplitHostPort(address)
+		ip := net.ParseIP(host)
+		if err != nil || ip == nil || !ip.IsLoopback() {
+			return HTTP{}, fmt.Errorf("HTTP_SECURE=false requires HTTP_ADDRESS to bind a loopback IP address")
+		}
 	}
 	return HTTP{
 		Address: address, Secure: secure,

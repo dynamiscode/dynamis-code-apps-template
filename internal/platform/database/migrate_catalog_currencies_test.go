@@ -54,3 +54,45 @@ func TestCatalogCurrencyMigrationPreservesPrices(t *testing.T) {
 		t.Fatalf("BTC precision=%d err=%v", decimals, err)
 	}
 }
+
+func TestCatalogRevisionMigrationPreservesEntries(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(ctx, config.Database{Driver: config.SQLite, SQLitePath: filepath.Join(t.TempDir(), "catalog-revision.db"), MaxOpenConns: 1, MaxIdleConns: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	legacy := fstest.MapFS{}
+	names, err := fs.Glob(migrationFiles, "migrations/*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if name >= "migrations/000056" {
+			continue
+		}
+		data, err := fs.ReadFile(migrationFiles, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		legacy[name] = &fstest.MapFile{Data: data}
+	}
+	if err := migrateFS(ctx, db, config.SQLite, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspaces (id, name, created_at) VALUES (1, 'Legacy', '2026-01-01'); INSERT INTO catalog_entries (id, workspace_id, name, duration_minutes) VALUES (1, 1, 'Entry', 45)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, db, config.SQLite); err != nil {
+		t.Fatal(err)
+	}
+	var name string
+	var duration, revision int64
+	if err := db.QueryRowContext(ctx, `SELECT name, duration_minutes, revision FROM catalog_entries WHERE id = 1 AND workspace_id = 1`).Scan(&name, &duration, &revision); err != nil || name != "Entry" || duration != 45 || revision != 1 {
+		t.Fatalf("entry=%q duration=%d revision=%d err=%v", name, duration, revision, err)
+	}
+	var seed int64
+	if err := db.QueryRowContext(ctx, `SELECT revision FROM catalog_entry_revision_seeds WHERE entry_id = 1`).Scan(&seed); err != nil || seed != revision {
+		t.Fatalf("seed=%d err=%v", seed, err)
+	}
+}
