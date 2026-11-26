@@ -5,8 +5,8 @@ import { createRequire } from "node:module";
 const { engagementClientPicker } = createRequire(import.meta.url)("./alpine-components.js");
 
 test("selecting a search result changes only the client and returns focus", () => {
-	let click, focused = false, prevented = false;
-	const selected = { value: "first" };
+	let click, focused = false, prevented = false, changed = false;
+	const selected = { value: "first", dispatchEvent: (event) => { changed = event.type === "change" && event.bubbles; } };
 	const current = { textContent: "First client" };
 	const title = { value: "Draft title" };
 	const notes = { value: "# Draft\n\nKeep this" };
@@ -23,6 +23,7 @@ test("selecting a search result changes only the client and returns focus", () =
 	click({ target: { closest: () => option }, preventDefault: () => { prevented = true; } });
 	assert.equal(prevented, true);
 	assert.equal(selected.value, "second");
+	assert.equal(changed, true);
 	assert.equal(current.textContent, "Second client");
 	assert.equal(picker.open, false);
 	assert.equal(focused, true);

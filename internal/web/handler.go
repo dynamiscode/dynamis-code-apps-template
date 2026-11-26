@@ -9,6 +9,7 @@ import (
 	"errors"
 	appcatalog "example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/i18n"
@@ -20,6 +21,7 @@ import (
 	appmail "example.com/dynamis-code/apps-template/internal/platform/mail"
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"fmt"
@@ -43,6 +45,8 @@ type Handler struct {
 	logger          *slog.Logger
 	identity        *identity.Service
 	catalogService  *appcatalog.Service
+	currencyService *currency.Service
+	transactions    *transactions.Service
 	scheduling      *scheduling.Service
 	clients         *clients.Service
 	engagement      *engagement.Service
@@ -68,6 +72,9 @@ type Handler struct {
 
 func (h *Handler) workspaceCreationEnabled() bool {
 	return h.workspaceMode != config.WorkspaceModeSingle
+}
+func (h *Handler) SetCurrencyService(service *currency.Service) {
+	h.currencyService = service
 }
 
 func NewHandler(
@@ -212,6 +219,23 @@ func (h *Handler) Routes() http.Handler {
 		mux.HandleFunc("POST /workspaces", h.createWorkspace)
 	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}", h.workspaceHome)
+	if h.transactions != nil {
+		mux.HandleFunc("GET /workspaces/{workspaceId}/settings/transactions", h.transactionsSettingsPage)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/settings/transactions/categories", h.transactionsSettingsPage)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/settings/transactions/methods", h.transactionsSettingsPage)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/transactions", h.transactionsList)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/transactions/client-options", h.transactionsClientOptions)
+		mux.HandleFunc("GET /workspaces/{workspaceId}/transactions/totals", h.transactionsTotals)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions", h.transactionsCreate)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/preferences/columns/{column}", h.setTransactionsColumn)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/preferences/columns/reset", h.resetTransactionsColumns)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/preferences/columns/order", h.setTransactionsColumnOrder)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/categories", h.transactionsCategoryChange)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/categories/{categoryId}", h.transactionsCategoryChange)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/methods", h.transactionsSaveMethod)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/entries/{entryId}/void", h.transactionsVoid)
+		mux.HandleFunc("POST /workspaces/{workspaceId}/transactions/entries/{entryId}/field", h.transactionsUpdateField)
+	}
 	mux.HandleFunc("GET /workspaces/{workspaceId}/catalog", h.catalogList)
 	mux.HandleFunc("GET /workspaces/{workspaceId}/scheduling", h.schedulingList)
 	mux.HandleFunc("POST /workspaces/{workspaceId}/scheduling", h.schedulingCreate)

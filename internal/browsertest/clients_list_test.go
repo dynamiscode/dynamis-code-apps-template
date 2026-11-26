@@ -3,8 +3,11 @@
 package browsertest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image/png"
+	"math"
 	"net/url"
 	"regexp"
 	"strings"
@@ -17,6 +20,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/kb"
 )
 
 // signIn signs the owner in on the tab and waits for the home page.
@@ -569,12 +573,12 @@ func TestClientFieldLifecycleSurvivesRefresh(t *testing.T) {
 	eval[any](t, tab, `(() => { const select = document.querySelector("#client-field-type"); select.value = "single_choice"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`)
 	clickByText(t, tab, "Add field")
 	for _, label := range []string{"First", "Second", "Third"} {
-		eval[any](t, tab, fmt.Sprintf(`(() => {
+		inputID := eval[string](t, tab, `(() => {
 			const card = [...document.querySelectorAll(".client-field-card")].find((c) => c.textContent.includes("Browser multi-select"));
-			const form = card.querySelector(".option-create");
-			form.querySelector('input[name="label"]').value = %s;
-			[...form.querySelectorAll("button")].find((b) => b.textContent.includes("Add option")).click();
-		})()`, jsString(label)))
+			return card.querySelector('.option-create input[name="label"]').id;
+		})()`)
+		fill(t, tab, "#"+inputID, label)
+		click(t, tab, fmt.Sprintf(`form:has(#%s) button[type="submit"]`, inputID))
 		eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll(".client-field-option-list li")].some((li) => li.textContent.includes(%s))`, jsString(label)), "option "+label+" not added")
 	}
 	clickByText(t, tab, "Back to clients")
@@ -591,4 +595,170 @@ func newPeer(t *testing.T, tab context.Context) context.Context {
 		t.Fatalf("start peer tab: %v", err)
 	}
 	return peer
+}
+
+func TestClientCreateEntryFieldKeepsDraftOnDeselect(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	path := eval[string](t, tab, "location.pathname")
+	navigate(t, tab, path+"/new")
+	waitVisible(t, tab, "#client-display-name")
+	click(t, tab, "#client-display-name")
+	fill(t, tab, "#client-display-name", "Draft client")
+	click(t, tab, "#client-new-page")
+	if got := eval[string](t, tab, `document.querySelector("#client-display-name").value`); got != "Draft client" {
+		t.Fatalf("deselect lost draft: %q", got)
+	}
+	if !eval[bool](t, tab, `document.querySelector("#client-display-name").closest("[data-entry-field]") !== null`) {
+		t.Fatal("client name does not use the shared entry field")
+	}
+}
+
+func TestEntryLabelsAndNativeSelectFallback(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	clickByText(t, tab, "Manage")
+	clickByText(t, tab, "Manage custom fields")
+	click(t, tab, ".client-create > summary")
+	click(t, tab, `label[for="client-field-label"]`)
+	eventually(t, tab, `document.activeElement.id === "client-field-label"`, "entry label did not focus its input")
+	click(t, tab, `label[for="client-field-type"]`)
+	eventually(t, tab, `document.querySelector("#client-field-type").closest("[data-entry-field]").querySelector(".entry-picker-trigger").getAttribute("aria-expanded") === "true"`, "picker label did not open the picker")
+
+	path := eval[string](t, tab, "location.pathname")
+	call(t, tab, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true})
+	navigate(t, tab, path)
+	click(t, tab, ".client-create > summary")
+	if !eval[bool](t, tab, `(() => {
+		const select = document.querySelector("#client-field-type");
+		const style = getComputedStyle(select);
+		return select.value === "text" && style.backgroundImage !== "none" &&
+			style.borderTopColor === "rgba(0, 0, 0, 0)" && style.boxShadow === "none";
+	})()`) {
+		t.Fatal("native selected value must retain its arrow without a box")
+	}
+	eval[any](t, tab, `document.querySelector('label[for="client-field-type"]').scrollIntoView({block: "center"})`)
+	state := eval[struct {
+		Enhanced, Associated, Visible, LabelHit bool
+		SelectCount                             int
+		Hit                                     string
+	}](t, tab, `(() => {
+		const label = document.querySelector('label[for="client-field-type"]');
+		const select = document.querySelector("#client-field-type");
+		const r = label.getBoundingClientRect();
+		const target = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+		return {enhanced: document.documentElement.classList.contains("js-enhanced"),
+			selectCount: document.querySelectorAll("#client-field-type").length,
+			associated: label.control === select, visible: select.getClientRects().length > 0,
+			hit: target?.outerHTML?.slice(0, 300) || "", labelHit: target === label || label.contains(target)};
+	})()`)
+	if state.Enhanced || state.SelectCount != 1 || !state.Associated || !state.Visible || !state.LabelHit {
+		t.Fatalf("native label preconditions: %+v", state)
+	}
+	click(t, tab, `label[for="client-field-type"]`)
+	press(t, tab, kb.ArrowDown)
+	press(t, tab, "\r")
+	eventually(t, tab, `document.querySelector("#client-field-type").value === "number"`, "native select label did not allow keyboard selection")
+}
+
+func TestEntryLabelAndValueAlignment(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	path := eval[string](t, tab, "location.pathname")
+	navigate(t, tab, path+"/new")
+	waitVisible(t, tab, "#client-display-name")
+	eventually(t, tab, `document.querySelector("#client-display-name").closest("[data-entry-field]").hasAttribute("data-entry-bound")`, "client entry field was not enhanced")
+
+	measure := func(selector string) {
+		t.Helper()
+		position := eval[struct {
+			Label, Value, Border, Padding float64
+			Bound                         bool
+		}](t, tab, fmt.Sprintf(`(() => {
+			const control = document.querySelector(%s);
+			const field = control.closest("[data-entry-field]");
+			const label = field.querySelector("label");
+			const visible = field.querySelector(".entry-picker-trigger:not([hidden])") || control;
+			const range = document.createRange();
+			range.selectNodeContents(label);
+			const text = range.getBoundingClientRect();
+			const rect = visible.getBoundingClientRect();
+			const style = getComputedStyle(visible);
+			const border = parseFloat(style.borderLeftWidth), padding = parseFloat(style.paddingLeft);
+			return {label: text.left, value: rect.left + border + padding, border, padding, bound: field.hasAttribute("data-entry-bound")};
+		})()`, jsString(selector)))
+		if math.Abs(position.Label-position.Value) >= 0.1 {
+			t.Fatalf("%s label and value text origins differ: %+v", selector, position)
+		}
+	}
+	measure("#client-display-name")
+	click(t, tab, `label[for="client-display-name"]`)
+	measure("#client-display-name")
+	fill(t, tab, "#client-display-name", "Display name")
+	measure("#client-display-name")
+
+	// Compare painted glyphs as well as layout coordinates, using the same text
+	// before and after entry so font side bearings cannot conceal a shift.
+	captureStart := func(selector string, label bool) int {
+		t.Helper()
+		bounds := eval[[]float64](t, tab, fmt.Sprintf(`(() => {
+			const control = document.querySelector(%s);
+			const label = control.closest("[data-entry-field]").querySelector("label");
+			const r = (%t ? label : control).getBoundingClientRect();
+			const controlRect = control.getBoundingClientRect();
+			return [controlRect.left + 9, controlRect.left + 28, r.top + (%t ? 0 : 18), r.bottom - (%t ? 0 : 2)];
+		})()`, jsString(selector), label, label, label))
+		data, err := chromedp.Run(tab, chromedp.CaptureScreenshot())
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := png.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		x0, x1 := int(bounds[0]), int(bounds[1])
+		y0, y1 := int(bounds[2]), int(bounds[3])
+		br, bg, bb, _ := img.At(x0, y1-1).RGBA()
+		for x := x0; x < x1; x++ {
+			for y := y0; y < y1; y++ {
+				r, g, b, _ := img.At(x, y).RGBA()
+				if math.Abs(float64(r)-float64(br))+math.Abs(float64(g)-float64(bg))+math.Abs(float64(b)-float64(bb)) > 12000 {
+					return x
+				}
+			}
+		}
+		t.Fatalf("no painted text found for %s", selector)
+		return 0
+	}
+	valueX := captureStart("#client-display-name", false)
+	fill(t, tab, "#client-display-name", "")
+	click(t, tab, "#client-new-page")
+	labelX := captureStart("#client-display-name", true)
+	if math.Abs(float64(labelX-valueX)) > 1 {
+		t.Fatalf("placeholder text starts at %d; entered text starts at %d", labelX, valueX)
+	}
+
+	measure("#client-notes")
+	click(t, tab, `label[for="client-notes"]`)
+	measure("#client-notes")
+	fill(t, tab, "#client-notes", "Notes")
+	measure("#client-notes")
+
+	navigate(t, tab, strings.TrimSuffix(path, "/clients")+"/transactions")
+	click(t, tab, `a[href*="view=record"]`)
+	waitVisible(t, tab, "#transactions-description")
+	measure("#transactions-description")
+	measure("#transactions-direction")
+	click(t, tab, `label[for="transactions-description"]`)
+	measure("#transactions-description")
+	descriptionLabel := eval[string](t, tab, `document.querySelector('label[for="transactions-description"]').textContent.trim()`)
+	fill(t, tab, "#transactions-description", descriptionLabel)
+	measure("#transactions-description")
+	valueX = captureStart("#transactions-description", false)
+	fill(t, tab, "#transactions-description", "")
+	click(t, tab, "#transactions-amount")
+	labelX = captureStart("#transactions-description", true)
+	if math.Abs(float64(labelX-valueX)) > 1 {
+		t.Fatalf("transaction placeholder starts at %d; entered text starts at %d", labelX, valueX)
+	}
 }

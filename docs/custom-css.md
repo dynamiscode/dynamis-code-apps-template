@@ -15,6 +15,8 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .workspace-name | kept: navbar brand name truncation |
 | .sidebar-navigation .menu | kept: 44px targets and keyboard focus, plus text colors overriding global link styles while daisyUI supplies menu hover and active surfaces |
 | .dropdown-content, .modal-box | kept: shared token border distinguishes floating surfaces from matching dark backgrounds |
+| .entry-field, .entry-field-label, .entry-picker-* | kept: consistent label and value insets for native and daisyUI controls, theme-muted placeholders, decorative pencil, quiet selected values and progressive searchable picker panels; native selects keep their arrow and clickable labels without JavaScript |
+| .inline-editor-pending | kept: floating unsaved-draft indicator remains visible after deselection without shifting the value |
 | @media min-width: 38.001rem | kept: responsive block (table<->card switch, form stacking) |
 | .client-controls | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls summary | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
@@ -211,6 +213,7 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .list-footer .btn | kept: structural layout remainder |
 | .js-enhanced [data-submit-button] | kept: structural layout remainder |
 | .detail-split, .detail-main, .detail-sidebar, .detail-values, .detail-engagement-meta, [data-detail-divider], [data-detail-range] | kept: progressive split layout, draggable divider and range popup, with pane-width-responsive detail content |
+| .transaction-draft-field, .transaction-draft-editor, .transaction-choice-form, .transaction-advanced, .transaction-detail-values | kept: in-place creation and choice overlays, reserved space for expanded editors, responsive label alignment, advanced disclosure and native focusable controls |
 | .list-column-switch | kept: column-switch menu (drag handles, grid list) |
 | .list-column-handle | kept: column-switch menu (drag handles, grid list) |
 | .list-column-switch[draggable="true"] | kept: column-switch menu (drag handles, grid list) |

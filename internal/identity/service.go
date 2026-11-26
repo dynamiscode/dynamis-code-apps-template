@@ -439,7 +439,10 @@ func (s *Service) ListAuditHistory(
 	}
 	rows, err := s.db.QueryContext(ctx, s.bind(`
 		SELECT event_type, actor_user_id, auth_method, target_type,
-			action, outcome, created_at
+			action, outcome, created_at, CASE
+				WHEN event_type IN ('transactions.category.create', 'transactions.category.rename', 'transactions.category.archive') AND target_type = 'transactions_category' THEN metadata
+				WHEN event_type IN ('transactions.method.created', 'transactions.method.updated') AND target_type = 'transactions_method' THEN metadata
+				ELSE '{}' END
 		FROM audit_events
 		WHERE workspace_id = ?
 		ORDER BY created_at DESC, id DESC
@@ -454,11 +457,20 @@ func (s *Service) ListAuditHistory(
 		var entry AuditHistoryEntry
 		var actorUserID sql.NullInt64
 		var createdAt string
+		var safeMetadata string
 		if err := rows.Scan(
 			&entry.EventType, &actorUserID, &entry.AuthMethod, &entry.TargetType,
-			&entry.Action, &entry.Outcome, &createdAt,
+			&entry.Action, &entry.Outcome, &createdAt, &safeMetadata,
 		); err != nil {
 			return nil, err
+		}
+		if entry.TargetType == "transactions_method" && (entry.EventType == "transactions.method.created" || entry.EventType == "transactions.method.updated") {
+			var detail struct {
+				MethodID string `json:"methodId"`
+			}
+			if json.Unmarshal([]byte(safeMetadata), &detail) == nil && safeTransactionsMethodID(detail.MethodID) {
+				entry.TargetLabel = detail.MethodID
+			}
 		}
 		if actorUserID.Valid {
 			// A stored actor key must be a positive user key; anything else is corrupt.
@@ -467,6 +479,19 @@ func (s *Service) ListAuditHistory(
 			}
 			entry.ActorUserID = UserID(actorUserID.Int64)
 		}
+		if (entry.EventType == "transactions.category.create" || entry.EventType == "transactions.category.rename" || entry.EventType == "transactions.category.archive") && entry.TargetType == "transactions_category" {
+			var names struct {
+				Name   string `json:"name"`
+				Before string `json:"before"`
+				After  string `json:"after"`
+			}
+			if json.Unmarshal([]byte(safeMetadata), &names) == nil {
+				if entry.EventType != "transactions.category.rename" {
+					entry.CategoryName = names.Name
+				}
+				entry.CategoryPreviousName, entry.CategoryNewName = names.Before, names.After
+			}
+		}
 		entry.CreatedAt, err = parseTimestamp(createdAt)
 		if err != nil {
 			return nil, err
@@ -474,6 +499,23 @@ func (s *Service) ListAuditHistory(
 		history = append(history, entry)
 	}
 	return history, rows.Err()
+}
+
+func safeTransactionsMethodID(value string) bool {
+	switch value {
+	case "check", "transfer", "cash", "card":
+		return true
+	}
+	suffix, ok := strings.CutPrefix(value, "method-")
+	if !ok || len(suffix) == 0 || len(suffix) > 3 {
+		return false
+	}
+	for _, digit := range suffix {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *Service) authorizePrincipal(

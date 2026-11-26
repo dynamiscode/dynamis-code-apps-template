@@ -213,23 +213,37 @@ func goRenderSelectors(file *ast.File, info *types.Info, component *types.Interf
 
 func (index renderOriginIndex) safeFactory(expr ast.Expr, info *types.Info, seen map[*types.Var]bool) bool {
 	if closure, ok := ast.Unparen(expr).(*ast.FuncLit); ok {
-		if len(closure.Body.List) != 1 {
+		if len(closure.Body.List) == 0 {
 			return false
 		}
-		result, ok := closure.Body.List[0].(*ast.ReturnStmt)
-		if !ok || len(result.Results) != 1 || !directRenderProducer(result.Results[0], info, index.known) {
+		if _, ok := closure.Body.List[len(closure.Body.List)-1].(*ast.ReturnStmt); !ok {
 			return false
 		}
-		call := ast.Unparen(result.Results[0]).(*ast.CallExpr)
-		if index.closed == nil || index.closed(calledFunction(call, info)) {
-			return true
-		}
-		for _, argument := range call.Args {
-			if !typedComponentArgumentSafe(argument, info, index.component, index.known, true, index.closed, nil) {
+		safe := true
+		ast.Inspect(closure.Body, func(node ast.Node) bool {
+			if _, nested := node.(*ast.FuncLit); nested {
 				return false
 			}
-		}
-		return true
+			result, ok := node.(*ast.ReturnStmt)
+			if !ok {
+				return safe
+			}
+			if len(result.Results) != 1 || !directRenderProducer(result.Results[0], info, index.known) {
+				safe = false
+				return false
+			}
+			call := ast.Unparen(result.Results[0]).(*ast.CallExpr)
+			if index.closed != nil && !index.closed(calledFunction(call, info)) {
+				for _, argument := range call.Args {
+					if !typedComponentArgumentSafe(argument, info, index.component, index.known, true, index.closed, nil) {
+						safe = false
+						break
+					}
+				}
+			}
+			return safe
+		})
+		return safe
 	}
 	name := callIdentifier(expr)
 	if name == nil {

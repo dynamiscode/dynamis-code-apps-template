@@ -54,6 +54,26 @@ func CanManageScheduling(principal Principal) bool {
 	return principal.Permissions[ResourcesWrite] && permissionsForRole(principal.Role)[WorkspaceUpdate]
 }
 
+// CanReadTransactions restricts transactions entries to workspace staff with read scope.
+func CanReadTransactions(principal Principal) bool {
+	return principal.Permissions[ResourcesRead] && (principal.Role == Owner || principal.Role == Admin || principal.Role == Member)
+}
+
+// CanWriteTransactions restricts transactions creation to workspace staff with write scope.
+func CanWriteTransactions(principal Principal) bool {
+	return principal.Permissions[ResourcesWrite] && (principal.Role == Owner || principal.Role == Admin || principal.Role == Member)
+}
+
+// CanManageTransactions restricts transactions configuration to workspace administrators.
+func CanManageTransactions(principal Principal) bool {
+	return principal.Permissions[ResourcesWrite] && permissionsForRole(principal.Role)[WorkspaceUpdate]
+}
+
+// CanVoidTransactions restricts corrections to owners and administrators.
+func CanVoidTransactions(principal Principal) bool {
+	return principal.Permissions[ResourcesWrite] && (principal.Role == Owner || principal.Role == Admin)
+}
+
 func permissionsForRole(role Role) map[Permission]bool {
 	permissions := make(map[Permission]bool, len(rolePermissions[role]))
 	for _, permission := range rolePermissions[role] {

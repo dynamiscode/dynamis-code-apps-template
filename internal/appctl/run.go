@@ -19,7 +19,7 @@ import (
 
 const maxResponseBytes = 1 << 20
 
-const usageLine = "usage: appctl <clients|fields> <command> [flags]"
+const usageLine = "usage: appctl <clients|fields|transactions> <command> [flags]"
 
 // collections maps each resource to its collection path under a workspace.
 var collections = map[string]string{
@@ -69,6 +69,9 @@ func (values *multiValue) Set(raw string) error {
 func Run(args []string, getenv func(string) string, stdout, stderr io.Writer) int {
 	if len(args) < 2 {
 		return usage(stderr, usageLine)
+	}
+	if args[0] == "transactions" {
+		return runTransactions(args, getenv, stdout, stderr)
 	}
 	resource, command := args[0], args[1]
 	if _, ok := collections[resource]; !ok {

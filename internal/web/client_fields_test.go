@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 func (env clientsTestEnv) fieldsPath() string {
@@ -24,6 +26,11 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 		!strings.Contains(page.Body.String(), `class="btn btn-outline" href="`+env.listPath()+`"`) ||
 		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
 		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
+	}
+	for _, marker := range []string{`data-entry-field`, `for="client-field-label"`, `for="client-field-type"`, `data-entry-picker`, `name="csrf"`, `data-trim=""`} {
+		if !strings.Contains(page.Body.String(), marker) {
+			t.Errorf("field creation form missing %s", marker)
+		}
 	}
 
 	created := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{
@@ -123,7 +130,39 @@ func TestClientFieldRefusalKeepsTheChosenType(t *testing.T) {
 	if refused.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("blank label = %d: %s", refused.Code, refused.Body.String())
 	}
-	if !strings.Contains(refused.Body.String(), `<option selected value="number">`) {
-		t.Fatalf("refused form lost the chosen type: %s", refused.Body.String())
+	tokens := html.NewTokenizer(strings.NewReader(refused.Body.String()))
+	inTypeSelect := false
+	for {
+		switch tokens.Next() {
+		case html.ErrorToken:
+			t.Fatalf("refused form lost the chosen type: %s", refused.Body.String())
+		case html.StartTagToken:
+			token := tokens.Token()
+			if token.Data == "select" {
+				for _, attr := range token.Attr {
+					if attr.Key == "id" && attr.Val == "client-field-type" {
+						inTypeSelect = true
+					}
+				}
+			}
+			if inTypeSelect && token.Data == "option" {
+				value, selected := "", false
+				for _, attr := range token.Attr {
+					if attr.Key == "value" {
+						value = attr.Val
+					}
+					if attr.Key == "selected" {
+						selected = true
+					}
+				}
+				if value == "number" && selected {
+					return
+				}
+			}
+		case html.EndTagToken:
+			if tokens.Token().Data == "select" && inTypeSelect {
+				t.Fatalf("refused form lost the chosen type: %s", refused.Body.String())
+			}
+		}
 	}
 }

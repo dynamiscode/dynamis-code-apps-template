@@ -80,3 +80,35 @@ func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 		t.Fatal("archived list renders the save-view form")
 	}
 }
+
+func TestSavedViewCannotBeUsedThroughAnotherList(t *testing.T) {
+	env := newClientsTestEnv(t)
+	base := "/workspaces/" + env.workspaceID.String() + "/lists/"
+	created := request(env.routes, http.MethodPost, base+"clients/views", url.Values{
+		"csrf": {env.csrf}, "name": {"Original"}, "query": {"sort=displayName"},
+	}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d", created.Code)
+	}
+	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	match := clientViewApplyLink.FindStringSubmatch(body)
+	if match == nil {
+		t.Fatal("missing saved view")
+	}
+	for _, action := range []string{"apply", "update", "rename", "delete", "default"} {
+		response := request(env.routes, http.MethodPost, base+"members/views/"+match[1]+"/"+action, url.Values{
+			"csrf": {env.csrf}, "name": {"Changed"}, "query": {"sort=email"},
+		}, env.cookies, nil)
+		want := http.StatusNotFound
+		if action == "default" {
+			want = http.StatusBadRequest
+		}
+		if response.Code != want {
+			t.Errorf("%s = %d, want %d", action, response.Code, want)
+		}
+	}
+	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	if !strings.Contains(body, "Original") || strings.Contains(body, "Changed") {
+		t.Fatalf("view changed through another list: %s", body)
+	}
+}

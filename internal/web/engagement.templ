@@ -48,8 +48,8 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post" data-confirm-select data-dirty-track data-unsaved-warning data-dirty-on-load?={ data.ErrorKey == "engagement.invalid_move" }>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
-							<label for="engagement-stage">{ data.T("engagement.stage") }</label>
-							<select id="engagement-stage" name="stage" class="select select-bordered" required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_move"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_move")}... }>
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-stage", Label: data.T("engagement.stage"), Value: item.StageID.String(), SearchLabel: data.T("ui.search")}) {
+							<select id="engagement-stage" name="stage" class="select select-bordered" data-entry-picker required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_move"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_move")}... }>
 								<option value="" selected?={ data.ErrorKey == "engagement.invalid_move" && data.EngagementStage == "" }>{ data.T("engagement.select_stage") }</option>
 								if data.ErrorKey == "engagement.invalid_move" && data.EngagementStage != "" {
 									<option value={ data.EngagementStage } selected disabled>{ data.EngagementStage } — { data.T("engagement.unavailable") }</option>
@@ -62,6 +62,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									}
 								}
 							</select>
+							}
 							if data.ErrorKey == "engagement.invalid_move" {
 								<p id="engagement-stage-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_move") }</p>
 							}
@@ -84,8 +85,8 @@ templ engagementDetailPage(data viewmodel.PageData) {
 						<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/assignee") } method="post" data-confirm-select data-dirty-track data-unsaved-warning data-dirty-on-load?={ data.ErrorKey == "engagement.invalid_assignee" }>
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
-							<label for="engagement-assignee">{ data.T("engagement.assignee") }</label>
-							<select class="select select-bordered" id="engagement-assignee" name="assignee_id" { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_assignee"), "aria-describedby": templ.KV("engagement-assignee-error", data.ErrorKey == "engagement.invalid_assignee")}... }>
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-assignee", Label: data.T("engagement.assignee"), Value: item.AssigneeID.String(), SearchLabel: data.T("ui.search")}) {
+							<select class="select select-bordered" id="engagement-assignee" name="assignee_id" data-entry-picker { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_assignee"), "aria-describedby": templ.KV("engagement-assignee-error", data.ErrorKey == "engagement.invalid_assignee")}... }>
 								<option value="">{ data.T("engagement.unassigned") }</option>
 								if data.ErrorKey == "engagement.invalid_assignee" && data.EngagementAssignee != "" {
 									<option value={ data.EngagementAssignee } selected disabled>{ data.EngagementAssignee } — { data.T("engagement.unavailable") }</option>
@@ -94,6 +95,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									<option value={ member.UserID.String() } selected?={ data.ErrorKey != "engagement.invalid_assignee" && member.UserID == item.AssigneeID }>{ member.Email }</option>
 								}
 							</select>
+							}
 							if data.ErrorKey == "engagement.invalid_assignee" {
 								<p id="engagement-assignee-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_assignee") }</p>
 							}
@@ -145,17 +147,21 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="return_to" value="detail"/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(item.ActionVersion, 10) }/>
-							@molecules.TextField("engagement-next-action", data.T("engagement.next_action")+" "+data.T("ui.optional"), templ.Attributes{"name": "text", "maxlength": "5000", "value": actionText, "aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)})
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-next-action", Label: data.T("engagement.next_action")+" "+data.T("ui.optional"), Value: actionText}) {
+								<input id="engagement-next-action" name="text" maxlength="5000" value={ actionText } { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementActionTextError), "aria-describedby": templ.KV("engagement-next-action-error", data.EngagementActionTextError)}... }/>
+							}
 							if data.EngagementActionTextError {
 								<p id="engagement-next-action-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_text") }</p>
 							}
 							{{ actionDateType := "date"; if data.EngagementActionDateError { actionDateType = "text" } }}
-							@molecules.TextField("engagement-next-action-due", data.T("engagement.due_date"), templ.Attributes{"name": "due_date", "type": actionDateType, "value": actionDue, "aria-invalid": templ.KV("true", data.EngagementActionDateError), "aria-describedby": templ.KV("engagement-next-action-due-error", data.EngagementActionDateError)})
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-next-action-due", Label: data.T("engagement.due_date"), Value: actionDue}) {
+								<input id="engagement-next-action-due" name="due_date" type={ actionDateType } value={ actionDue } { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementActionDateError), "aria-describedby": templ.KV("engagement-next-action-due-error", data.EngagementActionDateError)}... }/>
+							}
 							if data.EngagementActionDateError {
 								<p id="engagement-next-action-due-error" class="error text-error font-bold">{ data.T("engagement.invalid_action_date") }</p>
 							}
-							<label for="engagement-next-action-owner">{ data.T("engagement.owner") }</label>
-							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementOwnerError), "aria-describedby": templ.KV("engagement-next-action-owner-error", data.EngagementOwnerError)}... }>
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-next-action-owner", Label: data.T("engagement.owner"), Value: data.EngagementOwner, SearchLabel: data.T("ui.search")}) {
+							<select class="select select-bordered" id="engagement-next-action-owner" name="owner_id" data-entry-picker { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementOwnerError), "aria-describedby": templ.KV("engagement-next-action-owner-error", data.EngagementOwnerError)}... }>
 								<option value="" selected?={ (data.ErrorKey == "engagement.invalid_next_action" || data.ErrorKey == "engagement.action_conflict") && data.EngagementOwner == "" }>{ data.T("engagement.unassigned") }</option>
 								if data.EngagementOwnerUnavailable {
 									<option value={ data.EngagementOwner } selected disabled>{ data.EngagementOwner } — { data.T("engagement.unavailable") }</option>
@@ -164,6 +170,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 									<option value={ member.UserID.String() } selected?={ ((data.ErrorKey == "engagement.invalid_next_action" || data.ErrorKey == "engagement.action_conflict") && member.UserID.String() == data.EngagementOwner) || (data.ErrorKey != "engagement.invalid_next_action" && data.ErrorKey != "engagement.action_conflict" && member.UserID == item.NextAction.OwnerID) }>{ member.Email }</option>
 								}
 							</select>
+							}
 							if data.EngagementOwnerError {
 								<p id="engagement-next-action-owner-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_action_owner") }</p>
 							}
@@ -229,8 +236,8 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							<label><input class="checkbox" type="checkbox" name="recorded" value="1" checked?={ agreementRecorded }/> { data.T("engagement.agreement_recorded") }</label>
 							if data.FilesEnabled || data.ErrorKey == "engagement.invalid_agreement_file" {
 								if data.AgreementFilesAvailable {
-									<label for="engagement-file-choice">{ data.T("engagement.choose_file") }</label>
-									<select class="select select-bordered" id="engagement-file-choice" name="selected_file_id">
+									@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-file-choice", Label: data.T("engagement.choose_file"), Value: data.AgreementSelectedFile, SearchLabel: data.T("ui.search")}) {
+									<select class="select select-bordered" id="engagement-file-choice" name="selected_file_id" data-entry-picker>
 										<option value="">{ data.T("engagement.use_manual_file") }</option>
 										{{ selectedOnPage := false; for _, file := range data.AgreementFiles { if file.ID.String() == data.AgreementSelectedFile { selectedOnPage = true } } }}
 										if data.AgreementSelectedFile != "" && !selectedOnPage {
@@ -240,6 +247,7 @@ templ engagementDetailPage(data viewmodel.PageData) {
 											<option value={ file.ID.String() } selected?={ file.ID.String() == data.AgreementSelectedFile }>{ file.OriginalName } — { file.ID.String() }</option>
 										}
 									</select>
+									}
 									<nav aria-label={ data.T("engagement.file_pages") }>
 										if data.AgreementFilesPager.Prev != "" {
 											<button class="btn btn-outline" type="submit" name="file_page" value="1" formaction={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/agreement?page=" + strconv.Itoa(data.AgreementFilesPager.Page - 1) + "#engagement-agreement") }>{ data.T("ui.previous_page") }</button>
@@ -249,12 +257,11 @@ templ engagementDetailPage(data viewmodel.PageData) {
 										}
 									</nav>
 								}
-								<label for="engagement-agreement-file">{ data.T("engagement.agreement_file") }</label>
+								@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-agreement-file", Label: data.T("engagement.agreement_file")+" "+data.T("ui.optional"), Value: agreementFile}) {
+									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ agreementFile } { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_agreement_file"), "aria-describedby": templ.KV("engagement-agreement-file-error", data.ErrorKey == "engagement.invalid_agreement_file")}... }/>
+								}
 								if data.ErrorKey == "engagement.invalid_agreement_file" {
-									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ agreementFile } aria-invalid="true" aria-describedby="engagement-agreement-file-error"/>
 									<p id="engagement-agreement-file-error" role="alert" tabindex="-1">{ data.T("engagement.invalid_agreement_file") }</p>
-								} else {
-									<input class="input input-bordered" id="engagement-agreement-file" name="file_id" value={ agreementFile }/>
 								}
 							}
 							@molecules.SubmitButton(data.T("engagement.agreement_save"), nil)
@@ -281,8 +288,8 @@ templ engagementDetailPage(data viewmodel.PageData) {
 							<form action={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String() + "/quote") } method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
 								<input type="hidden" name="return_to" value="detail"/>
-								<label for="engagement-quote-status">{ data.T("engagement.quote") }</label>
-								<select class="select select-bordered" id="engagement-quote-status" name="status" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementQuoteStatusError), "aria-describedby": templ.KV("engagement-quote-status-error", data.EngagementQuoteStatusError)}... }>
+								@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-quote-status", Label: data.T("engagement.quote"), Value: item.Quote.Status, SearchLabel: data.T("ui.search")}) {
+								<select class="select select-bordered" id="engagement-quote-status" name="status" data-entry-picker { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementQuoteStatusError), "aria-describedby": templ.KV("engagement-quote-status-error", data.EngagementQuoteStatusError)}... }>
 									if data.EngagementQuoteStatusError {
 										<option value={ item.Quote.Status } selected disabled>{ item.Quote.Status } — { data.T("engagement.unavailable") }</option>
 									}
@@ -290,15 +297,20 @@ templ engagementDetailPage(data viewmodel.PageData) {
 										<option value={ status } selected?={ item.Quote.Status == status }>{ data.T("engagement.quote_" + status) }</option>
 									}
 								</select>
+								}
 								if data.EngagementQuoteStatusError {
 									<p id="engagement-quote-status-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_status") }</p>
 								}
 								{{ amountType := "number"; if data.EngagementQuoteAmountError { amountType = "text" }; dateType := "date"; if data.EngagementQuoteDateError { dateType = "text" } }}
-								@molecules.TextField("engagement-quote-amount", data.T("engagement.quote_amount"), templ.Attributes{"name": "amount", "type": amountType, "min": "0", "max": "999999999999.99", "step": "0.01", "value": item.Quote.Amount, "aria-invalid": templ.KV("true", data.EngagementQuoteAmountError), "aria-describedby": templ.KV("engagement-quote-amount-error", data.EngagementQuoteAmountError)})
+								@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-quote-amount", Label: data.T("engagement.quote_amount"), Value: item.Quote.Amount}) {
+									<input id="engagement-quote-amount" name="amount" type={ amountType } min="0" max="999999999999.99" step="0.01" pattern="[0-9]{1,12}(\.[0-9]{1,2})?" value={ item.Quote.Amount } data-entry-number="decimal" { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementQuoteAmountError), "aria-describedby": templ.KV("engagement-quote-amount-error", data.EngagementQuoteAmountError)}... }/>
+								}
 								if data.EngagementQuoteAmountError {
 									<p id="engagement-quote-amount-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_amount") }</p>
 								}
-								@molecules.TextField("engagement-quote-date", data.T("engagement.quote_date"), templ.Attributes{"name": "date_sent", "type": dateType, "value": item.Quote.DateSent, "aria-invalid": templ.KV("true", data.EngagementQuoteDateError), "aria-describedby": templ.KV("engagement-quote-date-error", data.EngagementQuoteDateError)})
+								@molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-quote-date", Label: data.T("engagement.quote_date"), Value: item.Quote.DateSent}) {
+									<input id="engagement-quote-date" name="date_sent" type={ dateType } value={ item.Quote.DateSent } { templ.Attributes{"aria-invalid": templ.KV("true", data.EngagementQuoteDateError), "aria-describedby": templ.KV("engagement-quote-date-error", data.EngagementQuoteDateError)}... }/>
+								}
 								if data.EngagementQuoteDateError {
 									<p id="engagement-quote-date-error" class="error text-error font-bold">{ data.T("engagement.invalid_quote_date") }</p>
 								}
@@ -419,7 +431,9 @@ templ rescheduleRecoveryPage(data viewmodel.PageData, item engagement.Engagement
 					<input type="hidden" name="version" value={ strconv.FormatInt(retryVersion, 10) }/>
 					<input type="hidden" name="filter" value={ filter }/>
 					<input type="hidden" name="owner" value={ owner }/>
-					@molecules.TextField("reschedule-draft", data.T("queue.reschedule_date"), templ.Attributes{"name": "due_date", "type": "text", "value": draft, "aria-invalid": templ.KV("true", data.ErrorKey == "queue.invalid_date"), "aria-describedby": "reschedule-date-hint"})
+					@molecules.EntryField(molecules.EntryFieldProps{ID: "reschedule-draft", Label: data.T("queue.reschedule_date"), Value: draft}) {
+						<input id="reschedule-draft" name="due_date" type="text" value={ draft } aria-describedby="reschedule-date-hint" { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "queue.invalid_date")}... }/>
+					}
 					<p id="reschedule-date-hint">{ data.T("queue.date_format") }</p>
 					@molecules.SubmitButton(data.T("queue.retry_reschedule"), nil)
 				</form>
@@ -498,8 +512,9 @@ templ dueEngagementsPage(data viewmodel.PageData, page engagement.ActionQueuePag
 										<input type="hidden" name="version" value={ strconv.FormatInt(item.Action.Version, 10) }/>
 										<input type="hidden" name="filter" value={ filter }/>
 										<input type="hidden" name="owner" value={ owner }/>
-										<label for={ "reschedule-" + item.EngagementID.String() }>{ data.T("queue.reschedule_date") }: { item.Action.Text }</label>
-										<input id={ "reschedule-" + item.EngagementID.String() } type="date" name="due_date" value={ item.Action.DueDate } class="input input-bordered"/>
+										@molecules.EntryField(molecules.EntryFieldProps{ID: "reschedule-" + item.EngagementID.String(), Label: data.T("queue.reschedule_date")+": "+item.Action.Text, Value: item.Action.DueDate}) {
+											<input id={ "reschedule-" + item.EngagementID.String() } type="date" name="due_date" value={ item.Action.DueDate } class="input input-bordered"/>
+										}
 										<button type="submit" class="btn btn-outline btn-sm">{ data.T("queue.reschedule") }</button>
 									</form>
 								}

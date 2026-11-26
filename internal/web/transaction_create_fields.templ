@@ -1,0 +1,155 @@
+package web
+
+import "encoding/json"
+import "strconv"
+import "strings"
+import "example.com/dynamis-code/apps-template/internal/transactions"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+
+templ transactionsCreateFields(data viewmodel.PageData, methods []transactions.Method, categories []transactions.Category, picker transactionsPicker, draft transactionsDraft, errorKey, errorMessage string) {
+ {{
+  amountLocale := draft.amountLocale; if amountLocale == "" { amountLocale = data.Locale }
+  amountInfo := transactions.AmountLocale(amountLocale); amountDigits, _ := json.Marshal(amountInfo.Digits)
+  amountError := errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor"
+ }}
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-description", Label:data.T("transactions.description"), Value:draft.description}) {
+  <input id="transactions-description" name="description" type="text" value={ draft.description } required { templ.Attributes{"aria-invalid":templ.KV("true", errorKey == "transactions.description_invalid"), "aria-describedby":templ.KV("transactions-description-error", errorKey == "transactions.description_invalid")}... }/>
+  if errorKey == "transactions.description_invalid" {
+   <p id="transactions-description-error">{ data.T(errorKey) }</p>
+  }
+ }
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-direction", Label:data.T("transactions.direction"), Value:draft.direction, SearchLabel:data.T("ui.search")}) {
+   <select id="transactions-direction" name="direction" required autofocus?={ draft.directionFocus } data-entry-picker>
+    <option value="in" selected?={ draft.direction == "in" }>{ data.T("transactions.in") }</option>
+    <option value="out" selected?={ draft.direction == "out" }>{ data.T("transactions.out") }</option>
+   </select>
+ }
+ <noscript><button class="btn btn-outline btn-sm" type="submit" name="picker_action" value="direction" formnovalidate>{ data.T("transactions.update_direction") }</button></noscript>
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-amount", Label:data.T("transactions.amount"), Value:draft.amount}) {
+  <input id="transactions-amount" name="amount" type="text" inputmode="decimal" data-entry-number="amount" data-entry-number-mode="amount_mode" data-entry-number-positive data-entry-amount-currency="currency" data-entry-amount-digits={ string(amountDigits) } data-entry-amount-decimal={ amountInfo.Decimal } data-entry-amount-group={ amountInfo.Group } data-entry-amount-primary={ strconv.Itoa(amountInfo.Primary) } data-entry-amount-secondary={ strconv.Itoa(amountInfo.Secondary) } data-entry-amount-min-group={ strconv.Itoa(amountInfo.MinGroup) } required value={ draft.amount } autofocus?={ draft.correctionFocus } { templ.Attributes{"aria-invalid":templ.KV("true", amountError), "aria-describedby":templ.KV("transactions-amount-error", amountError)}... }/>
+  if amountError {
+   <p id="transactions-amount-error">{ errorMessage }</p>
+  }
+ }
+  <details open?={ draft.amountMode == "minor" || errorKey == "transactions.amount_unknown" }>
+   <summary class="cursor-pointer">{ data.T("transactions.advanced_amount") }</summary>
+   <label class="form-control flex flex-col gap-1" for="transactions-amount-mode"><span>{ data.T("transactions.amount_format") }</span>
+    <select id="transactions-amount-mode" name="amount_mode" class="select select-bordered">
+     <option value="decimal" selected?={ draft.amountMode != "minor" }>{ data.T("transactions.amount_decimal") }</option>
+     <option value="minor" selected?={ draft.amountMode == "minor" }>{ data.T("transactions.amount_minor_fallback") }</option>
+    </select>
+   </label>
+   <p>{ data.T("transactions.amount_help") }</p>
+  </details>
+  if amountLocale != data.Locale {
+   <p>{ data.T("transactions.amount_locale") }: { amountLocale }</p>
+  }
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-currency", Label:data.T("transactions.currency"), Value:draft.currency, SearchLabel:data.T("transactions.currency_search")}) {
+  <select id="transactions-currency" name="currency" required data-entry-picker { templ.Attributes{"aria-invalid":templ.KV("true", errorKey == "transactions.invalid_currency" || errorKey == "transactions.currency_precision_unavailable"), "aria-describedby":templ.KV("transactions-currency-error", errorKey == "transactions.invalid_currency" || errorKey == "transactions.currency_precision_unavailable")}... }>
+   {{ found := false }}
+   for _, item := range draft.currencies {
+    {{ scale, known := transactions.CurrencyScale(item.Code) }}
+    if item.Code == draft.currency {
+     {{ found = true }}
+    }
+    if item.Code == draft.currency || draft.currencySearch == "" || strings.Contains(strings.ToLower(transactionsCurrencyLabel(data, item.Code)), strings.ToLower(strings.TrimSpace(draft.currencySearch))) {
+     <option value={ item.Code } selected?={ item.Code == draft.currency } disabled?={ !transactions.CurrencyAvailable(item) } { templ.Attributes{"data-entry-amount-scale":templ.KV(strconv.Itoa(scale), known)}... }>{ transactionsCurrencyLabel(data, item.Code) }
+      if !transactions.CurrencyAvailable(item) {
+       — { data.T("transactions.currency_precision_unavailable") }
+      }
+     </option>
+    }
+   }
+   if draft.currency != "" && !found {
+    <option value="" selected disabled>{ draft.currency } — { data.T("transactions.currency_unavailable") }</option>
+   }
+  </select>
+ }
+ if errorKey == "transactions.invalid_currency" || errorKey == "transactions.currency_precision_unavailable" {
+  <p id="transactions-currency-error">{ data.T(errorKey) }</p>
+ }
+ <noscript>
+  <label for="transactions-currency-search">{ data.T("transactions.currency_search") }</label>
+  <input id="transactions-currency-search" type="search" name="currency_search" value={ draft.currencySearch }/>
+  <button class="btn" type="submit" name="picker_action" value="currency" formnovalidate>{ data.T("ui.search") }</button>
+ </noscript>
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-method", Label:data.T("transactions.method"), Value:draft.method, SearchLabel:data.T("ui.search")}) {
+   <select id="transactions-method" name="payment_method" required data-entry-picker>
+    <option value="">{ data.T("transactions.choose_method") }</option>
+    for _, method := range methods {
+     if method.Enabled {
+      <option value={ method.ID } selected?={ draft.method == method.ID }>{ transactionsMethodLabel(data, method.ID, method.Name) }</option>
+     }
+    }
+   </select>
+ }
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-date", Label:data.T("transactions.date"), Value:draft.occurredOn}) {
+  <input id="transactions-date" name="occurred_on" type="date" required value={ draft.occurredOn }/>
+ }
+ <details class="transaction-advanced" open?={ draft.categoryID != "" || draft.clientID != "" || draft.note != "" || picker.focus || picker.search != "" || errorKey == "transactions.category_direction" }>
+  <summary class="cursor-pointer">{ data.T("ui.advanced") }</summary>
+ <div { templ.Attributes{"data-show-when": templ.KV("transactions-direction=out", draft.categoryID == "")}... }>
+  @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-category", Label:data.T("transactions.category")+" "+data.T("ui.optional"), Value:draft.categoryID, SearchLabel:data.T("ui.search")}) {
+    <select id="transactions-category" name="category_id" data-entry-picker aria-describedby="transactions-category-help" { templ.Attributes{"aria-invalid": templ.KV("true", errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != ""))}... }>
+     <option value="">{ data.T("transactions.no_category") }</option>
+     {{ categoryFound := false }}
+     for _, category := range categories {
+      if draft.categoryID == category.ID.String() {
+       {{ categoryFound = true }}
+      }
+      if !category.Archived || draft.categoryID == category.ID.String() {
+       <option value={ category.ID.String() } selected?={ draft.categoryID == category.ID.String() }>{ category.Name }
+        if category.Archived {
+         ({ data.T("transactions.category_archived") })
+        }
+       </option>
+      }
+     }
+     if draft.categoryID != "" && !categoryFound {
+      <option value={ draft.categoryID } selected>{ data.T("transactions.category_unavailable") }</option>
+     }
+    </select>
+   if errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != "") {
+    <p id="transactions-category-help">{ data.T("transactions.category_direction") }</p>
+   } else {
+    <p id="transactions-category-help">{ data.T("transactions.category_out_only") }</p>
+   }
+  }
+ </div>
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-client", Label:data.T("transactions.client")+" "+data.T("ui.optional"), Value:draft.clientID, SearchLabel:data.T("transactions.search_clients")}) {
+  <select id="transactions-client" name="client_id" autofocus?={ picker.focus } data-entry-picker data-entry-remote-url={ "/workspaces/"+data.Workspace.ID.String()+"/transactions/client-options" } data-entry-remote-total={ strconv.Itoa(picker.total) } data-entry-previous-label={ data.T("ui.previous_page") } data-entry-next-label={ data.T("items.next_page") }>
+   <option value="">{ data.T("transactions.no_client") }</option>
+   if picker.selected.ID != 0 {
+    <option value={ picker.selected.ID.String() } selected>{ picker.selected.DisplayName }</option>
+   }
+   for _, client := range picker.choices {
+    if client.ID != picker.selected.ID {
+     <option value={ client.ID.String() }>{ client.DisplayName }</option>
+    }
+   }
+  </select>
+ <div data-entry-remote-fallback>
+  <label class="form-control flex flex-col gap-1" for="transactions-client-search"><span>{ data.T("transactions.search_clients") }</span>
+   <input id="transactions-client-search" class="input input-bordered" type="search" name="client_search" value={ picker.search } maxlength="200"/>
+  </label>
+  <div class="flex flex-wrap items-end gap-2"><p>{ data.T("transactions.search_submit_hint") }</p><button class="btn btn-outline" type="submit" name="picker_action" value="search" formnovalidate>{ data.T("ui.search") }</button></div>
+  if len(picker.choices) == 0 && picker.search != "" {
+   <p role="status">{ data.T("engagement.no_client_matches") }</p>
+  }
+  <nav class="flex flex-wrap gap-2" aria-label={ data.T("transactions.client_pages") }>
+   if picker.page > 1 {
+    <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page-1) } formnovalidate>{ data.T("ui.previous_page") }</button>
+   }
+   if picker.page < 1000000 && picker.page*25 < picker.total {
+    <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page+1) } formnovalidate>{ data.T("items.next_page") }</button>
+   }
+  </nav>
+ </div>
+ }
+ @molecules.EntryField(molecules.EntryFieldProps{ID:"transactions-note", Label:data.T("transactions.note")+" "+data.T("ui.optional"), Value:draft.note}) {
+  <textarea id="transactions-note" name="note">{ draft.note }</textarea>
+ }
+ </details>
+}

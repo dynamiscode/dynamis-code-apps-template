@@ -9,7 +9,7 @@ type Operation struct {
 }
 
 const OpenAPIVersion = "3.1.0"
-const OpenAPISHA256 = "a3237a8651e7410a0c65ae7adb21a66644b39bade7a0654a1957f4390b910d83"
+const OpenAPISHA256 = "00ac84c0862949c8988453a98cedcaaee04851a3d23e66f01aec53ecf89a94ae"
 
 var Operations = []Operation{
 	{Method: "GET", Path: "/api/openapi.json", ID: "getOpenAPI"},
@@ -105,6 +105,17 @@ var Operations = []Operation{
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/tokens", ID: "createToken"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "revokeToken"},
 	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/tokens/{tokenId}", ID: "updateToken"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/transactions/categories", ID: "listTransactionsCategories"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/transactions/categories", ID: "createTransactionsCategory"},
+	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/transactions/categories/{categoryId}", ID: "archiveTransactionsCategory"},
+	{Method: "PATCH", Path: "/api/v1/workspaces/{workspaceId}/transactions/categories/{categoryId}", ID: "renameTransactionsCategory"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/transactions/entries", ID: "listTransactionsEntries"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/transactions/entries", ID: "createTransactionsEntry"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/transactions/entries/{entryId}/void", ID: "voidTransactionsEntry"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/transactions/methods", ID: "listTransactionsMethods"},
+	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/transactions/methods", ID: "createTransactionsMethod"},
+	{Method: "PUT", Path: "/api/v1/workspaces/{workspaceId}/transactions/methods", ID: "updateTransactionsMethod"},
+	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/transactions/totals", ID: "transactionsTotals"},
 	{Method: "GET", Path: "/api/v1/workspaces/{workspaceId}/webhooks", ID: "listWebhooks"},
 	{Method: "POST", Path: "/api/v1/workspaces/{workspaceId}/webhooks", ID: "createWebhook"},
 	{Method: "DELETE", Path: "/api/v1/workspaces/{workspaceId}/webhooks/{webhookId}", ID: "deleteWebhook"},

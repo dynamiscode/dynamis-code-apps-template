@@ -51,25 +51,24 @@ func TestPublicIntakeLongConsentReflow(t *testing.T) {
 				t.Fatalf("consent length = %d, want %d", got, len(consent))
 			}
 			expectAxeClean(t, tab)
-			for _, selector := range []string{"#name", "#phone", "#email", "#notes", `input[name=consent]`, `button[type=submit]`} {
+			for _, selector := range []string{"#name", "#phone", "#email", "#notes", `input[name=consent]`} {
 				assertTabFocus(t, tab, selector)
 				if selector == `input[name=consent]` {
 					capturePublicIntake(t, tab, tc.name+"-keyboard-consent.png")
 				}
 			}
+			if !eval[bool](t, tab, `document.querySelector('button[type=submit]').disabled`) {
+				t.Fatal("submit enabled before required fields are complete")
+			}
+			eval[any](t, tab, `(() => { const el = document.querySelector('#name'); el.value = 'Synthetic Visitor'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`)
+			press(t, tab, " ")
+			if !eval[bool](t, tab, `document.querySelector('button[type=submit]').disabled`) {
+				t.Fatal("submit enabled without a phone number or email address")
+			}
+			eval[any](t, tab, `(() => { const el = document.querySelector('#email'); el.value = 'visitor@example.invalid'; el.dispatchEvent(new Event('input', { bubbles: true })); })()`)
+			assertTabFocus(t, tab, `button[type=submit]`)
 			capturePublicIntake(t, tab, tc.name+"-form.png")
-			fill(t, tab, "#name", "Synthetic Visitor")
-			click(t, tab, `input[name=consent]`)
-			click(t, tab, `button[type=submit]`)
-			waitVisible(t, tab, `[role=alert]`)
-			if !eval[bool](t, tab, `document.querySelector('[role=alert]').textContent.includes('phone number or email address')`) {
-				t.Fatal("missing contact validation error")
-			}
 			expectAxeClean(t, tab)
-			if got := eval[int](t, tab, `document.documentElement.scrollWidth`); got > int(tc.width) {
-				t.Fatalf("error document scroll width = %d, viewport = %d", got, tc.width)
-			}
-			capturePublicIntake(t, tab, tc.name+"-error.png")
 		})
 	}
 
@@ -79,8 +78,18 @@ func TestPublicIntakeLongConsentReflow(t *testing.T) {
 		run(t, tab, chromedp.Navigate(link))
 		waitVisible(t, tab, `input[name=consent]`)
 		fill(t, tab, "#name", "Synthetic Visitor")
-		fill(t, tab, "#email", "visitor@example.invalid")
 		click(t, tab, `input[name=consent]`)
+		click(t, tab, `button[type=submit]`)
+		waitVisible(t, tab, `[role=alert]`)
+		if !eval[bool](t, tab, `document.querySelector('[role=alert]').textContent.includes('phone number or email address')`) {
+			t.Fatal("missing contact validation error without JavaScript")
+		}
+		capturePublicIntake(t, tab, "mobile-nojs-error.png")
+		fill(t, tab, "#name", "Synthetic Visitor")
+		fill(t, tab, "#email", "visitor@example.invalid")
+		if !eval[bool](t, tab, `document.querySelector('input[name=consent]').checked`) {
+			click(t, tab, `input[name=consent]`)
+		}
 		click(t, tab, `button[type=submit]`)
 		eventually(t, tab, `document.querySelector('h1')?.textContent.includes('Your message has been received')`, "public submission did not complete")
 		capturePublicIntake(t, tab, "mobile-nojs-success.png")

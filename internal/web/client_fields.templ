@@ -35,17 +35,18 @@ templ clientFieldList(data viewmodel.PageData) {
 			}) {
 				<form action={ data.FieldsPath } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@molecules.TextField("client-field-label", data.T("clients.field_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "value": data.FieldDraft.Label, "data-trim": ""})
-					@atoms.Select(atoms.SelectProps{
-									ID: "client-field-type", Name: "type", Label: data.T("clients.field_type"),
-																		Options: []atoms.SelectOption{
-										{Label: data.T("clients.field_type_text"), Value: "text", Selected: data.FieldDraft.Type == "" || data.FieldDraft.Type == "text"},
-										{Label: data.T("clients.field_type_number"), Value: "number", Selected: data.FieldDraft.Type == "number"},
-										{Label: data.T("clients.field_type_date"), Value: "date", Selected: data.FieldDraft.Type == "date"},
-										{Label: data.T("clients.field_type_yes_no"), Value: "yes_no", Selected: data.FieldDraft.Type == "yes_no"},
-										{Label: data.T("clients.field_type_single_choice"), Value: "single_choice", Selected: data.FieldDraft.Type == "single_choice"},
-									},
-					})
+					@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-label", Label: data.T("clients.field_label"), Value: data.FieldDraft.Label}) {
+						<input class="input w-full" id="client-field-label" name="label" type="text" value={ data.FieldDraft.Label } required maxlength="100" data-trim=""/>
+					}
+					@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-type", Label: data.T("clients.field_type"), SearchLabel: data.T("ui.search")}) {
+						<select class="select w-full" id="client-field-type" name="type" data-entry-picker>
+							<option value="text" if data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" { selected }>{ data.T("clients.field_type_text") }</option>
+							<option value="number" if data.FieldDraft.Type == "number" { selected }>{ data.T("clients.field_type_number") }</option>
+							<option value="date" if data.FieldDraft.Type == "date" { selected }>{ data.T("clients.field_type_date") }</option>
+							<option value="yes_no" if data.FieldDraft.Type == "yes_no" { selected }>{ data.T("clients.field_type_yes_no") }</option>
+							<option value="single_choice" if data.FieldDraft.Type == "single_choice" { selected }>{ data.T("clients.field_type_single_choice") }</option>
+						</select>
+					}
 					<div class="actions">@molecules.SubmitButton(data.T("clients.add_field"), nil)</div>
 				</form>
 			}
@@ -93,7 +94,13 @@ templ clientFieldList(data viewmodel.PageData) {
 									<p>{ data.T("clients.option_none") }</p>
 								}
 								if data.CanManageFields && field.ArchivedAt == nil {
-									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post"><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.TextField("option-label-"+field.ID.String(), data.T("clients.option_label"), templ.Attributes{"name": "label", "required": true, "maxlength": "100", "data-trim": ""})@molecules.SubmitButton(data.T("clients.option_add"), nil)</form>
+									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post">
+										<input type="hidden" name="csrf" value={ data.CSRF }/>
+										@molecules.EntryField(molecules.EntryFieldProps{ID: "option-label-" + field.ID.String(), Label: data.T("clients.option_label")}) {
+											<input class="input w-full" id={ "option-label-" + field.ID.String() } name="label" type="text" required maxlength="100" data-trim=""/>
+										}
+										@molecules.SubmitButton(data.T("clients.option_add"), nil)
+									</form>
 								}
 							</div>
 						}

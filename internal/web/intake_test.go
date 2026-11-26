@@ -173,9 +173,18 @@ func TestPublicIntakeForm(t *testing.T) {
 	if !strings.Contains(page.Body.String(), `class="min-w-0 wrap-anywhere"`) {
 		t.Fatal("public consent must wrap long unbroken text")
 	}
-	invalid := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}}, nil, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Visitor") {
-		t.Fatalf("invalid form: %d", invalid.Code)
+	for _, marker := range []string{`data-entry-field`, `for="name"`, `for="phone"`, `for="email"`, `for="notes"`, `name="website"`, `x-data="pageBehaviors"`} {
+		if !strings.Contains(page.Body.String(), marker) {
+			t.Errorf("public form missing %s", marker)
+		}
+	}
+	if strings.Count(page.Body.String(), `data-entry-required-group="contact"`) != 2 {
+		t.Error("public form must require at least one contact method")
+	}
+	invalid := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "phone": {"123"}, "notes": {"Private notes"}}, nil, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `value="Visitor"`) ||
+		!strings.Contains(invalid.Body.String(), `value="123"`) || !strings.Contains(invalid.Body.String(), ">Private notes</textarea>") {
+		t.Fatalf("invalid form must preserve the draft: %d, %s", invalid.Code, invalid.Body.String())
 	}
 	missingContact := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "consent": {"on"}}, nil, nil)
 	if missingContact.Code != http.StatusUnprocessableEntity || !strings.Contains(missingContact.Body.String(), "Enter a phone number or email address to continue.") {

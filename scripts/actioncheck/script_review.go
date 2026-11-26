@@ -34,6 +34,8 @@ var reviewedExecutableAttributes = map[string]map[string]int{
 	"internal/web/catalog.templ":                               {`x-data="listScreen"`: 1},
 	"internal/web/clients_list.templ":                          {`x-data="listScreen"`: 1},
 	"internal/web/engagement_list.templ":                       {`x-data="listScreen"`: 1},
+	"internal/web/public_intake.templ":                         {`x-data="pageBehaviors"`: 1},
+	"internal/web/transactions.templ":                          {`x-data="listScreen"`: 1},
 	"internal/web/engagement_new.templ":                        {`x-data="engagementClientPicker"`: 1, `x-data="engagementNotesEditor"`: 1},
 	"internal/web/security.templ":                              {`x-data="passkeyEnroll"`: 1},
 	"internal/web/notifications.templ":                         {`x-data="notificationsLive"`: 1},

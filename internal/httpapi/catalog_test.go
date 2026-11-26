@@ -184,7 +184,7 @@ func TestCatalogEditREST(t *testing.T) {
 	if invalid := serveAuthorized(handler, http.MethodPost, path, `{"name":"No price"}`, token, nil); invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("missing price: %d", invalid.Code)
 	}
-	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit","prices":[{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Initial"}]}`, token, nil)
+	created := serveAuthorized(handler, http.MethodPost, path, `{"name":"Visit","prices":[{"mode":"fixed","amount":"0.12","currency":"EUR","variant":"Initial"}]}`, token, nil)
 	var entry struct {
 		ID     string `json:"id"`
 		Prices []struct {
@@ -192,11 +192,11 @@ func TestCatalogEditREST(t *testing.T) {
 			Amount string `json:"amount"`
 		} `json:"prices"`
 	}
-	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" || len(entry.Prices) != 1 || entry.Prices[0].Amount != "0.123456789012345678" {
+	if err := json.Unmarshal(created.Body.Bytes(), &entry); err != nil || entry.ID == "" || len(entry.Prices) != 1 || entry.Prices[0].Amount != "0.12" {
 		t.Fatal(created.Body.String())
 	}
 	entryPath := path + "/" + entry.ID
-	price := serveAuthorized(handler, http.MethodPost, entryPath+"/prices", `{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, token, nil)
+	price := serveAuthorized(handler, http.MethodPost, entryPath+"/prices", `{"mode":"fixed","amount":"0.12","currency":"EUR","variant":"Visit"}`, token, nil)
 	var row struct {
 		ID string `json:"id"`
 	}
@@ -212,15 +212,15 @@ func TestCatalogEditREST(t *testing.T) {
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("edit price: %d %s", response.Code, response.Body.String())
 	}
-	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, token, nil)
+	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"0.12","currency":"EUR","variant":"Visit"}`, token, nil)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("fixed price: %d %s", response.Code, response.Body.String())
 	}
 	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
-	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"name":"Updated"`) {
+	if !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"name":"Updated"`) {
 		t.Fatal(list.Body.String())
 	}
-	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"-1","currency":"BTC","variant":"Visit"}`, token, nil)
+	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"-1","currency":"EUR","variant":"Visit"}`, token, nil)
 	if response.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid: %d", response.Code)
 	}
@@ -281,13 +281,13 @@ func TestCatalogPricesREST(t *testing.T) {
 		t.Fatalf("entry: %s %v", created.Body.String(), err)
 	}
 	pricePath := path + "/" + entry.ID + "/prices"
-	for _, body := range []string{`{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Visit"}`, `{"mode":"manual","currency":"USD","variant":"Week"}`} {
+	for _, body := range []string{`{"mode":"fixed","amount":"0.12","currency":"EUR","variant":"Visit"}`, `{"mode":"manual","currency":"USD","variant":"Week"}`} {
 		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
 		if response.Code != http.StatusCreated {
 			t.Fatalf("price = %d %s", response.Code, response.Body.String())
 		}
 	}
-	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"1.234","currency":"USD","variant":"Visit"}`, `{"mode":"manual","currency":"JPY","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
+	for _, body := range []string{`{"mode":"fixed","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"-1","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"1.234","currency":"USD","variant":"Visit"}`, `{"mode":"fixed","amount":"1.00","currency":"BTC","variant":"Visit"}`, `{"mode":"manual","currency":"JPY","variant":"Visit"}`, `{"mode":"manual","variant":"Visit"}`, `{"mode":"manual","currency":"USD"}`} {
 		response := serveAuthorized(handler, http.MethodPost, pricePath, body, token, nil)
 		if response.Code != http.StatusUnprocessableEntity {
 			t.Fatalf("invalid = %d %s", response.Code, response.Body.String())
@@ -297,7 +297,7 @@ func TestCatalogPricesREST(t *testing.T) {
 	if response := serveAuthorized(handler, http.MethodPost, pricePath, `{"mode":"fixed","amount":0.1,"currency":"USD","variant":"Visit"}`, token, nil); response.Code != http.StatusBadRequest {
 		t.Fatalf("numeric amount = %d", response.Code)
 	}
-	if !strings.Contains(list.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
+	if !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
 		t.Fatal(list.Body.String())
 	}
 }
@@ -309,8 +309,8 @@ func seedCatalogCurrencies(t *testing.T, db *sql.DB, workspace string) {
 		code            string
 		decimals        int
 		defaultCurrency bool
-	}{{"USD", 2, true}, {"BTC", 18, false}, {"EUR", 2, false}} {
-		if _, err := db.Exec(`INSERT INTO catalog_currencies (workspace_id, code, decimals, is_default) VALUES ($1, $2, $3, $4)`, workspaceID, row.code, row.decimals, row.defaultCurrency); err != nil {
+	}{{"USD", 2, true}, {"EUR", 2, false}} {
+		if _, err := db.Exec(`INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, $2, $3, $4)`, workspaceID, row.code, row.decimals, row.defaultCurrency); err != nil {
 			t.Fatal(err)
 		}
 	}

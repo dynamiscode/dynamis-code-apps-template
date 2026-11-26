@@ -371,13 +371,17 @@ const AuditHistoryLimit = 100
 
 // AuditHistoryEntry contains only fields safe for the workspace browser.
 type AuditHistoryEntry struct {
-	EventType   string
-	ActorUserID UserID
-	AuthMethod  string
-	TargetType  string
-	Action      string
-	Outcome     string
-	CreatedAt   time.Time
+	EventType            string
+	ActorUserID          UserID
+	AuthMethod           string
+	TargetType           string
+	TargetLabel          string
+	Action               string
+	Outcome              string
+	CategoryName         string
+	CategoryPreviousName string
+	CategoryNewName      string
+	CreatedAt            time.Time
 }
 
 type CookiePolicy struct {

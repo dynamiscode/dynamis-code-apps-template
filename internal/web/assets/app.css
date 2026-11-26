@@ -131,6 +131,21 @@ details.dropdown:not([open]) > .dropdown-content { display: none; }
 .detail-sidebar { position: relative; }
 .detail-sidebar > [data-detail-range]:not([hidden]) { position: absolute; z-index: 20; top: 0; left: 0; width: min(16rem, 100%); padding: .75rem; border: 1px solid var(--border-strong); border-radius: .25rem; background-color: var(--surface); }
 .detail-sidebar > [data-detail-range][hidden] { display: none; }
+.transaction-draft-field { position: relative; min-width: 0; }
+.transaction-draft-field > summary { min-height: 2.75rem; }
+.transaction-draft-field[open] > summary :is(.transaction-draft-summary-value, .transaction-draft-pencil) { visibility: hidden; }
+.transaction-draft-editor { position: relative; z-index: 20; margin-top: -1.25rem; padding: .25rem; border: 1px solid var(--border-color); border-radius: .25rem; background: var(--surface); box-shadow: 0 .25rem .75rem var(--border-color); }
+.transaction-draft-editor :is(.input, .select, .textarea) { width: 100%; min-width: 0; }
+.transaction-draft-editor fieldset { margin: 0; padding: 0; border: 0; }
+.transaction-draft-editor fieldset > .fieldset-legend, .transaction-draft-editor label.form-control:has(> select) > span, .transaction-choice-form label.form-control:has(> select) > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.transaction-draft-editor, .transaction-draft-editor > div, .transaction-choice-form, .transaction-choice-form > div { display: flex; flex-direction: column; }
+.transaction-draft-editor > label:has(> #transactions-client), .transaction-draft-editor > div > label:has(> #transactions-currency), .transaction-choice-form > :is(select, input[type="date"]), .transaction-choice-form > div > label:has(> #transaction-inline-currency) { order: -1; }
+.transaction-advanced > summary { min-height: 2.75rem; display: flex; align-items: center; }
+.transaction-detail-values dt { font-size: .875rem; font-weight: 600; }
+.transaction-detail-values dd { min-width: 0; overflow-wrap: anywhere; }
+@container (min-width: 32rem) {
+	.transaction-draft-editor { margin-top: -2.75rem; margin-left: 13.5rem; }
+}
 @container (min-width: 32rem) {
 	.detail-values { grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr); column-gap: 1.5rem; row-gap: 1rem; }
 	.detail-values dt { margin-top: 0; }
@@ -386,3 +401,41 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .engagement-markdown pre { overflow-x: auto; white-space: pre; }
 .engagement-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .engagement-markdown th, .engagement-markdown td { border: 1px solid var(--border-color); padding: .25rem .5rem; }
+
+/* Shared entry controls keep the value and its editor in the same footprint. */
+.entry-field { position: relative; min-width: 0; }
+.entry-field > .entry-field-label { display: block; }
+.entry-field > :is(input, textarea, select) { width: 100%; }
+.entry-field > :is(input:not([type="hidden"]), textarea, select) { border: var(--border, 1px) solid var(--border-color); padding-inline-start: .75rem; }
+.entry-field > :is(input, textarea, select)[aria-invalid="true"] { border-color: var(--danger); }
+.entry-field:has(> :is(input:not([type="hidden"]), textarea, select)) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.entry-field > .entry-field-label { grid-area: 1 / 1; }
+.entry-field > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { grid-area: 2 / 1; min-width: 0; padding-inline-end: 2.5rem; }
+.entry-field:has(> :is(input:not([type="hidden"], :disabled, [readonly]), textarea:not(:disabled, [readonly]), select:not(:disabled)))::after { content: ""; grid-area: 2 / 1; justify-self: end; align-self: start; width: 1rem; height: 1rem; margin: .875rem .75rem 0 0; background: var(--muted); mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15 5 4 4M4 20l4-1 11-11a2.8 2.8 0 0 0-4-4L4 15z'/%3E%3C/svg%3E") center / contain no-repeat; pointer-events: none; }
+.entry-field:has(> input:is([type="date"], [type="time"], [type="datetime-local"]))::after, .entry-field:not([data-entry-picker-enhanced]):has(> select:not(:disabled))::after { margin-inline-end: 2.5rem; }
+.entry-field > input:is([type="date"], [type="time"], [type="datetime-local"]), .entry-field:not([data-entry-picker-enhanced]) > select { padding-inline-end: 4rem; }
+.entry-field > :is(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
+.entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within) > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger):not([aria-invalid="true"]) { border-color: transparent; background-color: transparent; box-shadow: none; }
+.entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within):hover > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { background-color: var(--accent-surface); }
+.entry-field[data-entry-bound]:has(> input, > textarea, > select) > .entry-field-label { position: absolute; z-index: 1; left: calc(.75rem + var(--border, 1px)); top: .75rem; }
+.entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > .entry-field-label { color: var(--muted); }
+.entry-field[data-entry-bound]:has(> input, > textarea, > select):is([data-entry-filled], :focus-within) > .entry-field-label { top: .15rem; font-size: .75rem; line-height: 1rem; }
+.entry-field[data-entry-bound] > :is(input, textarea, select), .entry-picker-trigger { padding-top: 1.1rem; }
+.entry-picker-trigger { display: block; width: 100%; min-height: 2.75rem; text-align: left; border: var(--border, 1px) solid var(--border-color); border-radius: var(--radius-field, .25rem); padding-inline: .75rem; background: var(--canvas); }
+.entry-field[data-entry-picker-enhanced] > select { position: absolute; width: 1px; height: 1px; padding: 0; clip-path: inset(50%); overflow: hidden; }
+.entry-picker-panel { position: absolute; z-index: 40; top: 100%; left: 0; min-width: 100%; max-width: min(28rem, 90vw); max-height: 18rem; overflow: auto; padding: .5rem; border: 1px solid var(--border-color); border-radius: .5rem; background: var(--canvas); box-shadow: 0 .4rem 1rem var(--shadow); }
+.entry-picker-panel[hidden], .entry-picker-fallback-search[hidden] { display: none; }
+.entry-picker-trigger[hidden] { display: none; }
+.entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > :is(input, textarea)::placeholder { color: transparent; }
+.entry-field[data-entry-picker-enhanced]:not([data-entry-filled]):not(:focus-within) .entry-picker-trigger > span { visibility: hidden; }
+.entry-picker-search { width: 100%; }
+.entry-picker-option { display: block; width: 100%; padding: .55rem .75rem; text-align: left; }
+.entry-picker-option:is(:hover, :focus-visible), .entry-picker-option[aria-selected="true"] { background: var(--border-color); }
+.entry-picker-option:disabled { opacity: .5; }
+.entry-field:has(> details[data-inline-title]) > details > summary, .entry-field [data-inline-title] [data-inline-input] { box-sizing: border-box; padding: .5rem .75rem; min-height: 2.75rem; line-height: 1.5; }
+.entry-field [data-inline-title] [data-inline-input] { border: 1px solid var(--border-color); }
+.entry-field:has(> details[data-inline-title]) > details > summary { border: 1px solid transparent; }
+.entry-editor > summary { box-sizing: border-box; padding: .5rem .75rem; min-height: 2.75rem; line-height: 1.5; border: 1px solid transparent; }
+.entry-field:has(> details[data-inline-title]) > details > summary, .entry-editor > summary { padding-inline-end: 2rem; }
+.inline-editor-pending:not([hidden]) { position: absolute; z-index: 2; top: 100%; right: 0; padding: .15rem .4rem; border: 1px solid var(--border-color); border-radius: .25rem; background: var(--canvas); font-size: .75rem; }
+.entry-field:has(> details[data-inline-title] h1) > details > summary, .entry-field [data-inline-title]:has(h1) [data-inline-input] { padding: 0 2rem 0 0; border: 0; min-height: 0; }

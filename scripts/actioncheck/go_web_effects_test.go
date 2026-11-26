@@ -43,6 +43,7 @@ func TestWebRawEffectInventory(t *testing.T) {
 		"engagement_notes.go:previewEngagementNotes": {"writer.Write": 1}, // Goldmark renders HTML without raw HTML or unsafe links.
 		"management.go:exportWorkspace":              {"writer.Write": 1},
 		"handler.go:serveChangeStream":               {"fmt.Fprint": 2, "encoding/json.NewEncoder": 1},
+		"transactions.go:transactionsClientOptions":  {"encoding/json.NewEncoder": 1}, // Authenticated client search returns JSON, not HTML.
 		"notifications.go:notificationEvents":        {"fmt.Fprint": 3},
 		"notifications.go:sendNotifications":         {"fmt.Fprint": 1, "fmt.Fprintf": 2},
 		"clients_events.go:sendClientChanges":        {"fmt.Fprint": 1, "fmt.Fprintf": 2},
@@ -94,15 +95,15 @@ func TestWebRawEffectInventory(t *testing.T) {
 						t.Errorf("unreviewed stream header capability use in %s at %s", key, web.Fset.Position(call.Pos()))
 					}
 				}
-				if key == "handler.go:serveChangeStream" {
+				if key == "handler.go:serveChangeStream" || key == "transactions.go:transactionsClientOptions" {
 					selector, _ := ast.Unparen(call.Fun).(*ast.SelectorExpr)
 					if method := index.resolve(call.Fun); selector != nil && method != nil && method.FullName() == "(*encoding/json.Encoder).Encode" {
 						if encoder, ok := ast.Unparen(selector.X).(*ast.CallExpr); ok &&
-							rawWebEffect(encoder, index, writer) == "encoding/json.NewEncoder" &&
-							len(call.Args) == 1 && matchesFixedWireJSON(call.Args[0], web.TypesInfo, map[string]string{
-							"type": `"urn:dynamis-code:problem:stream-limit"`, "title": `"Too Many Requests"`,
-							"status": "429", "detail": `"The realtime connection limit was reached."`, "code": `"stream-limit"`,
-						}) {
+							rawWebEffect(encoder, index, writer) == "encoding/json.NewEncoder" && len(call.Args) == 1 &&
+							(key == "handler.go:serveChangeStream" && matchesFixedWireJSON(call.Args[0], web.TypesInfo, map[string]string{
+								"type": `"urn:dynamis-code:problem:stream-limit"`, "title": `"Too Many Requests"`,
+								"status": "429", "detail": `"The realtime connection limit was reached."`, "code": `"stream-limit"`,
+							}) || key == "transactions.go:transactionsClientOptions" && matchesClientOptionsJSON(call.Args[0], web.TypesInfo)) {
 							knownEncoders[encoder] = true
 						}
 					}
@@ -157,6 +158,35 @@ func TestWebRawEffectInventory(t *testing.T) {
 			}
 		}
 	}
+}
+
+// matchesClientOptionsJSON confines the reviewed endpoint to its plain JSON response shape.
+func matchesClientOptionsJSON(expr ast.Expr, info *types.Info) bool {
+	literal, ok := ast.Unparen(expr).(*ast.CompositeLit)
+	if !ok || len(literal.Elts) != 3 {
+		return false
+	}
+	response, ok := info.TypeOf(literal).(*types.Struct)
+	if !ok || response.NumFields() != 3 {
+		return false
+	}
+	options, ok := response.Field(0).Type().(*types.Slice)
+	if !ok {
+		return false
+	}
+	option, ok := options.Elem().(*types.Named)
+	if !ok || option.Obj().Name() != "option" || option.NumMethods() != 0 {
+		return false
+	}
+	fields, ok := option.Underlying().(*types.Struct)
+	if !ok || fields.NumFields() != 2 {
+		return false
+	}
+	return response.Field(0).Name() == "Options" && response.Tag(0) == `json:"options"` &&
+		response.Field(1).Name() == "Page" && response.Tag(1) == `json:"page"` && types.Identical(response.Field(1).Type(), types.Typ[types.Int]) &&
+		response.Field(2).Name() == "Total" && response.Tag(2) == `json:"total"` && types.Identical(response.Field(2).Type(), types.Typ[types.Int]) &&
+		fields.Field(0).Name() == "Value" && fields.Tag(0) == `json:"value"` && types.Identical(fields.Field(0).Type(), types.Typ[types.String]) &&
+		fields.Field(1).Name() == "Label" && fields.Tag(1) == `json:"label"` && types.Identical(fields.Field(1).Type(), types.Typ[types.String])
 }
 
 func checkStreamHeader(t *testing.T, web *packages.Package, index ingressAliases, writer *types.Interface, call *ast.CallExpr, want map[string]bool) *ast.CallExpr {

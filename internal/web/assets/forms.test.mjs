@@ -198,9 +198,11 @@ test("confirmed selectors submit only after confirmation and restore canceled ch
     fire(type, event = {}) { this.listeners[type]?.(event); },
     focus() { this.focused = true; }
   });
+  const trigger = control();
   const select = Object.assign(control(), {
     selectedIndex: 0, options: [{ value: "old", textContent: "Old" }, { value: "new", textContent: "New" }],
-    dispatchEvent(event) { this.lastEvent = event.type; }
+    dispatchEvent(event) { this.lastEvent = event.type; },
+    closest() { return { querySelector: () => trigger }; }
   });
   Object.defineProperties(select, {
     selectedOptions: { get() { return [this.options[this.selectedIndex]]; } },
@@ -237,6 +239,7 @@ test("confirmed selectors submit only after confirmation and restore canceled ch
   assert.equal(select.selectedIndex, 0);
   assert.equal(select.lastEvent, "input");
   assert.equal(form.submits, 0);
+  assert.equal(trigger.focused, true);
   select.selectedIndex = 1;
   select.fire("change");
   dialog.close(); // Escape closes the native dialog.
@@ -250,7 +253,7 @@ test("confirmed selectors submit only after confirmation and restore canceled ch
   accept.fire("click");
   assert.equal(select.selectedIndex, 1);
   assert.equal(form.submits, 1);
-  assert.equal(select.focused, true);
+  assert.equal(trigger.focused, true);
 
   const unsupportedFallback = { hidden: false };
   const unsupported = {

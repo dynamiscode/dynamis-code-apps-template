@@ -52,3 +52,20 @@ func TestEntityKeysRejectMalformedShortIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestTransactionsTypeCodes(t *testing.T) {
+	for code, expected := range map[TypeCode]TypeCode{
+		TypeTransactionsEntry:    "transactions_entry",
+		TypeTransactionsCategory: "transactions_category",
+	} {
+		if code != expected {
+			t.Fatalf("type code %q, want %q", code, expected)
+		}
+		for _, key := range []int64{1, 42, 1 << 40} {
+			short := EncodeKey(expected, key)
+			if got, err := DecodeKey(code, short); err != nil || got != key {
+				t.Fatalf("DecodeKey(%q, %q) = %d, %v; want %d", code, short, got, err, key)
+			}
+		}
+	}
+}

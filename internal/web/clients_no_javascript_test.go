@@ -13,6 +13,12 @@ import (
 func TestNoJavaScriptClientsCreateEditArchiveAndValidation(t *testing.T) {
 	env := newClientsTestEnv(t)
 	listPath := env.listPath()
+	createPage := request(env.routes, http.MethodGet, listPath+"/new", nil, env.cookies, nil)
+	for _, want := range []string{`data-entry-field`, `for="client-display-name"`, `id="client-display-name"`, `for="client-email"`, `id="client-email"`, `for="client-phone"`, `id="client-phone"`, `for="client-notes"`, `id="client-notes"`} {
+		if createPage.Code != http.StatusOK || !strings.Contains(createPage.Body.String(), want) {
+			t.Fatalf("create page missing %q: %d", want, createPage.Code)
+		}
+	}
 
 	blank := request(env.routes, http.MethodPost, listPath, url.Values{"csrf": {env.csrf}, "display_name": {"   "}}, env.cookies, nil)
 	if blank.Code != http.StatusUnprocessableEntity || !strings.Contains(blank.Body.String(), `role="alert"`) {
