@@ -39,8 +39,39 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := service.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Consultation", &minutes); err != nil {
+	if err := service.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Consultation", &minutes, entry.Revision); err != nil {
 		t.Fatal(err)
+	}
+	if err := service.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Stale", entry.Revision); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale inline update: %v", err)
+	}
+	{
+		start := make(chan struct{})
+		results := make(chan error, 2)
+		go func() {
+			<-start
+			results <- service.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Consultation", &minutes, 2)
+		}()
+		go func() {
+			<-start
+			results <- service.UpdateField(ctx, actor, owner.WorkspaceID, entry.ID, "name", "Consultation", 2)
+		}()
+		close(start)
+		successes, conflicts := 0, 0
+		for range 2 {
+			err := <-results
+			switch {
+			case err == nil:
+				successes++
+			case errors.Is(err, ErrConflict):
+				conflicts++
+			default:
+				t.Fatalf("concurrent entry edit: %v", err)
+			}
+		}
+		if successes != 1 || conflicts != 1 {
+			t.Fatalf("concurrent entry edits: %d successes, %d conflicts", successes, conflicts)
+		}
 	}
 	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "manual", Currency: "USD", Variant: "Visit"}); err != nil {
 		t.Fatal(err)

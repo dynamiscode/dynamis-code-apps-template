@@ -19,7 +19,7 @@ BOOTSTRAP_ADMIN_PASSWORD=webmcp-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH=
 # Build first so $pid is the server itself; killing `go run` leaves its child running.
 go build -o "$work/server" ./cmd/server
 go build -o "$work/browsersmoke" ./cmd/browsersmoke
-MULTI_WORKSPACE_ENABLED=true DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
+MULTI_WORKSPACE_ENABLED=true HTTP_SECURE=false DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
   "$work/server" >"$work/server.log" 2>&1 &
 pid=$!
 

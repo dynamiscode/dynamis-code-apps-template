@@ -348,6 +348,12 @@ func TestLogoutAdapterRejectsInvalidCSRFBeforeRevoking(t *testing.T) {
 	if good.Code != http.StatusSeeOther || good.Header().Get("Location") != "/login" {
 		t.Fatalf("valid logout status %d, location %q", good.Code, good.Header().Get("Location"))
 	}
+	for _, name := range []string{"session", "csrf"} {
+		cookie := responseCookie(good, name)
+		if cookie == nil || !cookie.Secure || cookie.MaxAge >= 0 {
+			t.Fatalf("logout cookie %s was not securely cleared: %+v", name, cookie)
+		}
+	}
 	if _, err := auth.AuthenticateSession(t.Context(), session.Secret); err == nil {
 		t.Fatal("valid logout did not revoke the session")
 	}
@@ -1228,7 +1234,7 @@ func TestWebSCIMProvisioningSettingsLifecycle(t *testing.T) {
 
 	page := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" ||
-		!strings.Contains(page.Body.String(), "http://example.com/scim/v2/"+workspaceID.String()) ||
+		!strings.Contains(page.Body.String(), "https://example.com/scim/v2/"+workspaceID.String()) ||
 		strings.Contains(page.Body.String(), "/assets/app.js") || strings.Contains(page.Body.String(), "data-webmcp-page") {
 		t.Fatalf("SCIM provisioning page = %d, headers=%v, body=%s", page.Code, page.Header(), page.Body.String())
 	}
@@ -1551,7 +1557,7 @@ func TestLoginPageAdapterPreservesLocalizedFormAndCookie(t *testing.T) {
 		page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "es" {
 		t.Fatalf("login response = %d, %v", page.Code, page.Header())
 	}
-	if cookie == nil || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || len(cookie.Value) != 32 {
+	if cookie == nil || !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || len(cookie.Value) != 32 {
 		t.Fatal("login CSRF cookie missing expected protection")
 	}
 	body := page.Body.String()

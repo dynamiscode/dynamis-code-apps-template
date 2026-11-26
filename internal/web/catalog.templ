@@ -125,8 +125,19 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
          <div class="modal-box">
           <h3 id={ "catalog-entry-title-" + entry.ID.String() } class="text-xl font-semibold">{ data.T("catalog.edit_entry") }</h3>
           <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/edit") } class="space-y-3 mt-4">
-           <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</p>
+           if form.conflict {
+            <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("ui.request_failed") }</p>
+            <p>{ data.T("catalog.name") }: { entry.Name }</p>
+            @catalogDurationSummary(data, entry)
+           } else {
+            <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</p>
+           }
            <input type="hidden" name="csrf" value={ data.CSRF }/>
+           if form.conflict {
+            <input type="hidden" name="version" value={ strconv.FormatInt(entry.Revision, 10) }/>
+           } else {
+            <input type="hidden" name="version" value={ form.version }/>
+           }
            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered w-full" name="name" value={ form.name } required/></label>
            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered w-full" type="number" name="duration_minutes" value={ form.duration } min="1"/></label>
            <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
@@ -211,7 +222,7 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
 }
 
 templ catalogInlineField(data viewmodel.PageData, entry catalog.Entry, form catalogForm, field, saved, inputType string, required bool) {
- {{ draft := form.kind == "inline" && form.entryID == entry.ID.String() && form.field == field; value := saved; version := saved; label := data.T("catalog.name"); if field == "duration_minutes" { label = data.T("catalog.duration") }; if draft { value = form.value; if !form.conflict { version = form.version } }; errorText := data.T("catalog.invalid"); if form.conflict { errorText = data.T("ui.request_failed") }; detail := "/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() }}
+ {{ draft := form.kind == "inline" && form.entryID == entry.ID.String() && form.field == field; value := saved; version := strconv.FormatInt(entry.Revision, 10); label := data.T("catalog.name"); if field == "duration_minutes" { label = data.T("catalog.duration") }; if draft { value = form.value; if !form.conflict { version = form.version } }; errorText := data.T("catalog.invalid"); if form.conflict { errorText = data.T("ui.request_failed") }; detail := "/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String() }}
  if draft && form.conflict {
   <p>{ label }:
    if saved == "" {

@@ -64,7 +64,7 @@ func TestCatalogRESTWorkspaceIsolation(t *testing.T) {
 		{http.MethodPut, "", `{"name":"Stolen"}`, 404}, {http.MethodPost, "/archive", "", 404}, {http.MethodPost, "/unarchive", "", 404}, {http.MethodDelete, "", "", 404},
 		{http.MethodPost, "/prices", `{"mode":"manual","currency":"USD","variant":"x"}`, 422}, {http.MethodPut, "/prices/" + row.ID, `{"mode":"manual","currency":"USD","variant":"x"}`, 404}, {http.MethodDelete, "/prices/" + row.ID, "", 404},
 	} {
-		r = serveAuthorized(routes, op.method, target+op.suffix, op.body, otherToken.Secret, nil)
+		r = serveAuthorized(routes, op.method, target+op.suffix, op.body, otherToken.Secret, map[string]string{"If-Match": `"v1"`})
 		if r.Code != op.want {
 			t.Errorf("%s %s: %d", op.method, op.suffix, r.Code)
 		}

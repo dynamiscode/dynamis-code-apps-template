@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
@@ -226,8 +227,28 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB: db, Identity: identityService, OIDC: oidcRegistry,
 		Portability: portabilityService, Webhooks: webhookService,
 		Files: fileService, Jobs: jobQueue,
-		Handler: telemetry.HTTPHandler(httpapi.LimitPublicIntake(mux, cfg.HTTP.RequestsPerMinute)), Telemetry: telemetryProvider,
+		Handler: telemetry.HTTPHandler(localHTTPOnly(httpapi.LimitPublicIntake(mux, cfg.HTTP.RequestsPerMinute), cfg.HTTP.Secure)), Telemetry: telemetryProvider,
 	}, nil
+}
+
+func localHTTPOnly(next http.Handler, secure bool) http.Handler {
+	if secure {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if parsed, _, err := net.SplitHostPort(host); err == nil {
+			host = parsed
+		} else {
+			host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+		}
+		ip := net.ParseIP(host)
+		if !strings.EqualFold(host, "localhost") && (ip == nil || !ip.IsLoopback()) {
+			http.Error(w, "local HTTP requires a loopback host", http.StatusBadRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func Run(ctx context.Context, cfg config.Config) error {
