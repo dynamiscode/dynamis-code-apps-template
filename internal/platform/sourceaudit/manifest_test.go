@@ -70,3 +70,47 @@ func TestManifestRejectsAddedMissingRenamedAndChangedInputs(t *testing.T) {
 		}
 	}
 }
+
+func TestManifestRejectsUnreviewableInputs(t *testing.T) {
+	for _, tc := range []struct {
+		name, want string
+		mutate     func(t *testing.T, root string)
+	}{
+		{"symlink", "unsupported symlink", func(t *testing.T, root string) {
+			if err := os.Symlink(filepath.Join(root, "go.mod"), filepath.Join(root, "linked.go")); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"vendor", "unsupported vendored Go input", func(t *testing.T, root string) {
+			if err := os.Mkdir(filepath.Join(root, "vendor"), 0755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"oversized source", "unsupported Go output input", func(t *testing.T, root string) {
+			file, err := os.Create(filepath.Join(root, "large.go"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			if err := file.Truncate(maxInputBytes + 1); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			for _, name := range []string{"go.mod", "go.sum"} {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := WriteReviewed(root); err != nil {
+				t.Fatal(err)
+			}
+			tc.mutate(t, root)
+			if err := Verify(root); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Verify() = %v, want error containing %q", err, tc.want)
+			}
+		})
+	}
+}
