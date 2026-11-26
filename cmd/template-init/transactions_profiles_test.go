@@ -111,7 +111,7 @@ func TestTransactionsProfileGeneration(t *testing.T) {
 					t.Fatalf("client page without Transactions: %v", err)
 				}
 			}
-			packages := []string{"./internal/bootstrap", "./internal/httpapi", "./internal/web", "./internal/mcpserver", "./internal/appctl"}
+			packages := []string{"./internal/bootstrap", "./internal/httpapi", "./internal/web", "./internal/mcpserver", "./internal/appctl", "./scripts/actioncheck"}
 			if enabled {
 				packages = append(packages, "./internal/transactions")
 			}

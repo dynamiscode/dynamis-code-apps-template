@@ -68,12 +68,12 @@ func TestClientsOmissionRetainsBookingWebTests(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := string(disableClientsSource("internal/web/scheduling_test.go", source))
-	for _, removed := range []string{"engagementPage", "engagementDetailPath", "engagementPath", "eng.ID.String()"} {
+	for _, removed := range []string{"engagementPage", "engagementDetailPath", "engagementPath", "eng.ID.String()", `name="engagement_id" data-entry-picker`} {
 		if strings.Contains(output, removed) {
 			t.Errorf("Clients-off scheduling test retains %q", removed)
 		}
 	}
-	for _, kept := range []string{"func TestSchedulingBookingWeb(", `"missing move form"`, `"DST gap move draft:`, `"outcome:`, `"terminal:`} {
+	for _, kept := range []string{"func TestSchedulingBookingWeb(", `"missing move form"`, `"DST gap move draft:`, `"outcome:`, `"terminal:`, `name="entry_id" required data-entry-picker`} {
 		if !strings.Contains(output, kept) {
 			t.Errorf("Clients-off scheduling test lost %q", kept)
 		}
@@ -217,9 +217,32 @@ func TestGenerateCatalogProfile(t *testing.T) {
 					t.Fatal("exception has no string Path")
 				}
 				if path == "internal/web/catalog.templ" && !selected ||
+					transactionsPath(path) ||
 					(path == "internal/web/engagement_list.templ" || path == "internal/web/clients.templ" || path == "internal/web/engagement_new.templ") && !tc.clients ||
 					path == "internal/web/engagement.templ" && exception["OpenTag"] == `<a class="link lg:hidden" href="#action-history">` && !tc.clients {
 					continue
+				}
+				if path == "internal/web/clients.templ" {
+					tag := exception["OpenTag"].(string)
+					template, err := os.ReadFile(filepath.Join(output, path))
+					if err != nil {
+						t.Fatal(err)
+					}
+					if strings.Contains(tag, "/transactions?client_id=") {
+						if strings.Contains(string(template), tag) {
+							t.Error("transaction link retained without Transactions")
+						}
+						continue
+					}
+					if strings.Count(string(template), tag) != 1 {
+						t.Fatalf("exception tag not unique in generated %s: %s", path, tag)
+					}
+					copied := make(map[string]any, len(exception))
+					for key, value := range exception {
+						copied[key] = value
+					}
+					copied["Line"] = float64(strings.Count(string(template[:strings.Index(string(template), tag)]), "\n") + 1)
+					exception = copied
 				}
 				expected = append(expected, exception)
 				if _, err := os.Stat(filepath.Join(output, path)); err != nil {
@@ -276,6 +299,9 @@ func TestGenerateCatalogProfile(t *testing.T) {
 			raw, err = os.ReadFile(filepath.Join(output, "internal/web/scheduling.templ"))
 			if err != nil || strings.Contains(string(raw), `data.T("scheduling.bookings")`) != selected || !strings.Contains(string(raw), `data.T("scheduling.hours")`) {
 				t.Fatalf("booking controls or working hours mismatch: selected=%v err=%v", selected, err)
+			}
+			if selected && !tc.clients && (strings.Contains(string(raw), "engagements") || strings.Contains(string(raw), "schedulingEngagement")) {
+				t.Fatal("scheduling template retains client engagement controls without Clients")
 			}
 			for path, test := range map[string]string{
 				"internal/scheduling/service_test.go": "func TestBookingRequiresAvailableWorkingHours(",

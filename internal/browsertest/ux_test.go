@@ -120,16 +120,18 @@ func TestFormUXPatterns(t *testing.T) {
 	run(t, tab, chromedp.KeyEvent("\x1b"))
 	check(js(`!document.querySelector("header .dropdown-end").open`), "async-feedback: Escape closes the account menu")
 
-	// clients: a blank name is stopped with a summary; a client is created; a choice field gets an option.
+	// clients: a blank name keeps submit disabled; a client is created; a choice field gets an option.
 	run(t, tab, chromedp.Navigate(base+workspace+"/clients"))
 	waitVisible(t, tab, "#client-list")
 	click(`a[href$="/clients/new"]`)
 	waitVisible(t, tab, "#client-display-name")
 	typeInto("#client-display-name", "   ")
+	check(js(`document.querySelector("form.create button[type=submit]").disabled`), "clients: a blank name disables submit")
 	enter("#client-display-name")
-	check(js(`document.activeElement?.classList.contains("error-summary")`), "clients: a blank name takes the error summary focus")
+	check(js(`document.activeElement?.id === "client-display-name" && document.querySelector("form.create button[type=submit]").disabled`), "clients: Enter does not submit a blank name")
 	typeInto("#client-display-name", "Ada Lovelace")
 	typeInto("#client-email", "ada@example.com")
+	check(js(`!document.querySelector("form.create button[type=submit]").disabled`), "clients: a valid name enables submit")
 	click("form.create button[type=submit]")
 	waitVisible(t, tab, "#client-detail")
 	check(js(`document.querySelector("#client-detail dd").textContent.includes("Ada Lovelace")`), "clients: creating a client opens its detail page")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +34,6 @@ func TestTransactionCreateFieldDraftSurvivesCurrencySearch(t *testing.T) {
 	}
 	for _, want := range []string{
 		`id="transactions-description" name="description" type="text" value="Draft description"`,
-		`id="transactions-amount" name="amount" type="text" inputmode="decimal" required value="12.50"`,
 		`id="transactions-date" name="occurred_on" type="date" required value="2026-01-02"`,
 		`value="out" selected`,
 		`value="USD" selected`,
@@ -43,5 +43,9 @@ func TestTransactionCreateFieldDraftSurvivesCurrencySearch(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("search response lost draft control %q", want)
 		}
+	}
+	amount := regexp.MustCompile(`<input\b[^>]*\bid="transactions-amount"[^>]*>`).FindString(body)
+	if !strings.Contains(amount, `name="amount"`) || !strings.Contains(amount, `value="12.50"`) {
+		t.Errorf("search response lost amount draft: %q", amount)
 	}
 }

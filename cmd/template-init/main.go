@@ -325,6 +325,7 @@ func copyTemplate(
 				var record struct {
 					Path    string
 					OpenTag string
+					Line    int
 				}
 				if err := json.Unmarshal(exception, &record); err != nil {
 					return fmt.Errorf("decode actioncheck exception: %w", err)
@@ -334,6 +335,36 @@ func copyTemplate(
 					(!clients || !catalog) && reminderPath(record.Path) ||
 					!clients && record.Path == "internal/web/engagement.templ" && record.OpenTag == `<a class="link lg:hidden" href="#action-history">` {
 					continue
+				}
+				if !transactions && record.Path == "internal/web/clients.templ" {
+					source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.Path)))
+					if err != nil {
+						return fmt.Errorf("read actioncheck exception source: %w", err)
+					}
+					original := string(source)
+					if strings.Count(original, record.OpenTag) != 1 || strings.Count(original[:strings.Index(original, record.OpenTag)], "\n")+1 != record.Line {
+						return fmt.Errorf("invalid actioncheck exception in %s at line %d", record.Path, record.Line)
+					}
+					transformed := string(disableTransactionsSource(record.Path, source))
+					count := strings.Count(transformed, record.OpenTag)
+					if count == 0 {
+						continue
+					}
+					if count != 1 {
+						return fmt.Errorf("ambiguous actioncheck exception in %s", record.Path)
+					}
+					var fields map[string]json.RawMessage
+					if err := json.Unmarshal(exception, &fields); err != nil {
+						return fmt.Errorf("decode actioncheck exception: %w", err)
+					}
+					fields["Line"], err = json.Marshal(strings.Count(transformed[:strings.Index(transformed, record.OpenTag)], "\n") + 1)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception line: %w", err)
+					}
+					exception, err = json.Marshal(fields)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception: %w", err)
+					}
 				}
 				kept = append(kept, exception)
 			}
@@ -818,6 +849,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\tclient, err := clients.NewService", "\tr, err := s.Create")
 		value = strings.Replace(value, `, "engagement_id": {eng.ID.String()}`, "", 1)
 		value = strings.Replace(value, ` || !strings.Contains(page.Body.String(), eng.ID.String())`, "", 1)
+		value = strings.Replace(value, " `name=\"engagement_id\" data-entry-picker`,", "", 1)
 		value = removeText(value, "\tclientPage := request", "\tbookings, _, err := s.Schedule")
 		value = removeText(value, "\tengagementPath := path +", "\tinvalidMove := request")
 		value = removeText(value, "\tengagementPage = request", "\tinvalidMove = request")
@@ -842,7 +874,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "templ schedulingEngagement(", "templ schedulingPage(")
 		value = strings.ReplaceAll(value, "engagements []scheduling.EngagementOption, ", "")
 		value = removeText(value, "          for _, option := range engagements {", "          if canBook && booking.Status")
-		value = removeText(value, "         if len(engagements) > 0 {", "         <label class=\"form-control flex flex-col gap-1\"><span>{ data.T(\"scheduling.start\")")
+		value = removeText(value, "         if len(engagements) > 0 {", "         @molecules.EntryField(molecules.EntryFieldProps{ID: \"booking-new-start-")
 	case "internal/identity/service.go":
 		value = removeText(value, "func (s *Service) clearMemberAssignments(", "func normalizeEmail(")
 		value = strings.Replace(value, "func normalizeEmail(", "func (s *Service) clearMemberAssignments(ctx context.Context, tx *sql.Tx, workspaceID WorkspaceID, userID UserID) error { _, err := s.exec(ctx, tx, \"UPDATE scheduling_resources SET user_id = NULL WHERE workspace_id = ? AND user_id = ?\", workspaceID, userID); return err }\n\nfunc normalizeEmail(", 1)
