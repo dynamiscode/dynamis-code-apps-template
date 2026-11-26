@@ -10,13 +10,6 @@ regexTarget = "line"
 regexes = ['''OpenAPISHA256 = "[0-9a-f]{64}"''']
 
 [[allowlists]]
-description = "Reviewed Go output manifest SHA-256 digests are not credentials"
-condition = "AND"
-paths = ['''^scripts/reviewed-go-output\.json$''']
-regexTarget = "line"
-regexes = ['''^\s*"[^"]+": "[0-9a-f]{64}",?$''']
-
-[[allowlists]]
 description = "Deterministic HTTP test idempotency keys are not credentials"
 paths = ["^internal/httpapi/handler_test\\.go$"]
 regexTarget = "line"
