@@ -15,6 +15,7 @@ type InlineEditorProps struct {
 }
 
 templ InlineEditor(props InlineEditorProps) {
+	@EntryField(EntryFieldProps{Value: props.Value}) {
 	<details class={ "group relative w-full", props.Class } data-inline-title data-inline-saved={ props.Saved } data-inline-dirty-on-load?={ props.Draft } data-inline-explicit-retry?={ props.Conflict } open?={ props.Draft } { actionattrs.ScalarAttributes(props.Attrs)... }>
 		<summary class={ "relative block w-full cursor-text list-none rounded-field pr-8 hover:bg-base-300 hover:outline hover:outline-1 hover:outline-base-content/30 group-open:invisible", templ.KV("break-all", !props.Heading), templ.KV("whitespace-pre-wrap", props.InputType == "textarea" && !props.Heading) }>
 			if props.Heading {
@@ -25,6 +26,7 @@ templ InlineEditor(props InlineEditorProps) {
 				{ props.Display }
 			}
 			<svg class="absolute right-2 top-1/2 -translate-y-1/2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 5 4 4M4 20l4-1 11-11a2.8 2.8 0 0 0-4-4L4 15z"/></svg>
+			<span class="inline-editor-pending" data-inline-pending role="status" hidden></span>
 			<span class="sr-only"> { props.EditLabel } { props.Label }</span>
 		</summary>
 		if props.Heading && props.Draft {
@@ -70,4 +72,5 @@ templ InlineEditor(props InlineEditorProps) {
 			</div>
 		</form>
 	</details>
+	}
 }

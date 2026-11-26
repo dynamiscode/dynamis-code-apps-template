@@ -13,12 +13,20 @@ import (
 	"unicode/utf8"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/id"
 )
 
 var ErrInvalidInput = errors.New("invalid transactions entry")
 var ErrActiveRefunds = errors.New("receipt has active refunds")
+
+// CurrencyAvailable reports whether new entries preserve this currency's precision.
+func CurrencyAvailable(item currency.Currency) bool {
+	canonical, ok := currency.Canonical(item.Code)
+	scale, known := CurrencyScale(item.Code)
+	return ok && known && item.Decimals == canonical.Decimals && scale == canonical.Decimals
+}
 
 // RefundLimitError reports the remainder observed in the refund transaction.
 type RefundLimitError struct {
@@ -41,6 +49,7 @@ func ParseEntryID(value string) (EntryID, error) {
 
 type Entry struct {
 	ID                EntryID           `json:"id"`
+	Revision          int64             `json:"revision"`
 	Description       string            `json:"description"`
 	Direction         string            `json:"direction"`
 	AmountMinor       int64             `json:"amountMinor"`
@@ -153,6 +162,20 @@ func (s *Service) create(ctx context.Context, actor identity.Principal, workspac
 	if (input.Direction != "in" && input.Direction != "out") || input.AmountMinor <= 0 || len(input.Currency) != 3 || input.Currency[0] < 'A' || input.Currency[0] > 'Z' || input.Currency[1] < 'A' || input.Currency[1] > 'Z' || input.Currency[2] < 'A' || input.Currency[2] > 'Z' || input.PaymentMethod == "" || utf8.RuneCountInString(input.PaymentMethod) > 64 || utf8.RuneCountInString(input.Note) > 1000 || !utf8.ValidString(input.Note) || !utf8.ValidString(input.PaymentMethod) {
 		return Entry{}, ErrInvalidInput
 	}
+	currencies, err := currency.List(ctx, tx, workspace)
+	if err != nil {
+		return Entry{}, err
+	}
+	enabled := false
+	for _, item := range currencies {
+		if item.Code == input.Currency && CurrencyAvailable(item) {
+			enabled = true
+			break
+		}
+	}
+	if !enabled {
+		return Entry{}, ErrInvalidInput
+	}
 	now := time.Now().UTC()
 	if input.OccurredOn == "" {
 		input.OccurredOn, err = today(ctx, tx, workspace, now)
@@ -234,7 +257,7 @@ func (s *Service) create(ctx context.Context, actor identity.Principal, workspac
 			return Entry{}, &RefundLimitError{Remaining: remaining, Currency: input.Currency}
 		}
 	}
-	entry := Entry{Description: input.Description, Direction: input.Direction, AmountMinor: input.AmountMinor, Currency: input.Currency, PaymentMethod: input.PaymentMethod, PaymentMethodName: methodName, OccurredOn: input.OccurredOn, ClientID: input.ClientID, CategoryID: input.CategoryID, CategoryName: categoryName, Note: input.Note, CreatedBy: principal.UserID, CreatedAt: now, ReplacesEntryID: input.ReplacesEntryID, RefundOfEntryID: input.RefundOfEntryID}
+	entry := Entry{Revision: 1, Description: input.Description, Direction: input.Direction, AmountMinor: input.AmountMinor, Currency: input.Currency, PaymentMethod: input.PaymentMethod, PaymentMethodName: methodName, OccurredOn: input.OccurredOn, ClientID: input.ClientID, CategoryID: input.CategoryID, CategoryName: categoryName, Note: input.Note, CreatedBy: principal.UserID, CreatedAt: now, ReplacesEntryID: input.ReplacesEntryID, RefundOfEntryID: input.RefundOfEntryID}
 	err = tx.QueryRowContext(ctx, `INSERT INTO transactions_entries (workspace_id, direction, amount_minor, currency, payment_method, occurred_on, client_id, note, created_by, created_at, replaces_entry_id, refund_of_entry_id, category_id, description) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULLIF($11,0),NULLIF($12,0),$13,$14) RETURNING id`, workspace, entry.Direction, entry.AmountMinor, entry.Currency, entry.PaymentMethod, entry.OccurredOn, entry.ClientID, entry.Note, entry.CreatedBy, now.Format(time.RFC3339Nano), entry.ReplacesEntryID, entry.RefundOfEntryID, entry.CategoryID, entry.Description).Scan(&entry.ID)
 	if err != nil {
 		return Entry{}, err
@@ -271,7 +294,7 @@ func (s *Service) Void(ctx context.Context, actor identity.Principal, workspace 
 	var client, category sql.NullInt64
 	var created string
 	entry.VoidedBy, entry.VoidedAt, entry.VoidReason = principal.UserID, now.Format(time.RFC3339Nano), reason
-	err = tx.QueryRowContext(ctx, `UPDATE transactions_entries SET voided_by = $1, voided_at = $2, void_reason = $3 WHERE workspace_id = $4 AND id = $5 AND voided_at IS NULL RETURNING id, direction, amount_minor, currency, payment_method, occurred_on, client_id, note, created_by, created_at, COALESCE(replaces_entry_id, 0), COALESCE(refund_of_entry_id, 0), category_id, description`, principal.UserID, entry.VoidedAt, reason, workspace, entryID).Scan(&entry.ID, &entry.Direction, &entry.AmountMinor, &entry.Currency, &entry.PaymentMethod, &entry.OccurredOn, &client, &entry.Note, &entry.CreatedBy, &created, &entry.ReplacesEntryID, &entry.RefundOfEntryID, &category, &entry.Description)
+	err = tx.QueryRowContext(ctx, `UPDATE transactions_entries SET voided_by = $1, voided_at = $2, void_reason = $3 WHERE workspace_id = $4 AND id = $5 AND voided_at IS NULL RETURNING id, direction, amount_minor, currency, payment_method, occurred_on, client_id, note, created_by, created_at, COALESCE(replaces_entry_id, 0), COALESCE(refund_of_entry_id, 0), category_id, description, revision`, principal.UserID, entry.VoidedAt, reason, workspace, entryID).Scan(&entry.ID, &entry.Direction, &entry.AmountMinor, &entry.Currency, &entry.PaymentMethod, &entry.OccurredOn, &client, &entry.Note, &entry.CreatedBy, &created, &entry.ReplacesEntryID, &entry.RefundOfEntryID, &category, &entry.Description, &entry.Revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Entry{}, ErrInvalidInput
 	}
@@ -355,7 +378,7 @@ func (s *Service) list(ctx context.Context, actor identity.Principal, workspace 
 		}
 	}
 	args := []any{workspace, (filter.Page - 1) * limit, filter.ClientID, filter.CategoryID, filter.PaymentMethod, filter.Direction, filter.From, filter.To, filter.RefundOfEntryID, filter.EntryID}
-	query := `SELECT e.id, e.direction, e.amount_minor, e.currency, e.payment_method, m.display_name, e.occurred_on, e.client_id, e.note, e.created_by, e.created_at, COALESCE(e.voided_by, 0), COALESCE(e.voided_at, ''), e.void_reason, COALESCE(e.replaces_entry_id, 0), COALESCE(e.refund_of_entry_id, 0), e.category_id, COALESCE(c.name, ''), e.description FROM transactions_entries e JOIN transactions_payment_methods m ON m.workspace_id = e.workspace_id AND m.name = e.payment_method LEFT JOIN transactions_expense_categories c ON c.workspace_id = e.workspace_id AND c.id = e.category_id WHERE e.workspace_id = $1 AND (CAST($3 AS BIGINT) = 0 OR e.client_id = $3) AND (CAST($4 AS BIGINT) = 0 OR e.category_id = $4) AND ($5 = '' OR e.payment_method = $5) AND ($6 = '' OR e.direction = $6) AND ($7 = '' OR e.occurred_on >= $7) AND ($8 = '' OR e.occurred_on <= $8) AND (CAST($9 AS BIGINT) = 0 OR e.refund_of_entry_id = $9) AND (CAST($10 AS BIGINT) = 0 OR e.id = $10)`
+	query := `SELECT e.id, e.direction, e.amount_minor, e.currency, e.payment_method, m.display_name, e.occurred_on, e.client_id, e.note, e.created_by, e.created_at, COALESCE(e.voided_by, 0), COALESCE(e.voided_at, ''), e.void_reason, COALESCE(e.replaces_entry_id, 0), COALESCE(e.refund_of_entry_id, 0), e.category_id, COALESCE(c.name, ''), e.description, e.revision FROM transactions_entries e JOIN transactions_payment_methods m ON m.workspace_id = e.workspace_id AND m.name = e.payment_method LEFT JOIN transactions_expense_categories c ON c.workspace_id = e.workspace_id AND c.id = e.category_id WHERE e.workspace_id = $1 AND (CAST($3 AS BIGINT) = 0 OR e.client_id = $3) AND (CAST($4 AS BIGINT) = 0 OR e.category_id = $4) AND ($5 = '' OR e.payment_method = $5) AND ($6 = '' OR e.direction = $6) AND ($7 = '' OR e.occurred_on >= $7) AND ($8 = '' OR e.occurred_on <= $8) AND (CAST($9 AS BIGINT) = 0 OR e.refund_of_entry_id = $9) AND (CAST($10 AS BIGINT) = 0 OR e.id = $10)`
 	addArg := func(value any) string {
 		args = append(args, value)
 		return "$" + strconv.Itoa(len(args))
@@ -483,7 +506,7 @@ func scanEntry(rows *sql.Rows) (Entry, error) {
 	var entry Entry
 	var client, category sql.NullInt64
 	var created string
-	if err := rows.Scan(&entry.ID, &entry.Direction, &entry.AmountMinor, &entry.Currency, &entry.PaymentMethod, &entry.PaymentMethodName, &entry.OccurredOn, &client, &entry.Note, &entry.CreatedBy, &created, &entry.VoidedBy, &entry.VoidedAt, &entry.VoidReason, &entry.ReplacesEntryID, &entry.RefundOfEntryID, &category, &entry.CategoryName, &entry.Description); err != nil {
+	if err := rows.Scan(&entry.ID, &entry.Direction, &entry.AmountMinor, &entry.Currency, &entry.PaymentMethod, &entry.PaymentMethodName, &entry.OccurredOn, &client, &entry.Note, &entry.CreatedBy, &created, &entry.VoidedBy, &entry.VoidedAt, &entry.VoidReason, &entry.ReplacesEntryID, &entry.RefundOfEntryID, &category, &entry.CategoryName, &entry.Description, &entry.Revision); err != nil {
 		return Entry{}, err
 	}
 	if client.Valid {
@@ -525,7 +548,7 @@ func (s *Service) EntriesByID(ctx context.Context, actor identity.Principal, wor
 		args = append(args, entryID)
 		placeholders = append(placeholders, "$"+strconv.Itoa(len(args)))
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT e.id, e.direction, e.amount_minor, e.currency, e.payment_method, m.display_name, e.occurred_on, e.client_id, e.note, e.created_by, e.created_at, COALESCE(e.voided_by, 0), COALESCE(e.voided_at, ''), e.void_reason, COALESCE(e.replaces_entry_id, 0), COALESCE(e.refund_of_entry_id, 0), e.category_id, COALESCE(c.name, ''), e.description FROM transactions_entries e JOIN transactions_payment_methods m ON m.workspace_id = e.workspace_id AND m.name = e.payment_method LEFT JOIN transactions_expense_categories c ON c.workspace_id = e.workspace_id AND c.id = e.category_id WHERE e.workspace_id = $1 AND e.id IN (`+strings.Join(placeholders, ",")+`)`, args...)
+	rows, err := s.db.QueryContext(ctx, `SELECT e.id, e.direction, e.amount_minor, e.currency, e.payment_method, m.display_name, e.occurred_on, e.client_id, e.note, e.created_by, e.created_at, COALESCE(e.voided_by, 0), COALESCE(e.voided_at, ''), e.void_reason, COALESCE(e.replaces_entry_id, 0), COALESCE(e.refund_of_entry_id, 0), e.category_id, COALESCE(c.name, ''), e.description, e.revision FROM transactions_entries e JOIN transactions_payment_methods m ON m.workspace_id = e.workspace_id AND m.name = e.payment_method LEFT JOIN transactions_expense_categories c ON c.workspace_id = e.workspace_id AND c.id = e.category_id WHERE e.workspace_id = $1 AND e.id IN (`+strings.Join(placeholders, ",")+`)`, args...)
 	if err != nil {
 		return nil, err
 	}

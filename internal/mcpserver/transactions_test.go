@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/transactions"
@@ -17,6 +18,9 @@ import (
 
 func TestTransactionsTotalsTool(t *testing.T) {
 	state := newTestState(t, config.MCP{})
+	if err := currency.NewService(state.db, state.auth).SetCurrencies(context.Background(), state.actor, state.workspaceKey, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "EUR", Decimals: 2}}); err != nil {
+		t.Fatal(err)
+	}
 	handler := NewHandler(state.auth, config.MCP{}, slog.New(slog.NewTextHandler(io.Discard, nil)), WithTransactions(transactions.NewService(state.db, state.auth)))
 	owner := connectClient(t, handler, state.token.Secret, false)
 	for _, entry := range []map[string]any{
@@ -96,6 +100,18 @@ func TestTransactionsTotalsTool(t *testing.T) {
 
 func TestTransactionsTotalsPaginationBeyondCollectionLimit(t *testing.T) {
 	state := newTestState(t, config.MCP{})
+	configured := []currency.Currency{{Code: "USD", Decimals: 2, Default: true}}
+	for _, item := range currency.Available() {
+		if item.Code != "USD" && transactions.CurrencyAvailable(item) && len(configured) < 102 {
+			configured = append(configured, item)
+		}
+	}
+	if len(configured) != 102 {
+		t.Fatalf("available currencies = %d, need 102", len(configured))
+	}
+	if err := currency.NewService(state.db, state.auth).SetCurrencies(context.Background(), state.actor, state.workspaceKey, configured); err != nil {
+		t.Fatal(err)
+	}
 	handler := NewHandler(state.auth, config.MCP{}, slog.New(slog.NewTextHandler(io.Discard, nil)), WithTransactions(transactions.NewService(state.db, state.auth)))
 	owner := connectClient(t, handler, state.token.Secret, false)
 	create := func(tool string, args map[string]any) *mcp.CallToolResult {
@@ -112,9 +128,8 @@ func TestTransactionsTotalsPaginationBeyondCollectionLimit(t *testing.T) {
 			create("transactions_category_archive_v1", map[string]any{"workspaceId": state.workspaceID, "categoryId": category.ID})
 		}
 	}
-	for i := range 101 {
-		currency := fmt.Sprintf("A%c%c", 'A'+i/26, 'A'+i%26)
-		create("transactions_create_v1", map[string]any{"workspaceId": state.workspaceID, "description": "Receipt", "direction": "in", "amountMinor": 1, "currency": currency, "paymentMethod": "card", "occurredOn": "2026-01-01"})
+	for _, item := range configured[1:] {
+		create("transactions_create_v1", map[string]any{"workspaceId": state.workspaceID, "description": "Receipt", "direction": "in", "amountMinor": 1, "currency": item.Code, "paymentMethod": "card", "occurredOn": "2026-01-01"})
 	}
 	args := map[string]any{"workspaceId": state.workspaceID, "period": "custom", "start": "2026-01-01", "end": "2026-01-31", "limit": 100}
 	counts := map[transactionsTotalsKind]int{}

@@ -13,6 +13,7 @@ import (
 
 	"example.com/dynamis-code/apps-template/internal/catalog"
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/engagement"
 	appfiles "example.com/dynamis-code/apps-template/internal/files"
 	"example.com/dynamis-code/apps-template/internal/httpapi"
@@ -205,6 +206,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		telemetryProvider.Shutdown(context.Background())
 		return nil, fmt.Errorf("initialize web handler: %w", err)
 	}
+	webHandler.SetCurrencyService(currency.NewService(db, identityService))
 	webHandler.EnableCatalog(catalogService)
 	webHandler.EnableTransactions(transactionsService)
 	webHandler.EnableScheduling(schedulingService)

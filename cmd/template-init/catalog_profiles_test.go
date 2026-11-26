@@ -235,6 +235,15 @@ func TestGenerateCatalogProfile(t *testing.T) {
 					t.Errorf("%s, selected=%v, err=%v", path, selected, err)
 				}
 			}
+			for _, path := range []string{"internal/currency/currency.go", "internal/platform/database/migrations/000063_workspace_currencies.sql", "internal/web/currency_settings.go"} {
+				if _, err := os.Stat(filepath.Join(output, path)); err != nil {
+					t.Errorf("shared currency source missing %s: %v", path, err)
+				}
+			}
+			migrationTest, err := os.ReadFile(filepath.Join(output, "internal/platform/database/migrate_workspace_currencies_test.go"))
+			if err != nil || !strings.Contains(string(migrationTest), "func TestWorkspaceCurrenciesMigrationWithoutCatalog(") || strings.Contains(string(migrationTest), "func TestWorkspaceCurrenciesMigrationPreservesCatalog(") != selected {
+				t.Errorf("workspace currency migration tests, catalog=%v: %v", selected, err)
+			}
 			for path, needle := range map[string]string{
 				"api/openapi.json":            "/api/v1/workspaces/{workspaceId}/catalog",
 				"internal/httpapi/handler.go": "h.listCatalog",

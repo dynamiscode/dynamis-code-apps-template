@@ -20,6 +20,9 @@ func TestTransactionsTotalsWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'USD', 2, TRUE), ($1, 'EUR', 2, FALSE), ($1, 'GBP', 2, FALSE)`, workspace); err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)

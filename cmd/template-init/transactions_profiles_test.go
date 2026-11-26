@@ -24,6 +24,10 @@ func TestParseProfilesTransactionsRequiresIdentityAndClients(t *testing.T) {
 func TestTransactionsPathsIncludeBrowserAndMigrations(t *testing.T) {
 	for _, path := range []string{
 		"internal/browsertest/transactions_test.go",
+		"internal/web/transaction_create_fields.templ",
+		"internal/web/transaction_create_fields_templ.go",
+		"internal/web/transaction_create_fields_test.go",
+		"internal/portability/transactions_test.go",
 		"internal/platform/database/transactions_migrate_test.go",
 		"internal/platform/database/migrations/000057_transactions.sql",
 		"internal/platform/database/migrations/000058_transactions_client_erasure.sql",
@@ -31,6 +35,8 @@ func TestTransactionsPathsIncludeBrowserAndMigrations(t *testing.T) {
 		"internal/platform/database/migrations/000060_transactions_method_names.sql",
 		"internal/platform/database/migrations/000061_transactions_categories.sql",
 		"internal/platform/database/migrations/000062_transaction_description.sql",
+		"internal/platform/database/migrations/000064_transactions_revision.sql",
+		"internal/platform/database/migrations/000065_transactions_client_revision.sql",
 	} {
 		if !transactionsPath(path) {
 			t.Errorf("%s must be omitted when Transactions is disabled", path)
@@ -46,6 +52,18 @@ func TestTransactionsPruningRejectsHistoricalViews(t *testing.T) {
 	if strings.Contains(pruned, "ListTransactions") || strings.Contains(pruned, "CanReadTransactions") ||
 		!strings.Contains(pruned, `return listKey != "transactions"`) {
 		t.Fatalf("unexpected list view pruning: %s", pruned)
+	}
+}
+
+func TestTransactionsOmissionPrunesCapabilityEvidence(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "docs", "capabilities.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pruned := string(disableTransactionsSource("docs/capabilities.md", raw))
+	if strings.Contains(pruned, "../internal/transactions/") || strings.Contains(pruned, "../internal/web/transactions_") || !strings.Contains(pruned, "## Scheduling resources (#579)") {
+		t.Fatal("Transactions omission must remove its evidence and retain unrelated capability documentation")
 	}
 }
 
@@ -76,9 +94,14 @@ func TestTransactionsProfileGeneration(t *testing.T) {
 			if err != nil || strings.Contains(string(lock), `"Transactions"`) != enabled {
 				t.Fatalf("template.lock transactions selection: %s, %v", lock, err)
 			}
-			for _, path := range []string{"internal/transactions", "internal/httpapi/transactions.go", "internal/web/transactions.go", "internal/mcpserver/transactions.go", "internal/appctl/transactions.go", "internal/browsertest/transactions_test.go", "internal/platform/database/transactions_migrate_test.go", "internal/platform/database/migrations/000057_transactions.sql", "internal/platform/database/migrations/000058_transactions_client_erasure.sql", "internal/platform/database/migrations/000059_transactions_corrections.sql", "internal/platform/database/migrations/000060_transactions_method_names.sql", "internal/platform/database/migrations/000061_transactions_categories.sql", "internal/platform/database/migrations/000062_transaction_description.sql"} {
+			for _, path := range []string{"internal/transactions", "internal/httpapi/transactions.go", "internal/web/transactions.go", "internal/mcpserver/transactions.go", "internal/appctl/transactions.go", "internal/browsertest/transactions_test.go", "internal/platform/database/transactions_migrate_test.go", "internal/platform/database/migrations/000057_transactions.sql", "internal/platform/database/migrations/000058_transactions_client_erasure.sql", "internal/platform/database/migrations/000059_transactions_corrections.sql", "internal/platform/database/migrations/000060_transactions_method_names.sql", "internal/platform/database/migrations/000061_transactions_categories.sql", "internal/platform/database/migrations/000062_transaction_description.sql", "internal/platform/database/migrations/000064_transactions_revision.sql", "internal/platform/database/migrations/000065_transactions_client_revision.sql"} {
 				_, err := os.Stat(filepath.Join(output, path))
 				if enabled && err != nil || !enabled && !os.IsNotExist(err) {
+					t.Errorf("%s: enabled=%v, error=%v", path, enabled, err)
+				}
+			}
+			for _, path := range []string{"internal/portability/transactions_test.go", "internal/web/transaction_create_fields.templ", "internal/web/transaction_create_fields_templ.go", "internal/web/transaction_create_fields_test.go"} {
+				if _, err := os.Stat(filepath.Join(output, path)); enabled && err != nil || !enabled && !os.IsNotExist(err) {
 					t.Errorf("%s: enabled=%v, error=%v", path, enabled, err)
 				}
 			}

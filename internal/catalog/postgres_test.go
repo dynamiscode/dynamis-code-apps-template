@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/testdb"
@@ -26,7 +27,7 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := NewService(db, auth, nil)
-	if err := service.SetCurrencies(ctx, actor, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}}); err != nil {
+	if err := currency.NewService(db, auth).SetCurrencies(ctx, actor, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BHD", Decimals: 3}}); err != nil {
 		t.Fatal(err)
 	}
 	minutes := 45
@@ -34,8 +35,8 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	amount := "0.123456789012345678"
-	price, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"})
+	amount := "0.123"
+	price, err := service.AddPrice(ctx, actor, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "fixed", Amount: &amount, Currency: "BHD", Variant: "Visit"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +77,7 @@ func TestPostgresCatalogCreateAndList(t *testing.T) {
 	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "manual", Currency: "USD", Variant: "Visit"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "fixed", Amount: &amount, Currency: "BTC", Variant: "Visit"}); err != nil {
+	if err := service.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, price.ID, PriceOption{Mode: "fixed", Amount: &amount, Currency: "BHD", Variant: "Visit"}); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := service.List(ctx, actor, owner.WorkspaceID, false)

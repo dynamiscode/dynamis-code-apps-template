@@ -12,7 +12,10 @@ import (
 	"testing"
 	"time"
 
+	nethtml "golang.org/x/net/html"
+
 	"example.com/dynamis-code/apps-template/internal/catalog"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
@@ -178,7 +181,7 @@ func TestCatalogCreate(t *testing.T) {
 	if invalid.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("invalid = %d %s", invalid.Code, invalid.Body.String())
 	}
-	for _, want := range []string{`name="name" value="Draft &lt;consultation&gt;"`, `name="duration_minutes" value="-3"`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
+	for _, want := range []string{`name="name" value="Draft &lt;consultation&gt;"`, `name="duration_minutes" value="-3"`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected`, `name="variant" value="Special"`, `name="eligibility" value="Student &amp; staff"`} {
 		if !strings.Contains(invalid.Body.String(), want) {
 			t.Errorf("rejected create missing %s", want)
 		}
@@ -224,7 +227,7 @@ func TestCatalogCurrencySelectionUsesWorkspaceConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := webHandler.catalogService.SetCurrencies(context.Background(), principal, workspaceID, []catalog.Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2, Default: true}}); err != nil {
+	if err := webHandler.currencyService.SetCurrencies(context.Background(), principal, workspaceID, []currency.Currency{{Code: "USD", Decimals: 2}, {Code: "EUR", Decimals: 2, Default: true}}); err != nil {
 		t.Fatal(err)
 	}
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -236,6 +239,109 @@ func TestCatalogCurrencySelectionUsesWorkspaceConfiguration(t *testing.T) {
 	page := request(webHandler.Routes(), http.MethodGet, path, nil, cookies, nil).Body.String()
 	if !strings.Contains(page, `value="EUR" selected`) || !strings.Contains(page, `value="USD"`) || strings.Contains(page, `value="BTC"`) {
 		t.Fatal("create form must offer workspace currencies and select its default")
+	}
+	for _, want := range []string{
+		`for="catalog-create-name"`, `id="catalog-create-name"`,
+		`for="catalog-create-duration"`, `id="catalog-create-duration"`,
+		`for="catalog-create-amount"`, `id="catalog-create-amount"`,
+		`for="catalog-create-variant"`, `id="catalog-create-variant"`,
+		`for="catalog-create-eligibility"`, `id="catalog-create-eligibility"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("catalog create form missing %q", want)
+		}
+	}
+}
+
+func TestCatalogCurrencySearchPreservesDrafts(t *testing.T) {
+	handler, auth, workspaceID, owner := testWebRaw(t, 2)
+	ctx := context.Background()
+	principal, err := auth.Authorize(ctx, owner.UserID, workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := handler.currencyService.SetCurrencies(ctx, principal, workspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "EUR", Decimals: 2}, {Code: "BHD", Decimals: 3}}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	routes := handler.Routes()
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	created := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Seed"}, "currency": {"USD"}, "variant": {"Original"}}, cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatal(created.Code)
+	}
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	detail := catalogDetailLinks(t, page.Body.String())[0]
+	page = request(routes, http.MethodGet, detail, nil, cookies, nil)
+	add := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/prices)"`).FindStringSubmatch(page.Body.String())
+	edit := regexp.MustCompile(`action="([^"]+/catalog/[^"/]+/prices/[^"/]+/edit)"`).FindStringSubmatch(page.Body.String())
+	if len(add) != 2 || len(edit) != 2 {
+		t.Fatal("price forms missing")
+	}
+	for _, action := range []string{path, add[1], edit[1]} {
+		form := url.Values{"csrf": {session.CSRFSecret}, "name": {"Draft name"}, "mode": {"fixed"}, "amount": {"1.23"}, "currency": {"USD"}, "variant": {"Draft variant"}, "currency_search": {"eur"}, "picker_action": {"currency"}}
+		response := request(routes, http.MethodPost, action, form, cookies, nil)
+		if response.Code != http.StatusOK {
+			t.Fatalf("search %s: %d", action, response.Code)
+		}
+		matches := regexp.MustCompile(`(?s)<form[^>]*method="post"[^>]*action="` + regexp.QuoteMeta(action) + `"[^>]*>.*?</form>`).FindString(response.Body.String())
+		if matches == "" {
+			t.Fatalf("search %s missing POST form", action)
+		}
+		for _, want := range []string{`name="currency_search" value="eur"`, `name="amount" value="1.23"`, `name="variant" value="Draft variant"`} {
+			if !strings.Contains(matches, want) {
+				t.Errorf("search %s missing %s", action, want)
+			}
+		}
+		doc, err := nethtml.Parse(strings.NewReader(matches))
+		if err != nil {
+			t.Fatal(err)
+		}
+		type optionState struct{ selected, hidden bool }
+		options := make(map[string]optionState)
+		var visit func(*nethtml.Node, bool)
+		visit = func(node *nethtml.Node, inCurrency bool) {
+			if node.Type == nethtml.ElementNode && node.Data == "select" {
+				inCurrency = false
+				for _, attr := range node.Attr {
+					if attr.Key == "name" && attr.Val == "currency" {
+						inCurrency = true
+					}
+				}
+			}
+			if inCurrency && node.Type == nethtml.ElementNode && node.Data == "option" {
+				var value string
+				var state optionState
+				for _, attr := range node.Attr {
+					switch attr.Key {
+					case "value":
+						value = attr.Val
+					case "selected":
+						state.selected = true
+					case "hidden":
+						state.hidden = true
+					}
+				}
+				options[value] = state
+			}
+			for child := node.FirstChild; child != nil; child = child.NextSibling {
+				visit(child, inCurrency)
+			}
+		}
+		visit(doc, false)
+		if usd, ok := options["USD"]; !ok || !usd.selected || usd.hidden {
+			t.Errorf("search %s did not preserve the visible USD selection", action)
+		}
+		if eur, ok := options["EUR"]; !ok || eur.hidden {
+			t.Errorf("search %s did not offer the matching EUR option", action)
+		}
+		if bhd, ok := options["BHD"]; ok && !bhd.hidden {
+			t.Errorf("search %s offered nonmatching BHD", action)
+		}
 	}
 }
 
@@ -343,7 +449,7 @@ func TestCatalogList(t *testing.T) {
 
 func TestCatalogEditWeb(t *testing.T) {
 	webHandler, auth, workspaceID, owner := testWebRaw(t, 2)
-	enableTestBitcoin(t, webHandler, auth, workspaceID, owner.UserID)
+	enableTestDinar(t, webHandler, auth, workspaceID, owner.UserID)
 	routes := webHandler.Routes()
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -372,7 +478,7 @@ func TestCatalogEditWeb(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("edit: %d", response.Code)
 	}
-	response = request(routes, http.MethodPost, entryPath+"/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Visit"}}, cookies, nil)
+	response = request(routes, http.MethodPost, entryPath+"/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123"}, "currency": {"BHD"}, "variant": {"Visit"}}, cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("create price: %d", response.Code)
 	}
@@ -460,8 +566,8 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 		want         []string
 	}{
 		{"entry", entries[0][1], url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Draft <entry>"}, "duration_minutes": {"-3"}}, []string{`name="name" value="Draft &lt;entry&gt;"`, `name="duration_minutes" value="-3"`}},
-		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected disabled`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
-		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="EUR" selected disabled`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+		{"edit price", priceForms[0][1], url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Draft <edit>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="BTC" selected`, `name="variant" value="Draft &lt;edit&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
+		{"add price", entryPath + "/prices", url.Values{"csrf": {session.CSRFSecret}, "mode": {"manual"}, "amount": {"0.123456789012345678"}, "currency": {"EUR"}, "variant": {"Draft <add>"}, "eligibility": {"Student & staff"}}, []string{`value="manual" selected`, `name="amount" value="0.123456789012345678"`, `value="EUR" selected`, `name="variant" value="Draft &lt;add&gt;"`, `name="eligibility" value="Student &amp; staff"`}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -510,7 +616,7 @@ func TestCatalogRejectedFormsKeepOnlyTheirValues(t *testing.T) {
 
 func TestCatalogPricesWeb(t *testing.T) {
 	webHandler, auth, workspaceID, owner := testWebRaw(t, 2)
-	enableTestBitcoin(t, webHandler, auth, workspaceID, owner.UserID)
+	enableTestDinar(t, webHandler, auth, workspaceID, owner.UserID)
 	routes := webHandler.Routes()
 	session, err := auth.CreateSession(context.Background(), owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
@@ -526,7 +632,7 @@ func TestCatalogPricesWeb(t *testing.T) {
 		t.Fatal("missing price form")
 	}
 	pricePath := matches[1]
-	for _, form := range []url.Values{{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Visit"}}, {"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Week"}}} {
+	for _, form := range []url.Values{{"csrf": {session.CSRFSecret}, "mode": {"fixed"}, "amount": {"0.123"}, "currency": {"BHD"}, "variant": {"Visit"}}, {"csrf": {session.CSRFSecret}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Week"}}} {
 		result := request(routes, http.MethodPost, pricePath, form, cookies, nil)
 		if result.Code != http.StatusSeeOther {
 			t.Fatalf("price = %d %s", result.Code, result.Body.String())
@@ -544,18 +650,18 @@ func TestCatalogPricesWeb(t *testing.T) {
 		}
 	}
 	page = request(routes, http.MethodGet, path, nil, cookies, nil)
-	if !strings.Contains(page.Body.String(), "0.123456789012345678") || !strings.Contains(page.Body.String(), "Week") {
+	if !strings.Contains(page.Body.String(), "0.123") || !strings.Contains(page.Body.String(), "Week") {
 		t.Fatal(page.Body.String())
 	}
 }
 
-func enableTestBitcoin(t *testing.T, handler *Handler, auth *identity.Service, workspaceID identity.WorkspaceID, userID identity.UserID) {
+func enableTestDinar(t *testing.T, handler *Handler, auth *identity.Service, workspaceID identity.WorkspaceID, userID identity.UserID) {
 	t.Helper()
 	principal, err := auth.Authorize(context.Background(), userID, workspaceID, identity.ResourcesWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := handler.catalogService.SetCurrencies(context.Background(), principal, workspaceID, []catalog.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BTC", Decimals: 18}}); err != nil {
+	if err := handler.currencyService.SetCurrencies(context.Background(), principal, workspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}, {Code: "BHD", Decimals: 3}}); err != nil {
 		t.Fatal(err)
 	}
 }

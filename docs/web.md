@@ -22,6 +22,12 @@ Catalog profile: `/workspaces/{workspaceId}/catalog` lists active entries and th
 
 When creating a catalog entry, an entered amount creates a fixed price; an empty amount creates a manual price. Currency and other price options are under advanced settings.
 
+Workspace currency settings are available independently of the Catalog profile.
+Resource readers can view enabled currencies; owners and admins can enable a
+currency from the static list, disable currencies, and choose one default.
+Search and selection work without JavaScript. Existing amounts retain their
+currency and precision.
+
 Catalog profile: the resource schedule shows bookings in the workspace time zone. Writers can select a catalog entry and start time; readers see the schedule without booking controls. Invalid, overlapping, and out-of-hours requests retain the draft and show an error.
 
 Transactions administrators can open Manage transactions from the transactions menu, then choose
@@ -36,6 +42,10 @@ Transaction entries require a short description separate from the optional note.
 Historical entries without one show a localized link to their details. Detail
 dialogs preserve the list context, with ordinary navigation when JavaScript is
 unavailable. Rejected submissions and client-picker requests retain the draft.
+Owners and administrators can edit individual fields on active entries; each
+save checks the entry revision and records an audit event. Conflicts retain the
+draft for explicit retry. Currency changes preserve the exact numeric amount,
+never exchange it, and reject precision loss.
 
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.

@@ -816,6 +816,7 @@
 				}
 			}
 			if (!busy) updateDirty(form);
+			if (!busy) form.ownerDocument?._entryValidation?.update(form);
 		}
 
 		// Dirty tracking, enable-by-change, and the unsaved-changes warning.
@@ -1226,6 +1227,8 @@
 			wireDetailDialogs(document);
 			wireDetailSplit(document);
 			wireInlineTitles(document);
+			wireEntryFields(document);
+			wireEntryValidation(document);
 			wireConfirmSelects(document);
 			const alert = document.querySelector('[role="alert"].error');
 			const again = focusedId && document.getElementById(focusedId);
@@ -1252,6 +1255,7 @@
 		});
 
 		enhance(document, true);
+		wireEntryValidation(document);
 		// Full-page errors: move focus to the first error so it is announced.
 		const firstError = document.querySelector('.error[role="alert"]');
 		if (firstError && !document.querySelector("[autofocus]")) {
@@ -1554,6 +1558,67 @@
 		if (initiallyOpen) catalogDialog.showModal();
 	};
 	const wireTransactionsDialog = (root) => {
+		for (const field of root.querySelectorAll?.("[data-transaction-draft-field]") || []) {
+			if (field.dataset.transactionDraftBound) continue;
+			const input = root.getElementById(field.dataset.transactionDraftField);
+			const summary = field.querySelector("[data-transaction-draft-value]");
+			if (!input || !summary) continue;
+			field.dataset.transactionDraftBound = "true";
+			const update = () => {
+				const value = input.tagName === "SELECT" ? input.selectedOptions[0]?.textContent.trim() : input.value;
+				summary.textContent = input.value ? value : summary.dataset.empty;
+			};
+			input.addEventListener("input", update);
+			input.addEventListener("change", update);
+			input.addEventListener("invalid", () => { field.open = true; });
+			const trigger = field.querySelector(":scope > summary");
+			trigger?.addEventListener("click", () => {
+				if (field.open) return;
+				for (const other of root.querySelectorAll("[data-transaction-draft-field][open]")) {
+					if (other !== field) other.open = false;
+				}
+				setTimeout(() => input.focus(), 0);
+			});
+			field.addEventListener("keydown", (event) => {
+				if (event.key !== "Escape" || event.isComposing || !field.open) return;
+				event.preventDefault();
+				event.stopPropagation();
+				field.open = false;
+				trigger?.focus();
+			});
+			const search = field.querySelector("#transactions-client-search");
+			const searchButton = field.querySelector('button[name="picker_action"][value="search"]');
+			search?.addEventListener("keydown", (event) => {
+				if (event.key !== "Enter" || event.isComposing || !searchButton) return;
+				event.preventDefault();
+				search.form.requestSubmit(searchButton);
+			});
+		}
+		for (const choice of root.querySelectorAll?.("[data-transaction-choice]") || []) {
+			if (choice.dataset.bound) continue;
+			choice.dataset.bound = "true";
+			const summary = choice.querySelector("summary");
+			const cancel = choice.querySelector("[data-transaction-choice-cancel]");
+			cancel?.addEventListener("click", (event) => {
+				if (choice.hasAttribute("data-transaction-choice-draft")) return;
+				event.preventDefault();
+				const form = cancel.closest("form");
+				form?.reset();
+				if (form) form.dataset.dirty = "";
+				choice.open = false;
+				summary?.focus();
+			});
+			summary?.addEventListener("click", () => {
+				if (!choice.open) setTimeout(() => (choice.querySelector(".entry-picker-trigger:not([hidden])") || choice.querySelector('select, input:not([type="hidden"])'))?.focus(), 0);
+			});
+			choice.addEventListener("keydown", (event) => {
+				if (event.key !== "Escape" || !choice.open) return;
+				event.preventDefault();
+				event.stopPropagation();
+				if (cancel) cancel.click();
+				else { choice.open = false; summary?.focus(); }
+			});
+		}
 		const details = root.querySelector("[data-transactions-details-dialog]");
 		const detailsClose = details?.querySelector("[data-transactions-details-close]");
 		if (details && detailsClose && !details.dataset.bound && typeof details.showModal === "function") {
@@ -1562,6 +1627,7 @@
 			details.addEventListener("click", (event) => { if (event.target === details) details.close(); });
 			details.addEventListener("close", () => { window.location.assign(detailsClose.href); });
 			details.showModal();
+			details.querySelector('[role="alert"]')?.focus();
 		}
 		const dialog = root.querySelector("[data-transactions-dialog]");
 		const open = root.querySelector("[data-transactions-create]");
@@ -1576,7 +1642,12 @@
 		dialog.addEventListener("close", () => open?.focus());
 		if (initiallyOpen) {
 			dialog.showModal();
-			if (!dialog.querySelector("[autofocus]")) dialog.querySelector('[role="alert"].error')?.focus();
+			const autofocus = dialog.querySelector("[autofocus]");
+			if (autofocus) {
+				for (let section = autofocus.closest?.("details"); section && dialog.contains(section); section = section.parentElement?.closest("details")) section.open = true;
+				autofocus.focus();
+			}
+			else dialog.querySelector('[role="alert"].error')?.focus();
 		}
 	};
 	const wireClientDialog = (root) => {
@@ -1679,7 +1750,8 @@
 					select.selectedIndex = previous;
 					select.dispatchEvent(new Event("input", { bubbles: true }));
 				}
-				select.focus();
+				const trigger = select.closest?.("[data-entry-picker-enhanced]")?.querySelector(".entry-picker-trigger");
+				(trigger && !trigger.hidden ? trigger : select).focus();
 			});
 			accept.addEventListener("click", () => {
 				confirmed = true;
@@ -1695,6 +1767,8 @@
 			const input = details.querySelector("[data-inline-input]");
 			const form = details.querySelector("form");
 			const cancel = details.querySelector("[data-inline-cancel]");
+			const pending = summary?.querySelector?.("[data-inline-pending]");
+			if (pending) pending.textContent = details.ownerDocument.querySelector("[data-messages]")?.getAttribute("data-msg-unsaved") || "";
 			if (!summary || !input || !form || !cancel || details.dataset.inlineBound) continue;
 			details.dataset.inlineBound = "true";
 			let opening = false;
@@ -1708,6 +1782,7 @@
 				details.removeAttribute("data-inline-dirty-on-load");
 				input.dispatchEvent(new Event("input", { bubbles: true }));
 				form.dataset.dirty = "";
+				if (pending) pending.hidden = true;
 				details.open = false;
 				if (restoreFocus) summary.focus();
 			};
@@ -1722,7 +1797,10 @@
 			});
 			cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
 			details.ownerDocument.addEventListener("click", (event) => {
-				if (details.open && !details.contains(event.target) && form.dataset.submitting !== "true") dismiss(false);
+				if (details.open && !details.contains(event.target) && form.dataset.submitting !== "true") {
+					if (pending) pending.hidden = input.value === details.dataset.inlineSaved && !details.hasAttribute("data-inline-dirty-on-load");
+					details.open = false;
+				}
 			});
 			details.addEventListener("keydown", (event) => {
 				const multiline = input.hasAttribute("data-inline-multiline");
@@ -1730,6 +1808,7 @@
 					(multiline ? (event.ctrlKey || event.metaKey) && !event.shiftKey : !event.shiftKey)) {
 					event.preventDefault();
 					if (!details.hasAttribute("data-inline-explicit-retry")) {
+						if (form.querySelector("button[type=submit]:disabled")) return;
 						const confirm = form.querySelector("button[type=submit][data-confirm]");
 						if (confirm) confirm.click();
 						else form.requestSubmit();
@@ -1745,6 +1824,359 @@
 	};
 
 
+	const entryPickerSearchable = (total, options) => Math.max(Number(total) || 0, options) > 5;
+
+	const wireEntryValidation = (root) => {
+		const doc = root.ownerDocument || root;
+		if (!doc._entryValidation) {
+			const previous = new WeakMap();
+			const buttons = new WeakMap();
+			const numeric = (el) => el.dataset?.entryNumber || (el.hasAttribute?.("data-inline-input") && el.closest("[data-entry-number]")?.dataset.entryNumber);
+			const mode = (el) => {
+				const kind = numeric(el);
+				const modeName = el.dataset.entryNumberMode;
+				return modeName && el.form?.elements.namedItem(modeName)?.value === "minor" ? "minor" : kind;
+			};
+			const trimAmount = (value) => value.replace(/^\p{White_Space}+|\p{White_Space}+$/gu, "");
+			const allowed = (value, kind, el) => {
+				if (kind === "integer") return /^[0-9]*$/.test(value);
+				if (kind === "minor") return /^\p{White_Space}*\+?[0-9]*\p{White_Space}*$/u.test(value);
+				if (kind === "decimal") return /^[0-9]*\.?[0-9]*$/.test(value);
+				if (kind === "float") return /^[+\-0-9.eE]*$/.test(value);
+				const metadata = el.dataset.entryAmountDigits !== undefined ? el : el.closest("[data-entry-amount-digits]");
+				for (const separator of [metadata?.dataset.entryAmountDecimal, metadata?.dataset.entryAmountGroup]) {
+					if (separator) value = value.split(separator).join("");
+				}
+				return (kind === "signed-amount" ? /^-?[\p{Decimal_Number}.,\u066b\u066c\u0027\u2019\p{White_Space}]*$/u : /^[\p{Decimal_Number}.,\u066b\u066c\u0027\u2019\p{White_Space}]*$/u).test(value);
+			};
+			const hasNonzeroDigit = (value) => {
+				for (const char of value) {
+					if (!/\p{Decimal_Number}/u.test(char)) continue;
+					const code = char.codePointAt(0);
+					let start = code;
+					while (start > 0 && /\p{Decimal_Number}/u.test(String.fromCodePoint(start - 1))) start--;
+					if ((code - start) % 10 !== 0) return true;
+				}
+				return false;
+			};
+			const withinInt64 = (digits, negative = false) => {
+				const value = digits.replace(/^0+/, "") || "0";
+				if (value.length > 19) return false;
+				return BigInt(value) <= (negative ? 9223372036854775808n : 9223372036854775807n);
+			};
+			const validAmount = (el, metadata) => {
+				const currency = metadata.dataset.entryAmountCurrency;
+				const scaleValue = currency
+					? el.form.elements.namedItem(currency)?.selectedOptions[0]?.dataset.entryAmountScale
+					: metadata.dataset.entryAmountScale;
+				if (scaleValue === undefined || scaleValue === "") return false;
+				const scale = Number(scaleValue);
+				const digits = JSON.parse(metadata.dataset.entryAmountDigits);
+				const decimal = metadata.dataset.entryAmountDecimal;
+				const group = metadata.dataset.entryAmountGroup;
+				const primary = Number(metadata.dataset.entryAmountPrimary);
+				const secondary = Number(metadata.dataset.entryAmountSecondary);
+				let value = trimAmount(el.value);
+				const negative = value.startsWith("-");
+				if (negative) value = value.slice(1);
+				digits.forEach((digit, i) => { value = value.split(digit).join(String(i)); });
+				const parts = value.split(decimal);
+				if (parts.length > 2 || (parts.length === 2 && (scale === 0 || !/^[0-9]+$/.test(parts[1]) || parts[1].length > scale))) return false;
+				let whole = parts[0];
+				if (group && whole.includes(group)) {
+					const groups = whole.split(group);
+					if (groups.some((part, i) => !/^[0-9]+$/.test(part) || (i === 0 ? part.length > secondary : i === groups.length - 1 ? part.length !== primary : part.length !== secondary))) return false;
+					whole = groups.join("");
+				}
+				if (!/^[0-9]+$/.test(whole)) return false;
+				return withinInt64(whole + (parts[1] || "").padEnd(scale, "0"), negative);
+			};
+			const update = (form) => {
+				if (!form || form.dataset.submitting === "true" || !(form.hasAttribute?.("data-entry-validate") || form.querySelector("[data-entry-field]") || form.closest?.("[data-entry-field]"))) return;
+				const fields = Array.from(form.elements);
+				const valid = fields.every((el) => {
+					if (el.closest?.("[hidden]") || el.disabled) return true;
+					if (el.hasAttribute?.("data-entry-required")) return !!el.value && el.value !== "0";
+					const group = el.dataset?.entryRequiredGroup;
+					if (group && !fields.some((item) => item.dataset?.entryRequiredGroup === group && !item.disabled && !item.closest("[hidden]") && item.value.trim())) return false;
+					if (!el.willValidate) return true;
+					if (!el.validity.valid || (el.required && (el.dataset.trim !== undefined || el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && ["text", "search", "email", "tel", "url"].includes(el.type))) && !el.value.trim())) return false;
+					if (el.tagName === "SELECT" && el.required && [...el.selectedOptions].some((option) => option.disabled || option.parentElement?.disabled)) return false;
+					const kind = numeric(el);
+					if (!kind || !el.value) return true;
+					if (!allowed(el.value, mode(el), el)) return false;
+					if (mode(el) === "minor" && (!/^\+?[0-9]+$/.test(trimAmount(el.value)) || !withinInt64(trimAmount(el.value).replace(/^\+/, "")))) return false;
+					const metadata = el.dataset.entryAmountDigits !== undefined ? el : el.closest("[data-entry-amount-digits]");
+					if (metadata && mode(el) !== "minor" && !validAmount(el, metadata)) return false;
+					if (mode(el) === "decimal" && !/^[0-9]+(?:\.[0-9]+)?$/.test(el.value)) return false;
+					if (mode(el) === "float") return /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(el.value) && Number.isFinite(Number(el.value));
+					if ((el.hasAttribute("data-entry-number-positive") || el.closest("[data-entry-number-positive]")) && !hasNonzeroDigit(el.value)) return false;
+					return /\p{Decimal_Number}/u.test(el.value) && !/[.,\u066b\u066c\u0027\u2019]$/u.test(trimAmount(el.value));
+				});
+				for (const button of form.querySelectorAll('button:not([type]), button[type="submit"], input[type="submit"]')) {
+					if (button.formNoValidate) continue;
+					if (!buttons.has(button)) buttons.set(button, button.disabled);
+					button.disabled = !valid || (button.hasAttribute("data-requires-change") ? form.dataset.dirty !== "true" : buttons.get(button));
+				}
+			};
+			const remember = (el) => previous.set(el, { value: el.value, start: el.selectionStart, end: el.selectionEnd });
+			doc.addEventListener("beforeinput", (event) => {
+				if (numeric(event.target) && !event.isComposing) remember(event.target);
+			});
+			const input = (event) => {
+				const el = event.target;
+				const kind = numeric(el);
+				if (kind && !event.isComposing) {
+					if (!allowed(el.value, mode(el), el)) {
+						const saved = previous.get(el);
+						if (saved) {
+							el.value = saved.value;
+							if (saved.start !== null && saved.start !== undefined) el.setSelectionRange(saved.start, saved.end);
+						}
+					} else remember(el);
+				}
+				update(el.form);
+			};
+			doc.addEventListener("input", input);
+			doc.addEventListener("compositionend", input);
+			doc.addEventListener("change", (event) => update(event.target.form));
+			doc.addEventListener("toggle", (event) => update(event.target.closest?.("form")), true);
+			doc.addEventListener("reset", (event) => setTimeout(() => update(event.target), 0));
+			doc._entryValidation = { update, remember, numeric };
+		}
+		const { update, remember, numeric } = doc._entryValidation;
+		for (const form of root.querySelectorAll("form")) {
+			for (const el of form.elements) if (numeric(el)) remember(el);
+			update(form);
+		}
+	};
+
+	const wireEntryFields = (root) => {
+		for (const field of root.querySelectorAll("[data-entry-field]")) {
+			if (field.dataset.entryBound) continue;
+			const label = field.querySelector(":scope > label.entry-field-label");
+			const control = label && Array.from(field.querySelectorAll("input:not([type=hidden]), select, textarea")).find((item) => item.id === label.htmlFor);
+			if (!control) continue;
+			field.dataset.entryBound = "true";
+			const update = () => field.toggleAttribute("data-entry-filled", control.value !== "");
+			control.addEventListener("input", update);
+			control.addEventListener("change", update);
+			control.form?.addEventListener("reset", () => setTimeout(update, 0));
+			update();
+			if (!control.matches("select[data-entry-picker]") || control.multiple || control.disabled) continue;
+			if (control.hasAttribute("data-entry-unfilter")) {
+				for (const option of control.options) option.hidden = false;
+				field.parentElement.querySelector(".entry-picker-fallback-search")?.setAttribute("hidden", "");
+			}
+
+			const doc = field.ownerDocument;
+			const button = doc.createElement("button");
+			button.type = "button";
+			button.className = "entry-picker-trigger";
+			button.setAttribute("aria-haspopup", "listbox");
+			button.setAttribute("aria-expanded", "false");
+			button.setAttribute("role", "combobox");
+			button.setAttribute("aria-controls", `${control.id}-options`);
+			button.setAttribute("aria-labelledby", `${control.id}-label ${control.id}-selected`);
+			const selected = doc.createElement("span");
+			selected.id = `${control.id}-selected`;
+			button.append(selected);
+			const panel = doc.createElement("div");
+			panel.className = "entry-picker-panel";
+			panel.hidden = true;
+			const list = doc.createElement("div");
+			list.id = `${control.id}-options`;
+			list.setAttribute("role", "listbox");
+			list.setAttribute("aria-labelledby", `${control.id}-label`);
+			let search;
+			if (entryPickerSearchable(control.dataset.entryRemoteTotal, Array.from(control.options).filter((option) => option.value !== "").length)) {
+				search = doc.createElement("input");
+				search.type = "search";
+				if (control.dataset.entryRemoteUrl) search.maxLength = 200;
+				search.className = "input entry-picker-search";
+				search.setAttribute("aria-label", field.dataset.entrySearchLabel || field.querySelector("label")?.textContent || "");
+				panel.append(search);
+			}
+			panel.append(list);
+			const remoteURL = control.dataset.entryRemoteUrl;
+			let page = 1;
+			let total = Number(control.dataset.entryRemoteTotal) || 0;
+			let request;
+			let requestNumber = 0;
+			let timer;
+			let remoteValues = null;
+			let remotePending = false;
+			const paging = doc.createElement("div");
+			const previous = doc.createElement("button");
+			const next = doc.createElement("button");
+			if (remoteURL) {
+				previous.type = next.type = "button";
+				previous.textContent = control.dataset.entryPreviousLabel;
+				next.textContent = control.dataset.entryNextLabel;
+				paging.append(previous, next);
+				panel.append(paging);
+			}
+			field.append(button, panel);
+			field.dataset.entryPickerEnhanced = "true";
+			const fallback = field.querySelector("[data-entry-remote-fallback]");
+			if (remoteURL && fallback) fallback.hidden = true;
+			const original = control.selectedOptions[0];
+			const syncAccessibility = () => {
+				if (control.required) button.setAttribute("aria-required", "true");
+				else button.removeAttribute("aria-required");
+				for (const name of ["aria-invalid", "aria-describedby"]) {
+					const value = control.getAttribute(name);
+					if (value === null) button.removeAttribute(name);
+					else button.setAttribute(name, value);
+				}
+			};
+			syncAccessibility();
+			new MutationObserver(syncAccessibility).observe(control, { attributes: true, attributeFilter: ["required", "aria-invalid", "aria-describedby"] });
+			control.tabIndex = -1;
+			const render = () => {
+				selected.textContent = control.selectedOptions[0]?.textContent || "";
+				list.replaceChildren();
+				if (remoteURL && remotePending) return;
+				const query = remoteURL ? "" : search?.value.toLocaleLowerCase() || "";
+				for (const option of control.options) {
+					if (remoteValues && !remoteValues.has(option.value)) continue;
+					if (option.hidden || !option.textContent.toLocaleLowerCase().includes(query)) continue;
+					const choice = doc.createElement("button");
+					choice.type = "button";
+					choice.className = "entry-picker-option";
+					choice.textContent = option.textContent;
+					choice.disabled = option.disabled || option.parentElement?.disabled;
+					choice.setAttribute("role", "option");
+					choice.setAttribute("aria-selected", String(option.selected));
+					choice.addEventListener("click", () => {
+						close(true);
+						control.value = option.value;
+						control.dispatchEvent(new Event("input", { bubbles: true }));
+						control.dispatchEvent(new Event("change", { bubbles: true }));
+					});
+					list.append(choice);
+				}
+				if (remoteURL) {
+					previous.disabled = page <= 1;
+					next.disabled = page * 25 >= total;
+					paging.hidden = total <= 25;
+				}
+			};
+			const onOutside = (event) => {
+				if (!field.contains(event.target)) close(false);
+			};
+			const close = (focus) => {
+				clearTimeout(timer);
+				request?.abort();
+				requestNumber++;
+				panel.hidden = true;
+				doc.removeEventListener("click", onOutside);
+				button.setAttribute("aria-expanded", "false");
+				if (focus) button.focus();
+			};
+			const clearRemoteResults = () => {
+				remotePending = true;
+				list.replaceChildren();
+				previous.disabled = true;
+				next.disabled = true;
+			};
+			const load = async (nextPage) => {
+				clearTimeout(timer);
+				clearRemoteResults();
+				request?.abort();
+				request = new AbortController();
+				const sequence = ++requestNumber;
+				const url = new URL(remoteURL, doc.location.href);
+				url.searchParams.set("q", search?.value || "");
+				url.searchParams.set("page", String(nextPage));
+				try {
+					const response = await fetch(url, { signal: request.signal, headers: { Accept: "application/json" } });
+					if (!response.ok) throw new Error("Picker request failed");
+					const result = await response.json();
+					if (sequence !== requestNumber) return;
+					if (!Array.isArray(result.options)) throw new Error("Invalid picker response");
+					const current = control.selectedOptions[0];
+					const value = control.value;
+					const empty = Array.from(control.options).find((option) => option.value === "");
+					control.replaceChildren();
+					for (const option of new Set([original, current, empty])) {
+						if (option) control.append(option);
+					}
+					for (const item of result.options) {
+						if (Array.from(control.options).some((option) => option.value === item.value)) continue;
+						const option = doc.createElement("option");
+						option.value = item.value;
+						option.textContent = item.label;
+						control.append(option);
+					}
+					control.value = value;
+					page = result.page;
+					total = result.total;
+					remoteValues = new Set(result.options.map((item) => item.value));
+					if (!search?.value) remoteValues.add("");
+					remotePending = false;
+					render();
+				} catch (error) {
+					if (error.name !== "AbortError" && sequence === requestNumber) {
+						const restoreFocus = field.contains(doc.activeElement);
+						field.removeAttribute("data-entry-picker-enhanced");
+						button.hidden = true;
+						if (fallback) fallback.hidden = false;
+						control.removeAttribute("tabindex");
+						close(false);
+						if (restoreFocus) control.focus();
+					}
+				}
+			};
+			previous.addEventListener("click", () => load(page - 1));
+			next.addEventListener("click", () => load(page + 1));
+			control.addEventListener("input", render);
+			control.addEventListener("change", render);
+			control.form?.addEventListener("reset", () => setTimeout(render, 0));
+			control.addEventListener("invalid", () => { if (!button.hidden) button.focus(); });
+			label.addEventListener("click", (event) => {
+				if (!field.hasAttribute("data-entry-picker-enhanced")) return;
+				event.preventDefault();
+				button.focus();
+				if (panel.hidden) button.click();
+			});
+			search?.addEventListener("input", () => {
+				if (!remoteURL) { render(); return; }
+				clearTimeout(timer);
+				request?.abort();
+				requestNumber++;
+				clearRemoteResults();
+				timer = setTimeout(() => load(1), 250);
+			});
+			button.addEventListener("click", () => {
+				if (!panel.hidden) { close(false); return; }
+				if (search) search.value = "";
+				render();
+				if (remoteURL) { clearRemoteResults(); load(1); }
+				panel.hidden = false;
+				doc.addEventListener("click", onOutside);
+				button.setAttribute("aria-expanded", "true");
+				(search || list.querySelector("button:not(:disabled)"))?.focus();
+			});
+			field.addEventListener("keydown", (event) => {
+				if (!panel.hidden && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+					const choices = Array.from(list.querySelectorAll("button:not(:disabled)"));
+					if (choices.length) {
+						event.preventDefault();
+						const index = choices.indexOf(doc.activeElement);
+						choices[(index + (event.key === "ArrowDown" ? 1 : choices.length - 1)) % choices.length].focus();
+					}
+				}
+				if (event.key === "Escape" && !panel.hidden) {
+					event.preventDefault();
+					event.stopPropagation();
+					close(true);
+				}
+			});
+			render();
+		}
+	};
+
 	const engagementClientPicker = () => ({
 		init() {
 			const root = this.$root;
@@ -1757,6 +2189,7 @@
 				if (!option || !picker.contains(option)) return;
 				event.preventDefault();
 				selected.value = option.dataset.clientId;
+				selected.dispatchEvent(new Event("change", { bubbles: true }));
 				current.textContent = option.textContent.trim();
 				picker.open = false;
 				picker.querySelector("summary")?.focus();
@@ -1923,6 +2356,7 @@
 			wireDetailDialogs(document);
 			wireDetailSplit(document);
 			wireInlineTitles(document);
+			wireEntryFields(document);
 			wireForms();
 			wireConfirmSelects(document);
 			wireRealtime();
@@ -1935,7 +2369,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireTransactionsDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireTransactionsDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireEntryFields, wireEntryValidation, entryPickerSearchable, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	// The pinned HTMX runtime dispatches this before reading or parsing the body.
 	// Keep downloads, EventSource, API data and external redirects out of swaps.

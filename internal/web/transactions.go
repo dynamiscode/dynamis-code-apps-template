@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"example.com/dynamis-code/apps-template/internal/clients"
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/listprefs"
 	"example.com/dynamis-code/apps-template/internal/listviews"
@@ -105,6 +107,12 @@ type transactionsDraft struct {
 	categoryName, categoryEditID, replacesID, refundOfID                                     string
 	refundRemaining, voidID, voidReason, voidError                                           string
 	amountMode, amountLocale                                                                 string
+	currencySearch                                                                           string
+	currencies                                                                               []currency.Currency
+	editID, editField, editValue, editError, editVersion                                     string
+	editMethods                                                                              []transactions.Method
+	editCategories                                                                           []transactions.Category
+	editClients                                                                              transactionsPicker
 	categoryDuplicate, correctionFocus, recordView, directionFocus, amountInvalid            bool
 }
 
@@ -166,7 +174,7 @@ func transactionsFilter(values url.Values) (transactions.ListFilter, error) {
 
 func transactionsPageURL(values url.Values, page int) string {
 	query := cloneClientQuery(values)
-	for _, key := range []string{"view", "details", "action", "saved", "voided", "filter_field", "filter_op", "filter_value", "filter_value_to", "filter_picker_action", "filter_client_page"} {
+	for _, key := range []string{"view", "details", "action", "amount_locale", "saved", "voided", "filter_field", "filter_op", "filter_value", "filter_value_to", "filter_picker_action", "filter_client_page"} {
 		query.Del(key)
 	}
 	query.Set("page", strconv.Itoa(page))
@@ -177,9 +185,33 @@ func transactionsDetailsURL(values url.Values, page int, entryID transactions.En
 	return transactionsPageURL(values, page) + "&details=" + url.QueryEscape(entryID.String()) + "#transactions-entry-details"
 }
 
-func transactionsCurrencyValid(value string) bool {
+func transactionsCurrencyEnabled(currencies []currency.Currency, value string) bool {
 	value = strings.ToUpper(strings.TrimSpace(value))
-	return len(value) == 3 && value[0] >= 'A' && value[0] <= 'Z' && value[1] >= 'A' && value[1] <= 'Z' && value[2] >= 'A' && value[2] <= 'Z'
+	for _, item := range currencies {
+		if item.Code == value {
+			return true
+		}
+	}
+	return false
+}
+
+func transactionsCurrencyUsable(currencies []currency.Currency, value string) bool {
+	value = strings.ToUpper(strings.TrimSpace(value))
+	for _, item := range currencies {
+		if item.Code == value {
+			return transactions.CurrencyAvailable(item)
+		}
+	}
+	return false
+}
+
+func transactionsCurrencyLabel(data viewmodel.PageData, code string) string {
+	key := "transactions.currency_" + strings.ToLower(code)
+	label := data.T(key)
+	if label == key || label == "" {
+		return code
+	}
+	return label
 }
 
 func transactionsInput(d transactionsDraft) (transactions.Input, error) {
@@ -231,6 +263,56 @@ func (h *Handler) transactionsList(w http.ResponseWriter, r *http.Request) {
 	h.renderTransactions(w, r, http.StatusOK, transactionsDraft{}, "")
 }
 
+func (h *Handler) transactionsClientOptions(w http.ResponseWriter, r *http.Request) {
+	if h.clients == nil {
+		h.renderError(w, http.StatusNotFound)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	principal, _, _, ok := h.workspaceSession(w, r, workspace, identity.ResourcesRead)
+	if !ok {
+		return
+	}
+	if !identity.CanReadTransactions(principal) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	search := strings.TrimSpace(r.URL.Query().Get("q"))
+	page := 1
+	if raw := r.URL.Query().Get("page"); raw != "" {
+		var err error
+		page, err = strconv.Atoi(raw)
+		if err != nil || page < 1 || page > clients.MaxListPage {
+			h.renderError(w, http.StatusBadRequest)
+			return
+		}
+	}
+	if utf8.RuneCountInString(search) > 200 {
+		h.renderError(w, http.StatusBadRequest)
+		return
+	}
+	result, err := h.clients.List(r.Context(), principal, workspace, clients.ListInput{Page: page, Limit: 25, Search: search})
+	if err != nil {
+		h.transactionsError(w, err)
+		return
+	}
+	type option struct {
+		Value string `json:"value"`
+		Label string `json:"label"`
+	}
+	options := make([]option, 0, len(result.Clients))
+	for _, client := range result.Clients {
+		options = append(options, option{Value: client.ID.String(), Label: client.DisplayName})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	_ = json.NewEncoder(w).Encode(struct {
+		Options []option `json:"options"`
+		Page    int      `json:"page"`
+		Total   int      `json:"total"`
+	}{options, page, result.Total})
+}
+
 func (h *Handler) transactionsCreate(w http.ResponseWriter, r *http.Request) {
 	if h.transactions == nil {
 		h.renderError(w, http.StatusNotFound)
@@ -242,6 +324,7 @@ func (h *Handler) transactionsCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	draft := transactionsDraft{description: r.FormValue("description"), direction: r.FormValue("direction"), amount: r.FormValue("amount_minor"), currency: r.FormValue("currency"), method: r.FormValue("payment_method"), occurredOn: r.FormValue("occurred_on"), clientID: r.FormValue("client_id"), note: r.FormValue("note"), categoryID: r.FormValue("category_id"), replacesID: r.FormValue("replaces_entry_id"), refundOfID: r.FormValue("refund_of_entry_id")}
+	draft.currencySearch = r.FormValue("currency_search")
 	if _, ok := r.PostForm["amount"]; ok {
 		draft.amount = r.FormValue("amount")
 		draft.amountMode = r.FormValue("amount_mode")
@@ -418,6 +501,87 @@ func (h *Handler) transactionsVoid(w http.ResponseWriter, r *http.Request) {
 	h.redirect(w, r, "/workspaces/"+workspace.String()+"/transactions"+transactionsPageURL(r.URL.Query(), listPageNumber(r.URL.Query()))+"&voided=1#transactions-entries-heading")
 }
 
+func (h *Handler) transactionsUpdateField(w http.ResponseWriter, r *http.Request) {
+	principal, ok := h.mutationPrincipal(w, r)
+	if !ok {
+		return
+	}
+	if !identity.CanVoidTransactions(principal) {
+		h.renderError(w, http.StatusForbidden)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	entryID, err := transactions.ParseEntryID(r.PathValue("entryId"))
+	if err != nil {
+		h.renderError(w, http.StatusBadRequest)
+		return
+	}
+	revision, err := strconv.ParseInt(r.FormValue("version"), 10, 64)
+	if err != nil || revision <= 0 {
+		h.renderError(w, http.StatusBadRequest)
+		return
+	}
+	field, value := r.FormValue("field"), r.FormValue("value")
+	draft := transactionsDraft{editID: entryID.String(), editField: field, editValue: value, editVersion: r.FormValue("version")}
+	if field == "client_id" {
+		draft.clientID = value
+	}
+	if field == "currency" {
+		draft.currencySearch = r.FormValue("value_search")
+	}
+	if r.FormValue("picker_action") != "" {
+		h.renderTransactions(w, r, http.StatusOK, draft, "")
+		return
+	}
+	if field == "amount_minor" {
+		found, lookupErr := h.transactions.EntriesByID(r.Context(), principal, workspace, []transactions.EntryID{entryID})
+		if lookupErr != nil {
+			h.transactionsError(w, lookupErr)
+			return
+		}
+		entry, exists := found[entryID]
+		if !exists {
+			h.renderError(w, http.StatusNotFound)
+			return
+		}
+		if entry.Revision != revision {
+			draft.editError = "transactions.edit_conflict"
+			h.renderTransactions(w, r, http.StatusConflict, draft, "")
+			return
+		}
+		var amount int64
+		if _, known := transactions.CurrencyScale(entry.Currency); known {
+			amount, err = transactions.ParseAmount(value, entry.Currency, r.FormValue("amount_locale"))
+		} else {
+			amount, err = strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		}
+		if err != nil {
+			draft.editError = "transactions.edit_invalid"
+			h.renderTransactions(w, r, http.StatusUnprocessableEntity, draft, "")
+			return
+		}
+		value = strconv.FormatInt(amount, 10)
+	}
+	if err == nil {
+		_, err = h.transactions.Update(r.Context(), principal, workspace, entryID, transactions.UpdateInput{ExpectedRevision: revision, Field: field, Value: value})
+	}
+	if errors.Is(err, transactions.ErrConflict) {
+		draft.editError = "transactions.edit_conflict"
+		h.renderTransactions(w, r, http.StatusConflict, draft, "")
+		return
+	}
+	if errors.Is(err, transactions.ErrInvalidInput) {
+		draft.editError = "transactions.edit_invalid"
+		h.renderTransactions(w, r, http.StatusUnprocessableEntity, draft, "")
+		return
+	}
+	if err != nil {
+		h.transactionsError(w, err)
+		return
+	}
+	h.redirect(w, r, "/workspaces/"+workspace.String()+"/transactions"+transactionsDetailsURL(r.URL.Query(), listPageNumber(r.URL.Query()), entryID))
+}
+
 func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, status int, draft transactionsDraft, methodError string) {
 	if h.transactions == nil || h.clients == nil {
 		h.renderError(w, http.StatusNotFound)
@@ -435,6 +599,20 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 	if h.openDefaultListView(w, r, listviews.ListTransactions, principal, workspace) {
 		return
 	}
+	currencies, err := h.transactions.Currencies(r.Context(), principal, workspace)
+	if err != nil {
+		h.transactionsError(w, err)
+		return
+	}
+	draft.currencies = currencies
+	if r.Method == http.MethodGet && draft.currency == "" {
+		for _, item := range draft.currencies {
+			if item.Default {
+				draft.currency = item.Code
+				break
+			}
+		}
+	}
 	methods, err := h.transactions.ListMethods(r.Context(), principal, workspace)
 	if err != nil {
 		h.transactionsError(w, err)
@@ -450,6 +628,7 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 		h.transactionsError(w, err)
 		return
 	}
+	draft.editMethods, draft.editCategories = methods, categories
 	query, filterFields, filterInput, conditions, valid := transactionsFilterQuery(r.URL.Query(), categories, filterMethods)
 	dateError := false
 	if !valid {
@@ -490,6 +669,31 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			return
 		}
 	}
+	detailID := query.Get("details")
+	if draft.editID != "" {
+		detailID = draft.editID
+	}
+	if detailID != "" {
+		if id, parseErr := transactions.ParseEntryID(detailID); parseErr == nil {
+			found := false
+			for _, entry := range entries {
+				if entry.ID == id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				extra, lookupErr := h.transactions.EntriesByID(r.Context(), principal, workspace, []transactions.EntryID{id})
+				if lookupErr != nil {
+					h.transactionsError(w, lookupErr)
+					return
+				}
+				if entry, ok := extra[id]; ok {
+					entries = append(entries, entry)
+				}
+			}
+		}
+	}
 	sources := make(map[transactions.EntryID]transactions.Entry, len(entries))
 	for _, entry := range entries {
 		sources[entry.ID] = entry
@@ -527,10 +731,20 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			receiptIDs = append(receiptIDs, entry.ID)
 		}
 	}
-	refundCounts, err := h.transactions.RefundCounts(r.Context(), principal, workspace, receiptIDs)
+	refundCounts, err := h.transactions.RefundCounts(r.Context(), principal, workspace, receiptIDs[:min(100, len(receiptIDs))])
 	if err != nil {
 		h.transactionsError(w, err)
 		return
+	}
+	if len(receiptIDs) > 100 {
+		counts, countErr := h.transactions.RefundCounts(r.Context(), principal, workspace, receiptIDs[100:])
+		if countErr != nil {
+			h.transactionsError(w, countErr)
+			return
+		}
+		for id, count := range counts {
+			refundCounts[id] = count
+		}
 	}
 	filterPage := 1
 	if value := r.URL.Query().Get("filter_client_page"); value != "" {
@@ -567,7 +781,7 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			return
 		}
 	}
-	picker := transactionsPicker{search: strings.TrimSpace(r.FormValue("client_search")), page: 1, focus: r.Method == http.MethodPost && r.FormValue("picker_action") != "" && r.FormValue("picker_action") != "direction"}
+	picker := transactionsPicker{search: strings.TrimSpace(r.FormValue("client_search")), page: 1, focus: r.Method == http.MethodPost && r.FormValue("picker_action") != "" && r.FormValue("picker_action") != "direction" && r.FormValue("picker_action") != "currency"}
 	if action := r.FormValue("picker_action"); strings.HasPrefix(action, "page:") {
 		picker.page, err = strconv.Atoi(strings.TrimPrefix(action, "page:"))
 		if err != nil || picker.page < 1 || picker.page > clients.MaxListPage {
@@ -590,6 +804,7 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			}
 		}
 	}
+	draft.editClients = picker
 	members, err := h.identity.ListMembers(r.Context(), principal)
 	if err != nil {
 		h.transactionsError(w, err)
@@ -703,7 +918,9 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	errorKey := ""
-	if draft.voidError != "" {
+	if draft.editError != "" {
+		errorKey = draft.editError
+	} else if draft.voidError != "" {
 		errorKey = draft.voidError
 	} else if status == http.StatusUnprocessableEntity && methodError == "" {
 		errorKey = "transactions.invalid"
@@ -716,8 +933,10 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			errorKey = "transactions.category_direction"
 		} else if draft.refundRemaining != "" {
 			errorKey = "transactions.refund_limit"
-		} else if !transactionsCurrencyValid(draft.currency) {
+		} else if !transactionsCurrencyEnabled(draft.currencies, draft.currency) {
 			errorKey = "transactions.invalid_currency"
+		} else if !transactionsCurrencyUsable(draft.currencies, draft.currency) {
+			errorKey = "transactions.currency_precision_unavailable"
 		} else if _, known := transactions.CurrencyScale(strings.ToUpper(strings.TrimSpace(draft.currency))); draft.amountInvalid && draft.amountMode == "decimal" && !known {
 			errorKey = "transactions.amount_unknown"
 		} else if draft.amountInvalid && draft.amountMode == "minor" {

@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"example.com/dynamis-code/apps-template/internal/currency"
 	"example.com/dynamis-code/apps-template/internal/identity"
 )
 
@@ -19,6 +20,30 @@ type Method struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
+}
+
+// Currencies returns the enabled workspace currencies for transaction entry.
+func (s *Service) Currencies(ctx context.Context, actor identity.Principal, workspace identity.WorkspaceID) ([]currency.Currency, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	principal, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspace, identity.ResourcesRead)
+	if err != nil {
+		return nil, err
+	}
+	if !identity.CanReadTransactions(principal) {
+		return nil, identity.ErrForbidden
+	}
+	currencies, err := currency.List(ctx, tx, workspace)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return currencies, nil
 }
 
 // ListMethods returns disabled methods only to workspace administrators.

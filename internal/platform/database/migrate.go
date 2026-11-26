@@ -98,15 +98,35 @@ func migrateFS(
 				return fmt.Errorf("backfill engagement names: %w", err)
 			}
 		}
+		if migration.version == 63 {
+			if err := backfillWorkspaceCurrencies(ctx, tx, applied); err != nil {
+				return fmt.Errorf("backfill workspace currencies: %w", err)
+			}
+		}
 		if err := recordMigration(ctx, tx, driver, migration.version); err != nil {
 			return fmt.Errorf("record migration %s: %w", migration.name, err)
 		}
+		applied[migration.version] = true
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migrations: %w", err)
 	}
 	return nil
+}
+
+func backfillWorkspaceCurrencies(ctx context.Context, tx *sql.Tx, applied map[int64]bool) error {
+	if applied[45] {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default)
+			SELECT workspace_id, code, decimals, is_default FROM catalog_currencies`); err != nil {
+			return err
+		}
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default)
+		SELECT id, 'USD', 2, TRUE FROM workspaces w
+		WHERE NOT EXISTS (SELECT 1 FROM workspace_currencies c WHERE c.workspace_id = w.id AND c.is_default = TRUE)
+		ON CONFLICT (workspace_id, code) DO UPDATE SET is_default = TRUE`)
+	return err
 }
 
 func backfillEngagementNames(ctx context.Context, tx *sql.Tx, driver config.DatabaseDriver) error {
@@ -171,6 +191,22 @@ func renderMigration(sql string, driver config.DatabaseDriver) string {
 		transactionsReset = `SELECT setval(pg_get_serial_sequence('transactions_entries_next', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM transactions_entries), 0), (SELECT last_value FROM transactions_entries_id_seq)), true);`
 	}
 	sql = strings.ReplaceAll(sql, "{{transactions_identity_reset}}", transactionsReset)
+	clientRevisionTrigger := `CREATE TRIGGER transactions_client_revision AFTER UPDATE OF client_id ON transactions_entries
+		WHEN OLD.client_id IS NOT NULL AND NEW.client_id IS NULL AND NEW.revision = OLD.revision
+		BEGIN UPDATE transactions_entries SET revision = revision + 1 WHERE id = NEW.id; END;`
+	if driver == config.Postgres {
+		clientRevisionTrigger = `CREATE FUNCTION transactions_client_revision_fn() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN
+			IF OLD.client_id IS NOT NULL AND NEW.client_id IS NULL AND NEW.revision = OLD.revision THEN
+				UPDATE transactions_entries SET revision = revision + 1 WHERE id = NEW.id;
+			END IF;
+			RETURN NEW;
+		END;
+		$$;
+		CREATE TRIGGER transactions_client_revision AFTER UPDATE OF client_id ON transactions_entries
+		FOR EACH ROW EXECUTE FUNCTION transactions_client_revision_fn();`
+	}
+	sql = strings.ReplaceAll(sql, "{{transactions_client_revision_trigger}}", clientRevisionTrigger)
 	return renderJSONTextExpr(sql, driver)
 }
 

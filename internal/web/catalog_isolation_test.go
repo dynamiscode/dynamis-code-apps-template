@@ -14,7 +14,7 @@ import (
 
 func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	webHandler, auth, workspace, owner := testWebRaw(t, 2)
-	enableTestBitcoin(t, webHandler, auth, workspace, owner.UserID)
+	enableTestDinar(t, webHandler, auth, workspace, owner.UserID)
 	routes := webHandler.Routes()
 	ctx := context.Background()
 	actor, err := auth.Authorize(ctx, owner.UserID, workspace, identity.ResourcesWrite)
@@ -25,7 +25,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	enableTestBitcoin(t, webHandler, auth, other, owner.UserID)
+	enableTestDinar(t, webHandler, auth, other, owner.UserID)
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +33,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspace.String() + "/catalog"
 	otherPath := "/workspaces/" + other.String() + "/catalog"
-	form := url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Private"}, "mode": {"fixed"}, "amount": {"0.123456789012345678"}, "currency": {"BTC"}, "variant": {"Private"}}
+	form := url.Values{"csrf": {session.CSRFSecret}, "version": {"1"}, "name": {"Private"}, "mode": {"fixed"}, "amount": {"0.123"}, "currency": {"BHD"}, "variant": {"Private"}}
 	if r := request(routes, http.MethodPost, path, form, cookies, nil); r.Code != http.StatusSeeOther {
 		t.Fatal(r.Code)
 	}
@@ -92,7 +92,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 			if !strings.Contains(body, "Local entry") || !strings.Contains(body, "Local price") {
 				t.Fatal("local entry or price missing")
 			}
-			for _, forbidden := range []string{"Private", "0.123456789012345678", "Rejected foreign draft", `value="DRAFT"`, `value="-1"`, `value="-3"`} {
+			for _, forbidden := range []string{"Private", "0.123", "Rejected foreign draft", `value="DRAFT"`, `value="-1"`, `value="-3"`} {
 				if strings.Contains(body, forbidden) {
 					t.Errorf("rejected foreign submission exposed %q", forbidden)
 				}
@@ -109,7 +109,7 @@ func TestCatalogWebWorkspaceIsolation(t *testing.T) {
 		}
 	}
 	page = request(routes, http.MethodGet, path, nil, cookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Private") || !strings.Contains(page.Body.String(), "0.123456789012345678") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Private") || !strings.Contains(page.Body.String(), "0.123") {
 		t.Fatal("original changed")
 	}
 }

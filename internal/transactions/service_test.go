@@ -82,9 +82,30 @@ func TestEntriesAndWorkspaceIsolation(t *testing.T) {
 	if entry.Description != "Café" || entry.Currency != "USD" || entry.Note != "sale" || entry.CreatedBy != owner.UserID || entry.ID.String() == "" || entry.CreatedAt.IsZero() {
 		t.Fatalf("entry: %+v", entry)
 	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'USD', 2, TRUE), ($1, 'EUR', 2, FALSE)`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
 	backdated, err := s.Create(ctx, actor, owner.WorkspaceID, Input{Description: strings.Repeat("é", 200), Direction: "out", AmountMinor: 1, Currency: "EUR", PaymentMethod: "card", OccurredOn: "2020-02-29"})
 	if err != nil || backdated.OccurredOn != "2020-02-29" || backdated.Description != strings.Repeat("é", 200) {
 		t.Fatalf("backdated: %+v %v", backdated, err)
+	}
+	if _, err := s.Create(ctx, otherActor, other, Input{Description: "Wrong workspace", Direction: "in", AmountMinor: 1, Currency: "EUR", PaymentMethod: "cash"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("currency from another workspace: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE workspace_currencies SET decimals = 3 WHERE workspace_id = $1 AND code = 'EUR'`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create(ctx, actor, owner.WorkspaceID, Input{Description: "Wrong precision", Direction: "in", AmountMinor: 1, Currency: "EUR", PaymentMethod: "cash"}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("currency with noncanonical precision: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM workspace_currencies WHERE workspace_id = $1 AND code = 'EUR'`, owner.WorkspaceID); err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range []string{"EUR", "ZZZ"} {
+		_, err := s.Create(ctx, actor, owner.WorkspaceID, Input{Description: "Rejected", Direction: "in", AmountMinor: 1, Currency: code, PaymentMethod: "cash"})
+		if !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("currency %s: expected invalid input, got %v", code, err)
+		}
 	}
 	entries, err := s.List(ctx, actor, owner.WorkspaceID, ListFilter{Page: 1})
 	if err != nil || len(entries) != 2 || entries[0].ID != backdated.ID || entries[1].ID != entry.ID || entries[1].Description != "Café" {
@@ -98,7 +119,7 @@ func TestEntriesAndWorkspaceIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	historical, err := s.List(ctx, actor, owner.WorkspaceID, ListFilter{Page: 1, EntryID: backdated.ID})
-	if err != nil || len(historical) != 1 || historical[0].Description != "" {
+	if err != nil || len(historical) != 1 || historical[0].Description != "" || historical[0].Currency != "EUR" || historical[0].AmountMinor != 1 {
 		t.Fatalf("historical entry: %+v %v", historical, err)
 	}
 	historicalBatch, err := s.EntriesByID(ctx, actor, owner.WorkspaceID, []EntryID{backdated.ID})

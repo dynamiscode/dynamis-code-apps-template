@@ -76,10 +76,14 @@ test("server-rendered validation opens without a trigger and focuses its error",
 
 test("server-rendered picker autofocus takes precedence over error focus", () => {
 	const f = fixture(true);
-	let focused = false;
-	f.dialog.querySelector = (selector) => selector === "[autofocus]" ? {} : { focus() { focused = true; } };
+	let pickerFocused = false;
+	let errorFocused = false;
+	const section = { open: false, parentElement: null };
+	f.dialog.contains = (element) => element === section;
+	f.dialog.querySelector = (selector) => selector === "[autofocus]" ? { closest: () => section, focus() { assert.equal(f.dialog.open, true); assert.equal(section.open, true); pickerFocused = true; } } : { focus() { errorFocused = true; } };
 	wireTransactionsDialog(f.root);
-	assert.equal(focused, false);
+	assert.equal(pickerFocused, true);
+	assert.equal(errorFocused, false);
 });
 
 test("transactions links retain their fallback when modal support is unavailable", () => {
@@ -88,4 +92,41 @@ test("transactions links retain their fallback when modal support is unavailable
 	wireTransactionsDialog(f.root);
 	assert.equal(click(f.handlers, "open"), false);
 	assert.equal(click(f.handlers, "cancel"), false);
+});
+
+test("creation pencil summaries follow the draft and reveal invalid controls", () => {
+	const f = fixture();
+	const handlers = {};
+	const input = { value: "", tagName: "INPUT", addEventListener(type, handler) { handlers[type] = handler; } };
+	const summary = { textContent: "", dataset: { empty: "Not set" } };
+	const field = { dataset: { transactionDraftField: "description" }, open: false, addEventListener() {}, querySelector: (selector) => selector === "[data-transaction-draft-value]" ? summary : null };
+	f.root.querySelectorAll = (selector) => selector === "[data-transaction-draft-field]" ? [field] : [];
+	f.root.getElementById = () => input;
+	wireTransactionsDialog(f.root);
+	input.value = "<draft>";
+	handlers.input();
+	assert.equal(summary.textContent, "<draft>");
+	input.value = "";
+	handlers.change();
+	assert.equal(summary.textContent, "Not set");
+	handlers.invalid();
+	assert.equal(field.open, true);
+});
+
+test("Enter in client search submits the client picker rather than another form action", () => {
+	const f = fixture();
+	let handler;
+	let submitted;
+	let prevented = false;
+	const button = {};
+	const search = { form: { requestSubmit(value) { submitted = value; } }, addEventListener(type, callback) { if (type === "keydown") handler = callback; } };
+	const input = { value: "", tagName: "SELECT", addEventListener() {} };
+	const summary = { dataset: { empty: "Not set" } };
+	const field = { dataset: { transactionDraftField: "transactions-client" }, addEventListener() {}, querySelector: (selector) => ({ "[data-transaction-draft-value]": summary, "#transactions-client-search": search, 'button[name="picker_action"][value="search"]': button })[selector] };
+	f.root.querySelectorAll = (selector) => selector === "[data-transaction-draft-field]" ? [field] : [];
+	f.root.getElementById = () => input;
+	wireTransactionsDialog(f.root);
+	handler({ key: "Enter", isComposing: false, preventDefault() { prevented = true; } });
+	assert.equal(prevented, true);
+	assert.equal(submitted, button);
 });

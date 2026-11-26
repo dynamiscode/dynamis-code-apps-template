@@ -53,13 +53,13 @@ func TestTransactionsClientErasureMigrationPreservesEntries(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `DELETE FROM clients WHERE id = 1`); err != nil {
 		t.Fatal(err)
 	}
-	var amount int
+	var amount, revision int
 	var clientID sql.NullInt64
 	var note, description string
-	if err := db.QueryRowContext(ctx, `SELECT amount_minor, client_id, note, description FROM transactions_entries WHERE id = 123`).Scan(&amount, &clientID, &note, &description); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT amount_minor, client_id, note, description, revision FROM transactions_entries WHERE id = 123`).Scan(&amount, &clientID, &note, &description, &revision); err != nil {
 		t.Fatal(err)
 	}
-	if amount != 500 || clientID.Valid || note != "sale" || description != "" {
-		t.Fatalf("retained entry: amount=%d client=%v note=%q description=%q", amount, clientID, note, description)
+	if amount != 500 || clientID.Valid || note != "sale" || description != "" || revision != 2 {
+		t.Fatalf("retained entry: amount=%d client=%v note=%q description=%q revision=%d", amount, clientID, note, description, revision)
 	}
 }

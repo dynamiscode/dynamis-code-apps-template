@@ -1,4 +1,4 @@
-# 0017: Immutable workspace transactions entries
+# 0017: Workspace transactions
 
 - Status: accepted
 - Date: 2026-11-26
@@ -7,26 +7,30 @@
 ## Context
 
 Small businesses need a workspace-scoped record of money in and out, including
-cash, without silently overwriting history or mixing currencies. This decision
-covers the first entry slice of #570; later corrections and reporting need their
-own implementation and evidence.
+cash, with auditable corrections and without mixing currencies.
 
 ## Decision
 
 Transactions is optional and requires Identity and Clients. Each entry belongs to one
-workspace and records direction, a positive integer amount in minor units,
-currency, payment method, occurred-on date, optional same-workspace client and
+workspace and records direction, description, a positive integer amount in minor
+units, currency, payment method, occurred-on date, optional same-workspace client and
 note, creator, and creation time. An omitted occurred-on date defaults to today
 in the workspace time zone; backdated entries are allowed. Check, transfer,
 cash, and card are the initial methods. Cash follows the same entry rules as
 other methods.
 
-Entries are immutable: this slice exposes creation and paginated listing, not editing or
-deletion. Lists use pages of at most 100, numbered 1 through 1,000,000; MCP and
-CLI accept a page argument. Creation is audited. Owners, admins, and members can create and read
-entries; viewers and outsiders cannot. Authorization and workspace isolation
-are enforced in the shared service, including calls from web, REST, MCP, and
-the REST-only CLI. Members cannot access totals.
+Owners and admins can confirm in-place changes using optimistic revision checks.
+Each changed field is audited atomically with the update. For `client_id`,
+`note`, and `description`, audit records the field, revision, and change marker
+without either value. Other permitted fields include before and after values;
+currency changes include before and after amounts. Audit history cannot
+reconstruct omitted sensitive values. Creation metadata and refund links do
+not change. Updates preserve workspace isolation and refund integrity, including
+the receipt's remaining refundable amount. Lists use pages
+of at most 100, numbered 1 through 1,000,000; MCP and CLI accept a page argument.
+Creation is audited. Owners, admins, and members can create and read entries;
+viewers and outsiders cannot. Shared policy enforces authorization and workspace
+isolation across surfaces. Members cannot access totals.
 Permanent client deletion clears the client reference while preserving the
 money entry and its other fields.
 The web form offers a searchable, paginated client selector. Entry lists show
@@ -49,5 +53,4 @@ outside this slice.
 
 ## Revisit when
 
-A correction, refund, method management, or reporting slice is accepted, or a
-new integration changes the entry model or authorization boundary.
+A new integration changes the entry model or authorization boundary.

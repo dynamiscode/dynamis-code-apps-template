@@ -11,7 +11,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ transactionsPage(data viewmodel.PageData, rows []transactionsRow, sources map[transactions.EntryID]transactions.Entry, clientNames map[clients.ClientID]string, methods, filterMethods []transactions.Method, categories []transactions.Category, canManage, canManageCategories bool, picker transactionsPicker, draft transactionsDraft, errorKey, errorMessage, methodError, methodID, methodName string, saved, methodSaved, categorySaved, voided bool, page int, canWrite, canVoid, canConfigure bool, query url.Values, filterPicker transactionsPicker) {
  @templates.DashboardShell(data, templates.DashboardHome) {
-  {{ recordView := query.Get("view") == "record" || picker.focus || draft.correctionFocus || draft.recordView || (errorKey != "" && draft.voidError == ""); base := "/workspaces/"+data.Workspace.ID.String()+"/transactions"; settings := "/workspaces/"+data.Workspace.ID.String()+"/settings/transactions" }}
+  {{ recordView := query.Get("view") == "record" || picker.focus && draft.editID == "" || draft.correctionFocus || draft.recordView || (errorKey != "" && draft.voidError == "" && draft.editID == ""); base := "/workspaces/"+data.Workspace.ID.String()+"/transactions"; settings := "/workspaces/"+data.Workspace.ID.String()+"/settings/transactions" }}
   if recordView {
    @molecules.BackLink(base+transactionsPageURL(query, page)+"#transactions-entries-heading", data.T("transactions.totals_back"))
   }
@@ -23,137 +23,12 @@ templ transactionsPage(data viewmodel.PageData, rows []transactionsRow, sources 
    if errorKey != "" && draft.voidError == "" {
     @molecules.ErrorAlert(errorMessage)
    }
-   <form id="transactions-create-form" method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions"+transactionsPageURL(query, page)) } class="transaction-entry-form space-y-3">
+   <form id="transactions-create-form" method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions"+transactionsPageURL(query, page)) } class="transaction-entry-form space-y-3" novalidate>
     <input type="hidden" name="csrf" value={ data.CSRF }/>
     <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
     {{ amountLocale := draft.amountLocale; if amountLocale == "" { amountLocale = data.Locale } }}
     <input type="hidden" name="amount_locale" value={ amountLocale }/>
-    <div>
-    @molecules.TextField("transactions-description", data.T("transactions.description"), templ.Attributes{"name":"description", "required":true, "value":draft.description, "aria-invalid":templ.KV("true", errorKey == "transactions.description_invalid"), "aria-describedby":templ.KV("transactions-description-error", errorKey == "transactions.description_invalid")})
-    if errorKey == "transactions.description_invalid" {
-     <p id="transactions-description-error">{ data.T(errorKey) }</p>
-    }
-    </div>
-    <label class="form-control flex flex-col gap-1" for="transactions-direction"><span>{ data.T("transactions.direction") }</span>
-     <select id="transactions-direction" name="direction" class="select select-bordered" required autofocus?={ draft.directionFocus }>
-      <option value="in" selected?={ draft.direction == "in" }>{ data.T("transactions.in") }</option>
-      <option value="out" selected?={ draft.direction == "out" }>{ data.T("transactions.out") }</option>
-     </select>
-    </label>
-    <noscript><button class="btn btn-outline btn-sm" type="submit" name="picker_action" value="direction" formnovalidate>{ data.T("transactions.update_direction") }</button></noscript>
-    <div>
-    @molecules.TextField("transactions-amount", data.T("transactions.amount"), templ.Attributes{"name":"amount", "inputmode":"decimal", "required":true, "value":draft.amount, "autofocus":draft.correctionFocus, "aria-invalid":templ.KV("true", errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor"), "aria-describedby":templ.KV("transactions-amount-error", errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor")})
-    if errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor" {
-     <p id="transactions-amount-error">{ errorMessage }</p>
-    }
-    </div>
-    <details class="md:col-span-2" open?={ draft.amountMode == "minor" || errorKey == "transactions.amount_unknown" }>
-     <summary class="cursor-pointer">{ data.T("transactions.advanced_amount") }</summary>
-     <label class="form-control flex flex-col gap-1" for="transactions-amount-mode"><span>{ data.T("transactions.amount_format") }</span>
-      <select id="transactions-amount-mode" name="amount_mode" class="select select-bordered">
-       <option value="decimal" selected?={ draft.amountMode != "minor" }>{ data.T("transactions.amount_decimal") }</option>
-       <option value="minor" selected?={ draft.amountMode == "minor" }>{ data.T("transactions.amount_minor_fallback") }</option>
-      </select>
-     </label>
-     <p>{ data.T("transactions.amount_help") }</p>
-    </details>
-    if amountLocale != data.Locale {
-     <p class="md:col-span-2">{ data.T("transactions.amount_locale") }: { amountLocale }</p>
-    }
-    <div>
-    {{ currencyHelp := "transactions-currency-help"; if errorKey == "transactions.invalid_currency" { currencyHelp = "transactions-currency-error" } }}
-    @molecules.TextField("transactions-currency", data.T("transactions.currency"), templ.Attributes{"name":"currency", "list":"transactions-currencies", "required":true, "value":draft.currency, "aria-invalid":templ.KV("true", errorKey == "transactions.invalid_currency"), "aria-describedby":currencyHelp})
-    <datalist id="transactions-currencies">
-     <option value="USD" label={ data.T("transactions.currency_usd") }></option>
-     <option value="EUR" label={ data.T("transactions.currency_eur") }></option>
-     <option value="GBP" label={ data.T("transactions.currency_gbp") }></option>
-     <option value="CAD" label={ data.T("transactions.currency_cad") }></option>
-     <option value="AUD" label={ data.T("transactions.currency_aud") }></option>
-     <option value="MXN" label={ data.T("transactions.currency_mxn") }></option>
-     <option value="COP" label={ data.T("transactions.currency_cop") }></option>
-     <option value="JPY" label={ data.T("transactions.currency_jpy") }></option>
-    </datalist>
-    <p id="transactions-currency-help">{ data.T("transactions.currency_help") }</p>
-    if errorKey == "transactions.invalid_currency" {
-     <p id="transactions-currency-error">{ data.T(errorKey) }</p>
-    }
-    </div>
-    <label class="form-control flex flex-col gap-1" for="transactions-method"><span>{ data.T("transactions.method") }</span>
-     <select id="transactions-method" name="payment_method" class="select select-bordered" required>
-      <option value="">{ data.T("transactions.choose_method") }</option>
-      for _, method := range methods {
-       if method.Enabled {
-        <option value={ method.ID } selected?={ draft.method == method.ID }>{ transactionsMethodLabel(data, method.ID, method.Name) }</option>
-       }
-      }
-     </select>
-    </label>
-    <div { templ.Attributes{"data-show-when": templ.KV("transactions-direction=out", draft.categoryID == "")}... }>
-    <label class="form-control flex flex-col gap-1" for="transactions-category"><span>{ data.T("transactions.category") } { data.T("ui.optional") }</span>
-     <select id="transactions-category" name="category_id" class="select select-bordered" aria-describedby="transactions-category-help" { templ.Attributes{"aria-invalid": templ.KV("true", errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != ""))}... }>
-      <option value="">{ data.T("transactions.no_category") }</option>
-      {{ categoryFound := false }}
-      for _, category := range categories {
-       if draft.categoryID == category.ID.String() {
-        {{ categoryFound = true }}
-       }
-       if !category.Archived || draft.categoryID == category.ID.String() {
-        <option value={ category.ID.String() } selected?={ draft.categoryID == category.ID.String() }>{ category.Name }
-         if category.Archived {
-          ({ data.T("transactions.category_archived") })
-         }
-        </option>
-       }
-      }
-      if draft.categoryID != "" && !categoryFound {
-       <option value={ draft.categoryID } selected>{ data.T("transactions.category_unavailable") }</option>
-      }
-     </select>
-    </label>
-    if errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != "") {
-     <p id="transactions-category-help">{ data.T("transactions.category_direction") }</p>
-    } else {
-     <p id="transactions-category-help">{ data.T("transactions.category_out_only") }</p>
-    }
-    </div>
-    @molecules.TextField("transactions-date", data.T("transactions.date"), templ.Attributes{"name":"occurred_on", "type":"date", "required":true, "value":draft.occurredOn})
-    <details class="md:col-span-2" open?={ picker.focus || picker.search != "" || picker.selected.ID != 0 || draft.note != "" }>
-    <summary class="cursor-pointer">{ data.T("transactions.additional_details") }</summary>
-    <div class="grid grid-cols-1 gap-4 pt-3 md:grid-cols-2">
-    <label class="form-control flex flex-col gap-1" for="transactions-client-search"><span>{ data.T("transactions.search_clients") }</span>
-     <input id="transactions-client-search" class="input input-bordered" type="search" name="client_search" value={ picker.search } maxlength="200"/>
-    </label>
-    <div class="flex flex-wrap items-end gap-2">
-     <p>{ data.T("transactions.search_submit_hint") }</p>
-     <button class="btn btn-outline" type="submit" name="picker_action" value="search" formnovalidate>{ data.T("ui.search") }</button>
-    </div>
-    <label class="form-control flex flex-col gap-1" for="transactions-client"><span>{ data.T("transactions.client") } { data.T("ui.optional") }</span>
-     <select id="transactions-client" name="client_id" class="select select-bordered" autofocus?={ picker.focus }>
-      <option value="">{ data.T("transactions.no_client") }</option>
-      if picker.selected.ID != 0 {
-       <option value={ picker.selected.ID.String() } selected>{ picker.selected.DisplayName }</option>
-      }
-      for _, client := range picker.choices {
-       if client.ID != picker.selected.ID {
-        <option value={ client.ID.String() }>{ client.DisplayName }</option>
-       }
-      }
-     </select>
-    </label>
-    if len(picker.choices) == 0 && picker.search != "" {
-     <p class="md:col-span-2" role="status">{ data.T("engagement.no_client_matches") }</p>
-    }
-    <nav class="flex flex-wrap gap-2 md:col-span-2" aria-label={ data.T("transactions.client_pages") }>
-     if picker.page > 1 {
-      <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page-1) } formnovalidate>{ data.T("ui.previous_page") }</button>
-     }
-     if picker.page < 1000000 && picker.page*25 < picker.total {
-      <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page+1) } formnovalidate>{ data.T("items.next_page") }</button>
-     }
-    </nav>
-    @molecules.TextareaField("transactions-note", data.T("transactions.note")+" "+data.T("ui.optional"), draft.note, templ.Attributes{"name":"note"})
-    </div>
-    </details>
+    @transactionsCreateFields(data, methods, categories, picker, draft, errorKey, errorMessage)
     if canVoid {
      <input type="hidden" name="replaces_entry_id" value={ draft.replacesID }/>
     }
@@ -337,7 +212,7 @@ templ transactionsResults(data viewmodel.PageData, rows []transactionsRow, sourc
      }
     }
     for _, row := range rows {
-     if (draft.voidID == row.entry.ID.String() && draft.voidError != "") || query.Get("details") == row.entry.ID.String() {
+     if (draft.voidID == row.entry.ID.String() && draft.voidError != "") || draft.editID == row.entry.ID.String() || query.Get("details") == row.entry.ID.String() {
       <dialog id="transactions-entry-details" class="modal" open data-transactions-details-dialog aria-labelledby="transactions-details-heading">
        <div class="modal-box detail-main w-11/12 max-w-3xl">
         <div class="flex items-start justify-between gap-3">
@@ -401,20 +276,29 @@ templ transactionsRowActions(data viewmodel.PageData, row transactionsRow, canWr
 }
 
 templ transactionsEntryDetails(data viewmodel.PageData, row transactionsRow, sources map[transactions.EntryID]transactions.Entry, clientNames map[clients.ClientID]string, draft transactionsDraft, errorMessage string, canWrite, canVoid bool, query url.Values, page int, suffix string) {
- {{ entry := row.entry; base := "/workspaces/"+data.Workspace.ID.String()+"/transactions" }}
+ {{ entry := row.entry; base := "/workspaces/"+data.Workspace.ID.String()+"/transactions"; editable := canVoid && entry.VoidedAt == ""; clientID := ""; clientName := row.clientName; categoryID := ""; if entry.ClientID != nil { clientID = entry.ClientID.String(); if clientName == "" { clientName = data.T("transactions.client_unavailable") } }; if entry.CategoryID != nil { categoryID = entry.CategoryID.String() } }}
        <div class="space-y-3">
+       if draft.editID == entry.ID.String() && draft.editError != "" && !editable {
+        @molecules.ErrorAlert(data.T(draft.editError))
+        <p>{ data.T("transactions.submitted_value") }: { draft.editValue }</p>
+       }
        <dl class="detail-values transaction-detail-values grid grid-cols-1 gap-y-1 break-words">
-        <dt>{ data.T("transactions.description") }</dt><dd>@transactionsCell(data, row, "description")</dd>
-        <dt>{ data.T("transactions.entry_id") }</dt><dd>{ entry.ID.String() }</dd>
-        <dt>{ data.T("transactions.date") }</dt><dd>{ entry.OccurredOn }</dd>
-        <dt>{ data.T("transactions.direction") }</dt><dd>{ data.T("transactions."+entry.Direction) }</dd>
-        <dt>{ data.T("transactions.amount") }</dt><dd>{ transactions.FormatAmount(entry.AmountMinor, entry.Currency, data.Locale) }</dd>
-        <dt>{ data.T("transactions.method") }</dt><dd>{ transactionsMethodLabel(data, entry.PaymentMethod, row.methodName) }</dd>
-        if entry.CategoryID != nil {
-         <dt>{ data.T("transactions.category") }</dt><dd>{ entry.CategoryName }</dd>
+        <dt>{ data.T("transactions.description") }</dt><dd>@transactionsInlineField(data, row, draft, query, page, "description", data.T("transactions.description"), entry.Description, entry.Description, "text", "200", true, editable)</dd>
+        <dt>{ data.T("transactions.direction") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "direction", data.T("transactions.direction"), entry.Direction, data.T("transactions."+entry.Direction), editable)</dd>
+        <dt>{ data.T("transactions.amount") }</dt><dd>@transactionsInlineField(data, row, draft, query, page, "amount_minor", data.T("transactions.amount"), transactionsAmountInput(entry, data.Locale), transactions.FormatAmount(entry.AmountMinor, entry.Currency, data.Locale), "text", "", true, editable)</dd>
+        <dt>{ data.T("transactions.currency") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "currency", data.T("transactions.currency"), entry.Currency, entry.Currency, editable)</dd>
+        <dt>{ data.T("transactions.method") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "payment_method", data.T("transactions.method"), entry.PaymentMethod, transactionsMethodLabel(data, entry.PaymentMethod, row.methodName), editable)</dd>
+        if categoryID != "" {
+         <dt>{ data.T("transactions.category") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "category_id", data.T("transactions.category"), categoryID, entry.CategoryName, editable)</dd>
         }
-        <dt>{ data.T("transactions.client") }</dt><dd>{ row.clientName }</dd>
-        <dt>{ data.T("transactions.note") }</dt><dd>{ entry.Note }</dd>
+        <dt>{ data.T("transactions.date") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "occurred_on", data.T("transactions.date"), entry.OccurredOn, entry.OccurredOn, editable)</dd>
+        if clientID != "" {
+         <dt>{ data.T("transactions.client") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "client_id", data.T("transactions.client"), clientID, clientName, editable)</dd>
+        }
+        if entry.Note != "" {
+         <dt>{ data.T("transactions.note") }</dt><dd>@transactionsInlineField(data, row, draft, query, page, "note", data.T("transactions.note")+" "+data.T("ui.optional"), entry.Note, entry.Note, "textarea", "1000", false, editable)</dd>
+        }
+        <dt>{ data.T("transactions.entry_id") }</dt><dd>{ entry.ID.String() }</dd>
         <dt>{ data.T("transactions.author") }</dt><dd>
          if row.authorName == "" {
           { data.T("transactions.former_member") }
@@ -455,6 +339,22 @@ templ transactionsEntryDetails(data viewmodel.PageData, row transactionsRow, sou
          </dd>
         }
        </dl>
+       if categoryID == "" || clientID == "" || entry.Note == "" {
+        <details class="transaction-advanced" open?={ draft.editID == entry.ID.String() && (draft.editField == "category_id" || draft.editField == "client_id" || draft.editField == "note") }>
+         <summary class="cursor-pointer">{ data.T("ui.advanced") }</summary>
+         <dl class="detail-values transaction-detail-values grid grid-cols-1 gap-y-1 break-words">
+          if categoryID == "" {
+           <dt>{ data.T("transactions.category") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "category_id", data.T("transactions.category"), categoryID, entry.CategoryName, editable)</dd>
+          }
+          if clientID == "" {
+           <dt>{ data.T("transactions.client") }</dt><dd>@transactionsInlineChoice(data, row, draft, query, page, "client_id", data.T("transactions.client"), clientID, row.clientName, editable)</dd>
+          }
+          if entry.Note == "" {
+           <dt>{ data.T("transactions.note") }</dt><dd>@transactionsInlineField(data, row, draft, query, page, "note", data.T("transactions.note")+" "+data.T("ui.optional"), entry.Note, entry.Note, "textarea", "1000", false, editable)</dd>
+          }
+         </dl>
+        </details>
+       }
        if row.refundCount > 0 {
         <a href={ templ.SafeURL("?refund_of_entry_id="+entry.ID.String()+"#transactions-entries-heading") } aria-label={ data.T("transactions.linked_refunds")+" "+entry.ID.String() }>{ data.T("transactions.linked_refunds") } ({ strconv.Itoa(row.refundCount) })</a>
        }

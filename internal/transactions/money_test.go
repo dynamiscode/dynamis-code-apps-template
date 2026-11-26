@@ -3,6 +3,8 @@ package transactions
 import (
 	"math"
 	"testing"
+
+	"example.com/dynamis-code/apps-template/internal/currency"
 )
 
 func TestCurrencyScale(t *testing.T) {
@@ -12,6 +14,7 @@ func TestCurrencyScale(t *testing.T) {
 		known bool
 	}{
 		{"USD", 2, true}, {"JPY", 0, true}, {"KWD", 3, true},
+		{"MRU", 2, true}, {"SLE", 2, true}, {"VED", 2, true}, {"VES", 2, true}, {"ZWG", 2, true},
 		{"CLF", 4, true}, {"ZZZ", 0, false}, {"AAA", 0, false},
 		{"XXX", 0, false}, {"XAU", 0, false}, {"XFO", 0, false},
 		{"DEM", 2, true}, {"FRF", 2, true}, {"ITL", 0, true},
@@ -21,6 +24,25 @@ func TestCurrencyScale(t *testing.T) {
 		if scale != tc.scale || known != tc.known {
 			t.Errorf("CurrencyScale(%q) = %d, %t; want %d, %t", tc.code, scale, known, tc.scale, tc.known)
 		}
+	}
+}
+
+func TestAvailableCurrenciesUseCanonicalTransactionScale(t *testing.T) {
+	for _, item := range currency.Available() {
+		if !CurrencyAvailable(item) {
+			t.Errorf("currency %s with precision %d is not available to transactions", item.Code, item.Decimals)
+		}
+	}
+}
+
+func TestAmountLocale(t *testing.T) {
+	english := AmountLocale("en-US")
+	if english.Digits != [10]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"} || english.Decimal != "." || english.Group != "," || english.Primary != 3 || english.Secondary != 3 || english.MinGroup != 4 {
+		t.Fatalf("English amount metadata = %+v", english)
+	}
+	spanish := AmountLocale("es")
+	if spanish.Decimal != "," || spanish.Group != "." {
+		t.Fatalf("Spanish amount separators = %q, %q", spanish.Decimal, spanish.Group)
 	}
 }
 
@@ -38,6 +60,11 @@ func TestFormatMoney(t *testing.T) {
 		{"-123456789012345678901", "ZZZ", "es-MX", "ZZZ -123456789012345678901 unidades menores"},
 		{"123", "DEM", "es", "DEM 1,23"},
 		{"123", "FRF", "es", "FRF 1,23"},
+		{"123", "MRU", "en-US", "MRU 1.23"},
+		{"123", "SLE", "en-US", "SLE 1.23"},
+		{"123", "VED", "en-US", "VED 1.23"},
+		{"123", "VES", "en-US", "VES 1.23"},
+		{"123", "ZWG", "en-US", "ZWG 1.23"},
 		{"123", "ITL", "en-US", "ITL 123"},
 		{"123", "XEU", "en-US", "XEU 123 minor units"},
 		{"broken", "USD", "en-US", "USD broken minor units"},
@@ -61,6 +88,11 @@ func TestParseAmount(t *testing.T) {
 		{"1234,5", "EUR", "es", 123450, false},
 		{"123", "JPY", "en-US", 123, false},
 		{"-0.001", "KWD", "en-US", -1, false},
+		{"1.23", "MRU", "en-US", 123, false},
+		{"1.23", "SLE", "en-US", 123, false},
+		{"1.23", "VED", "en-US", 123, false},
+		{"1.23", "VES", "en-US", 123, false},
+		{"1.23", "ZWG", "en-US", 123, false},
 		{"92233720368547758.07", "USD", "en-US", math.MaxInt64, false},
 		{"-92233720368547758.08", "USD", "en-US", math.MinInt64, false},
 		{"92233720368547758.08", "USD", "en-US", 0, true},

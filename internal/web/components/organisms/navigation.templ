@@ -73,6 +73,7 @@ templ WorkspaceNav(data viewmodel.PageData) {
 			<ul class="menu w-full">
 				@navTitle(data.T("navigation.settings_setup"))
 				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
+				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/currencies", "currency.title", data.NavPage == "currencies")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
 					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
 					if data.TransactionsEnabled {

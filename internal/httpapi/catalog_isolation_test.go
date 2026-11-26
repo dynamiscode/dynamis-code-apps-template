@@ -48,7 +48,7 @@ func TestCatalogRESTWorkspaceIsolation(t *testing.T) {
 	if err := json.Unmarshal(r.Body.Bytes(), &entry); err != nil || entry.ID == "" {
 		t.Fatal(r.Body.String())
 	}
-	r = serveAuthorized(routes, http.MethodPost, path+"/"+entry.ID+"/prices", `{"mode":"fixed","amount":"0.123456789012345678","currency":"BTC","variant":"Private"}`, token, nil)
+	r = serveAuthorized(routes, http.MethodPost, path+"/"+entry.ID+"/prices", `{"mode":"fixed","amount":"0.12","currency":"EUR","variant":"Private"}`, token, nil)
 	if err := json.Unmarshal(r.Body.Bytes(), &row); err != nil || row.ID == "" {
 		t.Fatal(r.Body.String())
 	}
@@ -70,7 +70,7 @@ func TestCatalogRESTWorkspaceIsolation(t *testing.T) {
 		}
 	}
 	r = serveAuthorized(routes, http.MethodGet, path, "", token, nil)
-	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"amount":"0.123456789012345678"`) || !strings.Contains(r.Body.String(), `"name":"Private"`) {
+	if r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"amount":"0.12"`) || !strings.Contains(r.Body.String(), `"name":"Private"`) {
 		t.Fatalf("original: %d %s", r.Code, r.Body.String())
 	}
 }

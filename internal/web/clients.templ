@@ -206,19 +206,18 @@ templ clientDetail(data viewmodel.PageData) {
 						<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-							@molecules.TextField("client-display-name", data.T("clients.display_name"), templ.Attributes{
-								"name": "display_name", "required": true, "maxlength": "200",
-								"value": data.ClientDraft.DisplayName, "data-trim": "",
-							})
-							@molecules.TextField("client-email", data.T("common.email")+" "+data.T("ui.optional"), templ.Attributes{
-								"name": "email", "type": "email", "maxlength": "254", "value": data.ClientDraft.Email,
-							})
-							@molecules.TextField("client-phone", data.T("clients.phone")+" "+data.T("ui.optional"), templ.Attributes{
-								"name": "phone", "maxlength": "50", "value": data.ClientDraft.Phone,
-							})
-							@molecules.TextareaField("client-notes", data.T("clients.notes")+" "+data.T("ui.optional"), data.ClientDraft.Notes, templ.Attributes{
-								"name": "notes", "maxlength": "5000",
-							})
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "client-display-name", Label: data.T("clients.display_name"), Value: data.ClientDraft.DisplayName}) {
+								<input id="client-display-name" name="display_name" required maxlength="200" value={ data.ClientDraft.DisplayName } data-trim=""/>
+							}
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "client-email", Label: data.T("common.email")+" "+data.T("ui.optional"), Value: data.ClientDraft.Email}) {
+								<input id="client-email" name="email" type="email" maxlength="254" value={ data.ClientDraft.Email }/>
+							}
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "client-phone", Label: data.T("clients.phone")+" "+data.T("ui.optional"), Value: data.ClientDraft.Phone}) {
+								<input id="client-phone" name="phone" type="tel" maxlength="50" value={ data.ClientDraft.Phone }/>
+							}
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "client-notes", Label: data.T("clients.notes")+" "+data.T("ui.optional"), Value: data.ClientDraft.Notes}) {
+								<textarea id="client-notes" name="notes" maxlength="5000">{ data.ClientDraft.Notes }</textarea>
+							}
 							<div class="modal-action">
 								<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
 								<button type="button" class="btn" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
@@ -320,16 +319,26 @@ templ clientTimeline(data viewmodel.PageData) {
 				}
 				<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage) } method="post">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@atoms.Textarea(atoms.TextareaProps{ID:"timeline-text", Name:"text", Label:data.T("clients.timeline_text"), Value:data.TimelineDraft.Text, Required:true, Class:"w-full min-h-32"})
+					@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-text", Label: data.T("clients.timeline_text"), Value: data.TimelineDraft.Text}) {
+						<textarea id="timeline-text" name="text" required class="w-full min-h-32">{ data.TimelineDraft.Text }</textarea>
+					}
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						@atoms.Select(atoms.SelectProps{ID:"timeline-type", Name:"type", Label:data.T("clients.timeline_type"), Options:timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"})})
-						@atoms.Select(atoms.SelectProps{ID:"timeline-channel", Name:"channel", Label:data.T("clients.timeline_channel") + " " + data.T("ui.optional"), Options:timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"})})
+						@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-type", Label: data.T("clients.timeline_type"), Value: data.TimelineDraft.Type, SearchLabel: data.T("ui.search")}) {
+							<select id="timeline-type" name="type" class="select w-full" data-entry-picker>
+								@atoms.SelectOptions(timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"}))
+							</select>
+						}
+						@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-channel", Label: data.T("clients.timeline_channel")+" "+data.T("ui.optional"), Value: data.TimelineDraft.Channel, SearchLabel: data.T("ui.search")}) {
+							<select id="timeline-channel" name="channel" class="select w-full" data-entry-picker>
+								@atoms.SelectOptions(timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"}))
+							</select>
+						}
 					</div>
 					<details class="collapse collapse-arrow bg-base-200 mt-3" open?={ data.TimelineDraft.Corrects != "" }>
 						<summary class="collapse-title font-semibold">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</summary>
 						<div class="collapse-content">
-							<label for="timeline-corrects">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</label>
-							<select id="timeline-corrects" name="corrects" class="select w-full">
+							@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-corrects", Label: data.T("clients.timeline_corrects")+" "+data.T("ui.optional"), Value: data.TimelineDraft.Corrects, SearchLabel: data.T("ui.search")}) {
+							<select id="timeline-corrects" name="corrects" class="select w-full" data-entry-picker>
 								<option value="">{ data.T("clients.timeline_none") }</option>
 								if data.TimelineDraft.Corrects != "" && !timelineHasDraftCorrection(data.ClientTimeline, data.TimelineDraft.Corrects) {
 									<option value={ data.TimelineDraft.Corrects } selected>{ data.TimelineDraft.Corrects }</option>
@@ -338,6 +347,7 @@ templ clientTimeline(data viewmodel.PageData) {
 									<option value={ entry.ID.String() } selected?={ data.TimelineDraft.Corrects == entry.ID.String() }>{ entry.ID.String() } — { entry.Text }</option>
 								}
 							</select>
+							}
 						</div>
 					</details>
 					<div class="modal-action">
@@ -391,6 +401,7 @@ templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
 			ID: "value-" + value.FieldID.String(), Name: "value", InputType: inputType, MaxLength: "500",
 			Action: action, CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values", ClearURL: clearURL, ClearLabel: data.T("clients.value_clear"),
 			CSRF: data.CSRF, Version: version, Draft: hasDraft, FormDraft: hasDraft, Class: "min-w-0",
+			Attrs: templ.Attributes{"data-entry-number": templ.KV("float", value.Type == "number")},
 		})
 	</div>
 }
@@ -403,9 +414,8 @@ templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow)
 	<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post" data-confirm-select?={ value.Type == "yes_no" || value.Type == "single_choice" } data-dirty-track data-unsaved-warning data-dirty-on-load?={ hasDraft }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
-		@atoms.Label(atoms.LabelProps{Class: "sr-only", For: "value-" + value.FieldID.String(), Text: value.Label + " " + data.T("ui.optional")})
-		if value.Type == "yes_no" || value.Type == "single_choice" {
-			<select class="select w-full" id={ "value-" + value.FieldID.String() } name="value">
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "value-" + value.FieldID.String(), Label: value.Label + " " + data.T("ui.optional"), Value: inputValue, SearchLabel: data.T("ui.search")}) {
+			<select class="select w-full" id={ "value-" + value.FieldID.String() } name="value" data-entry-picker>
 				if hasDraft {
 					<option value={ inputValue } selected>{ inputValue }</option>
 				}
@@ -419,12 +429,6 @@ templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow)
 					}
 				}
 			</select>
-		} else if value.Type == "number" && !hasDraft {
-			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "number", Step: "any", Value: inputValue})
-		} else if value.Type == "date" && !hasDraft {
-			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", Type: "date", Value: inputValue})
-		} else {
-			@atoms.PlainInput(atoms.InputProps{ID: "value-" + value.FieldID.String(), Name: "value", MaxLength: "500", Value: inputValue})
 		}
 		<div class="actions" data-confirm-select-fallback>
 			<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values" }>{ data.T("common.cancel") }</a>

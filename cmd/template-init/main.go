@@ -407,14 +407,18 @@ func transactionsPath(relative string) bool {
 		strings.HasPrefix(relative, "internal/web/transactions") ||
 		strings.HasPrefix(relative, "internal/mcpserver/transactions") ||
 		strings.HasPrefix(relative, "internal/browsertest/transactions") ||
+		strings.HasPrefix(relative, "internal/web/transaction_create_fields") ||
 		strings.HasPrefix(relative, "internal/appctl/transactions") ||
+		relative == "internal/portability/transactions_test.go" ||
 		relative == "internal/platform/database/transactions_migrate_test.go" ||
 		relative == "internal/platform/database/migrations/000057_transactions.sql" ||
 		relative == "internal/platform/database/migrations/000058_transactions_client_erasure.sql" ||
 		relative == "internal/platform/database/migrations/000059_transactions_corrections.sql" ||
 		relative == "internal/platform/database/migrations/000060_transactions_method_names.sql" ||
 		relative == "internal/platform/database/migrations/000061_transactions_categories.sql" ||
-		relative == "internal/platform/database/migrations/000062_transaction_description.sql"
+		relative == "internal/platform/database/migrations/000062_transaction_description.sql" ||
+		relative == "internal/platform/database/migrations/000064_transactions_revision.sql" ||
+		relative == "internal/platform/database/migrations/000065_transactions_client_revision.sql"
 }
 
 func disableTransactionsSource(relative string, raw []byte) []byte {
@@ -511,6 +515,7 @@ func disableTransactionsSource(relative string, raw []byte) []byte {
 			}
 		}
 	case "docs/capabilities.md":
+		value = removeText(value, "## Transactions filters and client history (#633)", "## Scheduling resources (#579)")
 		value = removeLineStarting(value, "| Transactions |")
 	case "docs/architecture.md":
 		value = removeText(value, "Transactions is optional and requires Identity and Clients.", "\n\nCompanySite")
@@ -523,7 +528,7 @@ func catalogPath(relative string) bool {
 	return relative == "api/catalog_contract_test.go" || relative == "api/catalog_authorization_contract_test.go" || relative == "internal/catalog" || strings.HasPrefix(relative, "internal/catalog/") ||
 		relative == "internal/httpapi/catalog.go" || relative == "internal/httpapi/catalog_test.go" || relative == "internal/httpapi/catalog_authorization_test.go" || relative == "internal/httpapi/catalog_isolation_test.go" ||
 		relative == "internal/web/catalog.go" || relative == "internal/web/catalog_test.go" || relative == "internal/web/catalog_authorization_test.go" || relative == "internal/web/catalog_isolation_test.go" ||
-		relative == "internal/web/currency_settings.go" || relative == "internal/web/currency_settings.templ" || relative == "internal/web/currency_settings_templ.go" || relative == "internal/web/currency_settings_test.go" ||
+		relative == "internal/platform/database/migrate_workspace_currencies_postgres_test.go" ||
 		relative == "internal/platform/database/migrate_catalog_currencies_test.go" ||
 		relative == "internal/web/catalog.templ" || relative == "internal/web/catalog_templ.go" ||
 		relative == "internal/scheduling/booking.go" || relative == "internal/scheduling/move.go" || relative == "internal/scheduling/hours_bounds_test.go" || relative == "internal/platform/database/migrations/000048_scheduling_bookings.sql" ||
@@ -560,8 +565,6 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "h.catalogUnarchive")
 		value = removeLinesContaining(value, "h.catalogDelete")
 		value = removeLinesContaining(value, "h.catalogEdit")
-		value = removeLinesContaining(value, "h.currencySettingsPage")
-		value = removeLinesContaining(value, "h.currencySettingsSave")
 		value = removeLinesContaining(value, `"updateCatalog":`)
 		value = removeLinesContaining(value, "EnableCatalog(")
 		value = removeLinesContaining(value, `"listCatalog":`)
@@ -572,6 +575,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"setSchedulingEngagement":`)
 		value = removeLinesContaining(value, `"setSchedulingBookingStatus":`)
 		value = removeLinesContaining(value, `"moveSchedulingBooking":`)
+	case "internal/platform/database/migrate_workspace_currencies_test.go":
+		value = removeText(value, "func TestWorkspaceCurrenciesMigrationPreservesCatalog(", "func TestWorkspaceCurrenciesMigrationWithoutCatalog(")
 	case "internal/httpapi/scheduling.go":
 		value = removeText(value, "func (h *handler) moveSchedulingBooking(", "func (h *handler) listSchedulingResources(")
 		value = removeText(value, "\tcase errors.Is(err, scheduling.ErrNoDuration):", "\tcase err != nil:")
@@ -781,7 +786,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 	switch relative {
 	case "internal/platform/database/migrate.go":
 		value = removeLinesContaining(value, `/internal/platform/id"`)
-		value = removeText(value, "\t\tif migration.version == 51 {", "\t\tif err := recordMigration(ctx, tx, driver, migration.version); err != nil {")
+		value = removeText(value, "\t\tif migration.version == 51 {", "\t\tif migration.version == 63 {")
 		value = removeText(value, "func backfillEngagementNames(", "// renderMigration")
 	case "internal/identity/account.go":
 		value = removeText(value, "\tif _, err := s.exec(ctx, tx, \"UPDATE engagements SET action_version", "\tresult, err := s.exec(ctx, tx, \"DELETE FROM users WHERE id = ?\", userID)")

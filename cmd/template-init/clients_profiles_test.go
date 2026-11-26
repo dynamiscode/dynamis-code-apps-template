@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+func TestClientsOmissionPreservesWorkspaceCurrencyBackfill(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "internal", "platform", "database", "migrate.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pruned := string(disableClientsSource("internal/platform/database/migrate.go", raw))
+	if strings.Contains(pruned, "migration.version == 51") || !strings.Contains(pruned, "migration.version == 63") || !strings.Contains(pruned, "backfillWorkspaceCurrencies(ctx, tx, applied)") || !strings.Contains(pruned, "SELECT id, 'USD', 2, TRUE FROM workspaces") {
+		t.Fatal("Clients omission must retain workspace currency migration and USD backfill")
+	}
+}
+
 func TestGenerateWithClientsAndFilesProfilesBuilds(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))

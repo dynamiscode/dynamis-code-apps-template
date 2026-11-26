@@ -2,12 +2,13 @@ package web
 
 import "strconv"
 import "example.com/dynamis-code/apps-template/internal/catalog"
+import "example.com/dynamis-code/apps-template/internal/currency"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []catalog.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
+templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
  @templates.DashboardShell(data, templates.DashboardHome) {
   if entryID != "" && len(entries) > 0 {
    @molecules.BackLink(data.Filter.Path + data.ClientQuerySuffix, data.T("catalog.back"))
@@ -19,7 +20,7 @@ templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies [
  }
 }
 
-templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies []catalog.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
+templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
  <div id="catalog-view">
   if invalid && inUse {
    <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.last_price") }</div>
@@ -52,10 +53,11 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
    <div class="list-filter-strip"><span class="list-filter-chip badge gap-1 py-1 pl-3">{ data.T("catalog.status") }: { data.T("catalog.archived") }</span></div>
   }
   if canWrite && entryID == "" {
-   {{ name, duration := "", "" }}
+   {{ name, duration, currencySearch := "", "", "" }}
    {{ initialPrice := catalog.PriceOption{Variant: "Standard"} }}
    if form.kind == "create" {
     {{ name, duration, initialPrice = form.name, form.duration, form.price }}
+    {{ currencySearch = form.currencySearch }}
    }
    <dialog class="modal" aria-labelledby="catalog-create-title" data-catalog-dialog open?={ createPage || form.kind == "create" }>
    <div class="modal-box">
@@ -63,20 +65,30 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
    <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog") } class="space-y-3 mt-4">
     <h3 class="font-semibold">{ data.T("catalog.entry_details") }</h3>
     <input type="hidden" name="csrf" value={ data.CSRF }/>
-    if form.kind == "create" {
+    if form.kind == "create" && !form.searching {
      <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</p>
     }
-    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered w-full" name="name" value={ name } required/></label>
-    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered w-full" type="number" name="duration_minutes" value={ duration } min="1"/></label>
+    @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-create-name", Label: data.T("catalog.name"), Value: name}) {
+     <input id="catalog-create-name" class="input input-bordered w-full" name="name" value={ name } required/>
+    }
+    @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-create-duration", Label: data.T("catalog.duration"), Value: duration}) {
+     <input id="catalog-create-duration" class="input input-bordered w-full" type="number" name="duration_minutes" value={ duration } min="1" data-entry-number="integer" data-entry-number-positive/>
+    }
     <h3 class="font-semibold">{ data.T("catalog.first_price") }</h3>
     <p id="catalog-price-help" class="text-sm">{ data.T("catalog.price_help") }</p>
-    <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.create_amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(initialPrice.Amount) } inputmode="decimal" aria-describedby="catalog-price-help"/></label>
+    @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-create-amount", Label: data.T("catalog.create_amount"), Value: catalogAmount(initialPrice.Amount)}) {
+     <input id="catalog-create-amount" class="input input-bordered w-full" name="amount" value={ catalogAmount(initialPrice.Amount) } inputmode="decimal" data-entry-number="decimal" aria-describedby="catalog-price-help"/>
+    }
     <details class="collapse collapse-arrow border border-base-300 bg-base-100" open?={ form.kind == "create" }>
      <summary class="collapse-title font-medium">{ data.T("catalog.advanced_pricing") }</summary>
      <div class="collapse-content space-y-3">
-      @catalogCurrencySelect(data, currencies, initialPrice.Currency)
-      <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ initialPrice.Variant }/></label>
-      <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ initialPrice.Eligibility }/></label>
+      @catalogCurrencySelect(data, currencies, initialPrice.Currency, "catalog-create-currency", currencySearch)
+      @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-create-variant", Label: data.T("catalog.variant"), Value: initialPrice.Variant}) {
+       <input id="catalog-create-variant" class="input input-bordered w-full" name="variant" value={ initialPrice.Variant }/>
+      }
+      @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-create-eligibility", Label: data.T("catalog.eligibility"), Value: initialPrice.Eligibility}) {
+       <input id="catalog-create-eligibility" class="input input-bordered w-full" name="eligibility" value={ initialPrice.Eligibility }/>
+      }
      </div>
     </details>
     <div class="modal-action">
@@ -138,8 +150,12 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
            } else {
             <input type="hidden" name="version" value={ form.version }/>
            }
-           <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.name") }</span><input class="input input-bordered w-full" name="name" value={ form.name } required/></label>
-           <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.duration") }</span><input class="input input-bordered w-full" type="number" name="duration_minutes" value={ form.duration } min="1"/></label>
+           @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-entry-name", Label: data.T("catalog.name"), Value: form.name}) {
+            <input id="catalog-entry-name" class="input input-bordered w-full" name="name" value={ form.name } required/>
+           }
+           @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-entry-duration", Label: data.T("catalog.duration"), Value: form.duration}) {
+            <input id="catalog-entry-duration" class="input input-bordered w-full" type="number" name="duration_minutes" value={ form.duration } min="1" data-entry-number="integer" data-entry-number-positive/>
+           }
            <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
            <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
            <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
@@ -162,8 +178,10 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
          if canWrite {
           <div class="flex flex-wrap items-start gap-2">
           {{ editPrice := price }}
+          {{ currencySearch := "" }}
           if form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() {
            {{ editPrice = form.price }}
+           {{ currencySearch = form.currencySearch }}
           }
           <details class="group" data-detail-editor data-detail-discard-message={ data.T("ui.unsaved") } data-detail-dirty-on-load?={ form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() } open?={ form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() }>
            <summary class="cursor-pointer"><span class="group-open:hidden">@catalogPriceSummary(data, price)</span> <span class="btn btn-sm">{ data.T("catalog.edit_price") }</span></summary>
@@ -171,16 +189,24 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
             <div class="modal-box">
             <h3 id={ "catalog-price-title-" + price.ID.String() } class="text-xl font-semibold">{ data.T("catalog.edit_price") }</h3>
             <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices/" + price.ID.String() + "/edit") } class="space-y-3 mt-4">
-            if form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() {
+            if form.kind == "edit-price" && form.entryID == entry.ID.String() && form.priceID == price.ID.String() && !form.searching {
              <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</p>
             }
             <p class="text-sm">{ data.T("catalog.price_help") }</p>
             <input type="hidden" name="csrf" value={ data.CSRF }/>
-            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered w-full" name="mode"><option value="fixed" selected?={ editPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ editPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
-            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(editPrice.Amount) } inputmode="decimal"/></label>
-            @catalogCurrencySelect(data, currencies, editPrice.Currency)
-            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ editPrice.Variant } required/></label>
-            <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ editPrice.Eligibility }/></label>
+            @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-edit-mode-" + price.ID.String(), Label: data.T("catalog.mode"), Value: editPrice.Mode, SearchLabel: data.T("ui.search")}) {
+             <select id={ "catalog-edit-mode-" + price.ID.String() } class="select select-bordered w-full" name="mode" data-entry-picker><option value="fixed" selected?={ editPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ editPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select>
+            }
+            @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-edit-amount-" + price.ID.String(), Label: data.T("catalog.amount"), Value: catalogAmount(editPrice.Amount)}) {
+             <input id={ "catalog-edit-amount-" + price.ID.String() } class="input input-bordered w-full" name="amount" value={ catalogAmount(editPrice.Amount) } inputmode="decimal" data-entry-number="decimal"/>
+            }
+            @catalogCurrencySelect(data, currencies, editPrice.Currency, "catalog-edit-currency-" + price.ID.String(), currencySearch)
+            @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-edit-variant-" + price.ID.String(), Label: data.T("catalog.variant"), Value: editPrice.Variant}) {
+             <input id={ "catalog-edit-variant-" + price.ID.String() } class="input input-bordered w-full" name="variant" value={ editPrice.Variant } required/>
+            }
+            @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-edit-eligibility-" + price.ID.String(), Label: data.T("catalog.eligibility"), Value: editPrice.Eligibility}) {
+             <input id={ "catalog-edit-eligibility-" + price.ID.String() } class="input input-bordered w-full" name="eligibility" value={ editPrice.Eligibility }/>
+            }
             <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
             <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
             <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
@@ -238,7 +264,7 @@ templ catalogInlineField(data viewmodel.PageData, entry catalog.Entry, form cata
   ID: "catalog-inline-" + field, Name: "value", InputType: inputType, Required: required,
   Action: "/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/field", CancelURL: detail,
   CSRF: data.CSRF, Version: version, Field: field, Draft: draft, FormDraft: draft, Conflict: draft && form.conflict,
-  Error: errorText, RetryLabel: data.T("ui.retry"),
+  Error: errorText, RetryLabel: data.T("ui.retry"), Attrs: templ.Attributes{"data-entry-number": templ.KV("integer", field == "duration_minutes"), "data-entry-number-positive": field == "duration_minutes"},
  })
 }
 
@@ -334,10 +360,12 @@ templ catalogPriceSummary(data viewmodel.PageData, price catalog.PriceOption) {
  }
 }
 
-templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies []catalog.Currency, form catalogForm) {
+templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies []currency.Currency, form catalogForm) {
  {{ newPrice := catalog.PriceOption{} }}
+ {{ currencySearch := "" }}
  if form.kind == "add-price" && form.entryID == entry.ID.String() {
   {{ newPrice = form.price }}
+  {{ currencySearch = form.currencySearch }}
  }
  <details data-detail-editor data-detail-discard-message={ data.T("ui.unsaved") } data-detail-dirty-on-load?={ form.kind == "add-price" && form.entryID == entry.ID.String() } open?={ form.kind == "add-price" && form.entryID == entry.ID.String() }>
   <summary class="btn btn-sm">{ data.T("catalog.add_price") }</summary>
@@ -345,16 +373,24 @@ templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies [
    <div class="modal-box">
    <h3 id={ "catalog-add-price-title-" + entry.ID.String() } class="text-xl font-semibold">{ data.T("catalog.add_price") }</h3>
    <form method="post" action={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog/" + entry.ID.String() + "/prices") } class="space-y-3 mt-3">
-   if form.kind == "add-price" && form.entryID == entry.ID.String() {
+   if form.kind == "add-price" && form.entryID == entry.ID.String() && !form.searching {
     <p role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.invalid") }</p>
    }
    <p class="text-sm">{ data.T("catalog.price_help") }</p>
    <input type="hidden" name="csrf" value={ data.CSRF }/>
-   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.mode") }</span><select class="select select-bordered w-full" name="mode"><option value="fixed" selected?={ newPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ newPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select></label>
-   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.amount") }</span><input class="input input-bordered w-full" name="amount" value={ catalogAmount(newPrice.Amount) } inputmode="decimal"/></label>
-   @catalogCurrencySelect(data, currencies, newPrice.Currency)
-   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.variant") }</span><input class="input input-bordered w-full" name="variant" value={ newPrice.Variant } required/></label>
-   <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.eligibility") }</span><input class="input input-bordered w-full" name="eligibility" value={ newPrice.Eligibility }/></label>
+   @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-add-mode-" + entry.ID.String(), Label: data.T("catalog.mode"), Value: newPrice.Mode, SearchLabel: data.T("ui.search")}) {
+    <select id={ "catalog-add-mode-" + entry.ID.String() } class="select select-bordered w-full" name="mode" data-entry-picker><option value="fixed" selected?={ newPrice.Mode == "fixed" }>{ data.T("catalog.fixed") }</option><option value="manual" selected?={ newPrice.Mode == "manual" }>{ data.T("catalog.manual") }</option></select>
+   }
+   @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-add-amount-" + entry.ID.String(), Label: data.T("catalog.amount"), Value: catalogAmount(newPrice.Amount)}) {
+    <input id={ "catalog-add-amount-" + entry.ID.String() } class="input input-bordered w-full" name="amount" value={ catalogAmount(newPrice.Amount) } inputmode="decimal" data-entry-number="decimal"/>
+   }
+   @catalogCurrencySelect(data, currencies, newPrice.Currency, "catalog-add-currency-" + entry.ID.String(), currencySearch)
+   @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-add-variant-" + entry.ID.String(), Label: data.T("catalog.variant"), Value: newPrice.Variant}) {
+    <input id={ "catalog-add-variant-" + entry.ID.String() } class="input input-bordered w-full" name="variant" value={ newPrice.Variant } required/>
+   }
+   @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-add-eligibility-" + entry.ID.String(), Label: data.T("catalog.eligibility"), Value: newPrice.Eligibility}) {
+    <input id={ "catalog-add-eligibility-" + entry.ID.String() } class="input input-bordered w-full" name="eligibility" value={ newPrice.Eligibility }/>
+   }
    <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
    <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
    <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
@@ -364,21 +400,21 @@ templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies [
  </details>
 }
 
-templ catalogCurrencySelect(data viewmodel.PageData, currencies []catalog.Currency, selected string) {
+templ catalogCurrencySelect(data viewmodel.PageData, currencies []currency.Currency, selected string, id string, search string) {
+ {{ options := make([]molecules.CurrencyPickerOption, 0, len(currencies) + 1) }}
  {{ found := false }}
- for _, currency := range currencies {
-  if currency.Code == selected {
+ for _, item := range currencies {
+  if item.Code == selected {
    {{ found = true }}
   }
+  {{ options = append(options, molecules.CurrencyPickerOption{Code: item.Code, Label: item.Code + " — " + strconv.Itoa(item.Decimals) + " " + data.T("catalog.decimals")}) }}
+  if selected == "" && item.Default {
+   {{ found = true }}
+   {{ selected = item.Code }}
+  }
  }
- <label class="flex flex-col gap-1"><span class="label-text">{ data.T("catalog.currency") }</span>
-  <select class="select select-bordered w-full" name="currency" required>
-   if selected != "" && !found {
-    <option value={ selected } selected disabled>{ selected } — { data.T("catalog.currency_unavailable") }</option>
-   }
-   for _, currency := range currencies {
-    <option value={ currency.Code } selected?={ currency.Code == selected || (selected == "" && currency.Default) }>{ currency.Code } — { strconv.Itoa(currency.Decimals) } { data.T("catalog.decimals") }</option>
-   }
-  </select>
- </label>
+ if selected != "" && !found {
+  {{ options = append(options, molecules.CurrencyPickerOption{Code: selected, Label: selected + " — " + data.T("catalog.currency_unavailable")}) }}
+ }
+ @molecules.CurrencyPicker(molecules.CurrencyPickerProps{ID: id, Label: data.T("catalog.currency"), SearchLabel: data.T("transactions.currency_search"), Search: search, SearchButton: data.T("ui.search"), ActionName: "picker_action", ActionValue: "currency", Name: "currency", Selected: selected, Required: true, Options: options})
 }

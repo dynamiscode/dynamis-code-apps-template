@@ -2,7 +2,7 @@
 
 Catalog revision migration 000056 initializes existing entry revisions to 1 without changing entry data. Follow the stop-the-world upgrade procedure below: old binaries do not increment revisions and must not run alongside the new version. Rolling back to an old binary loses stale-write protection; restore a pre-upgrade backup to remove the schema, losing subsequent writes.
 
-Catalog currency migration 000045 retains existing prices and their currency codes. Existing workspaces receive USD with two decimal places as the default and existing non-USD codes with up to 18 decimal places. New workspaces use USD with two decimal places until configured. A price whose legacy amount exceeds configured precision remains editable without changing its amount; changing that amount requires the configured precision. Currency settings are included in database backups. Rolling back the schema requires restoring a pre-upgrade backup; restoring loses subsequent writes.
+Workspace currency settings are shared by Catalog and Transactions. With no saved settings, USD with two decimal places is the default. Existing currency codes and legacy precision are retained. New transactions require an enabled canonical currency; an edit may keep an unchanged legacy currency, while a currency change requires exact conversion to an enabled canonical destination. Currency settings are included in database backups. Rolling back the schema requires restoring a pre-upgrade backup; restoring loses subsequent writes.
 
 ## Health, telemetry, and limits
 
@@ -64,6 +64,10 @@ audit history, and stale realtime replay in one transaction, then appends a safe
 summary audit event. Invitation paths are redacted in request logs; query values,
 bodies, and cookies are not logged.
 `AUDIT_RETENTION` defaults to 365 days.
+Transaction edits produce atomic per-field audit events. Audit metadata omits
+old and new `client_id`, `note`, and `description` values, so it cannot reconstruct
+those values. Other permitted fields include before and after values; currency
+changes also include before and after amounts. Audit events follow this retention.
 Engagement stage history is retained separately for the engagement lifetime and
 is unaffected by audit pruning; database backups include it.
 

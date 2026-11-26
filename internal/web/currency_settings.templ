@@ -1,10 +1,11 @@
 package web
 
+import "example.com/dynamis-code/apps-template/internal/currency"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, newCode, newDecimals, message string, newDefault, canWrite bool) {
+templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, choices []currency.Currency, newCode, query, message string, newDefault, canWrite bool) {
 	@templates.DashboardShell(data, templates.DashboardSettings) {
 		<div class="settings-page">
 			<a class="btn btn-outline btn-sm" href={ "/workspaces/" + data.Workspace.ID.String() + "/settings/general" }>{ data.T("currency.back") }</a>
@@ -16,15 +17,25 @@ templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, 
 			if message != "" {
 				@molecules.ErrorAlert(data.T(message))
 			}
+			if canWrite {
+				<form class="settings-panel card min-w-0 p-5 space-y-4" method="get" action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>
+					<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.search") }</span><input class="input input-bordered w-full" type="search" name="q" value={ query }/></label>
+					<p>{ data.T("currency.search_help") }</p>
+					<button class="btn btn-outline" type="submit">{ data.T("currency.search_button") }</button>
+				</form>
+			}
 			<form class="settings-panel card min-w-0 p-5 space-y-4" method="post" action={ "/workspaces/" + data.Workspace.ID.String() + "/settings/currencies" }>
 				<input type="hidden" name="csrf" value={ data.CSRF }/>
+				<input type="hidden" name="q" value={ query }/>
 				<p>{ data.T("currency.default_help") }</p>
 				for _, row := range rows {
 					<fieldset class="rounded-box border border-base-300 p-4 space-y-3">
 						<legend class="font-semibold">{ row.Code }</legend>
-						<input type="hidden" name="code" value={ row.Code }/>
-						<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.decimals") }</span><input class="input input-bordered w-full" type="number" min="0" max="18" required name={ "decimals_" + row.Code } value={ row.Decimals } disabled?={ !canWrite }/></label>
-						<label class="flex items-center gap-2"><input class="radio" type="radio" name="default" value={ row.Code } checked?={ row.Default } disabled?={ !canWrite }/> { data.T("currency.default") }</label>
+						<p>{ data.T("currency.decimals") }: { row.Decimals }</p>
+						if row.Legacy {
+							<p>{ data.T("currency.legacy") }</p>
+						}
+						<label class="flex items-center gap-2"><input class="radio" type="radio" name="default" value={ row.Code } checked?={ row.Default } disabled?={ !canWrite || (row.Legacy && !row.LegacyDefault) }/> { data.T("currency.default") }</label>
 						if canWrite {
 							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" name={ "remove_" + row.Code } value="1" checked?={ row.Remove }/> { data.T("currency.remove") }</label>
 						}
@@ -33,10 +44,14 @@ templ currencySettingsView(data viewmodel.PageData, rows []currencySettingsRow, 
 				if canWrite {
 					<fieldset class="rounded-box border border-base-300 p-4 space-y-3">
 						<legend class="font-semibold">{ data.T("currency.add") }</legend>
-						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-							<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.code_optional") }</span><input class="input input-bordered w-full" name="new_code" value={ newCode }/></label>
-							<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.decimals") }</span><input class="input input-bordered w-full" type="number" min="0" max="18" name="new_decimals" value={ newDecimals }/></label>
-						</div>
+						<label class="flex flex-col gap-1"><span class="label-text">{ data.T("currency.select") }</span>
+							<select class="select select-bordered w-full" name="new_code">
+								<option value="">{ data.T("currency.none") }</option>
+								for _, choice := range choices {
+									<option value={ choice.Code } selected?={ choice.Code == newCode }>{ choice.Code }</option>
+								}
+							</select>
+						</label>
 						<label class="flex items-center gap-2"><input class="radio" type="radio" name="default" value="__new" checked?={ newDefault }/> { data.T("currency.make_new_default") }</label>
 					</fieldset>
 					<button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>

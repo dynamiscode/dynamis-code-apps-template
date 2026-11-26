@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -88,8 +89,29 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	if !strings.Contains(recordPage.Body.String(), `class="transaction-entry-form`) || !strings.Contains(recordPage.Body.String(), `for="transactions-description"`) {
 		t.Fatal("creation form must retain visible labels and shared detail layout")
 	}
-	if !strings.Contains(recordPage.Body.String(), `list="transactions-currencies"`) || !strings.Contains(recordPage.Body.String(), `value="USD" label="US dollar (USD)"`) || !strings.Contains(recordPage.Body.String(), `id="transactions-currency-help"`) {
-		t.Fatal("currency suggestions or arbitrary-code guidance missing")
+	if !strings.Contains(recordPage.Body.String(), `<details class="transaction-advanced"><summary`) || !strings.Contains(recordPage.Body.String(), `data-entry-field`) {
+		t.Fatal("optional creation fields must start under Advanced and use shared fields")
+	}
+	if !strings.Contains(recordPage.Body.String(), `id="transactions-currency" name="currency"`) || !strings.Contains(recordPage.Body.String(), `value="USD" selected`) || strings.Contains(recordPage.Body.String(), `list="transactions-currencies"`) {
+		t.Fatal("currency must be an enabled-only select with the workspace default")
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'USD', 2, FALSE), ($1, 'EUR', 2, TRUE)`, workspace); err != nil {
+		t.Fatal(err)
+	}
+	defaultPage := request(h.Routes(), http.MethodGet, path+"?view=record", nil, cookies, nil)
+	if !strings.Contains(defaultPage.Body.String(), `value="EUR" selected`) || !strings.Contains(defaultPage.Body.String(), `value="USD"`) {
+		t.Fatalf("workspace currencies and default missing: %s", defaultPage.Body)
+	}
+	filtered := request(h.Routes(), http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "currency": {"EUR"}, "currency_search": {"usd"}, "picker_action": {"currency"}, "note": {"Kept draft"}}, cookies, nil)
+	if filtered.Code != http.StatusOK || !strings.Contains(filtered.Body.String(), `value="EUR" selected`) || !strings.Contains(filtered.Body.String(), `value="USD"`) || !strings.Contains(filtered.Body.String(), "Kept draft") {
+		t.Fatalf("currency search must preserve selection and draft: %d %s", filtered.Code, filtered.Body)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM workspace_currencies WHERE workspace_id = $1`, workspace); err != nil {
+		t.Fatal(err)
+	}
+	disabled := request(h.Routes(), http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "description": {"Disabled currency"}, "direction": {"in"}, "amount_minor": {"125"}, "currency": {"EUR"}, "payment_method": {"cash"}}, cookies, nil)
+	if disabled.Code != http.StatusUnprocessableEntity || !strings.Contains(disabled.Body.String(), `aria-describedby="transactions-currency-error"`) {
+		t.Fatalf("disabled currency must be rejected: %d %s", disabled.Code, disabled.Body)
 	}
 	directionPage := request(h.Routes(), http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "direction": {"out"}, "picker_action": {"direction"}, "note": {"Preserved draft"}}, cookies, nil)
 	if !strings.Contains(directionPage.Body.String(), `id="transactions-category"`) || !strings.Contains(directionPage.Body.String(), "Preserved draft") {
@@ -108,8 +130,8 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	}
 	unknown := url.Values{"csrf": {session.CSRFSecret}, "direction": {"in"}, "amount": {"125"}, "amount_mode": {"decimal"}, "amount_locale": {"en"}, "currency": {"ZZZ"}, "payment_method": {"cash"}}
 	unknownResult := request(h.Routes(), http.MethodPost, path, unknown, cookies, nil)
-	if unknownResult.Code != http.StatusUnprocessableEntity || !strings.Contains(unknownResult.Body.String(), "This currency is not supported for decimal amounts") || !strings.Contains(unknownResult.Body.String(), `aria-describedby="transactions-amount-error"`) {
-		t.Fatalf("unsupported currency must explain the explicit minor-unit fallback: %d %s", unknownResult.Code, unknownResult.Body)
+	if unknownResult.Code != http.StatusUnprocessableEntity || !strings.Contains(unknownResult.Body.String(), `aria-describedby="transactions-currency-error"`) {
+		t.Fatalf("unsupported currency must be rejected: %d %s", unknownResult.Code, unknownResult.Body)
 	}
 	for _, tc := range []struct{ amount, mode, locale, message string }{
 		{"bad", "decimal", "en", "Enter a positive amount with no more decimal places than this currency allows."},
@@ -192,6 +214,9 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	if !strings.Contains(detailPage.Body.String(), `class="modal-box detail-main`) || !strings.Contains(detailPage.Body.String(), `class="detail-values transaction-detail-values`) || !strings.Contains(detailPage.Body.String(), `data-transactions-details-close aria-label="Close"`) || !strings.Contains(detailPage.Body.String(), `aria-hidden="true">×</span>`) {
 		t.Fatal("detail must retain responsive labels and an accessible close link without JavaScript")
 	}
+	if !strings.Contains(detailPage.Body.String(), `<details class="transaction-advanced"><summary`) || !strings.Contains(detailPage.Body.String(), `data-entry-field`) {
+		t.Fatal("empty optional details must remain under Advanced with shared fields")
+	}
 	linked := request(h.Routes(), http.MethodGet, path+"?refund_of_entry_id="+entries[0].ID.String()+"&details="+refundEntries[0].ID.String(), nil, cookies, nil)
 	if linked.Code != http.StatusOK || !strings.Contains(linked.Body.String(), "<dd>"+refundEntries[0].ID.String()+"</dd>") || strings.Contains(linked.Body.String(), "<dt>Entry ID</dt><dd>"+entries[0].ID.String()+"</dd>") {
 		t.Fatalf("linked refunds: %d %s", linked.Code, linked.Body)
@@ -254,7 +279,7 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	form.Set("description", "Walk-in payment")
 	form.Set("currency", "XX")
 	invalid = request(h.Routes(), http.MethodPost, path, form, cookies, nil)
-	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Enter a three-letter currency code") || !strings.Contains(invalid.Body.String(), `aria-describedby="transactions-currency-error"`) {
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "Choose an enabled currency for this workspace.") || !strings.Contains(invalid.Body.String(), `aria-describedby="transactions-currency-error"`) {
 		t.Fatalf("invalid currency: %d %s", invalid.Code, invalid.Body)
 	}
 	form.Set("picker_action", "search")
@@ -554,5 +579,112 @@ func TestTransactionsInputAmountFormats(t *testing.T) {
 	input, err = transactionsInput(base)
 	if err != nil || input.AmountMinor != 125 {
 		t.Fatalf("explicit minor units: %+v %v", input, err)
+	}
+}
+
+func TestTransactionsInlineEditAndConflict(t *testing.T) {
+	ctx := context.Background()
+	h, auth, workspace, owner, db := testWebWithMFARawDB(t, 2, false)
+	h.EnableTransactions(transactions.NewService(db, auth))
+	h.clients = clients.NewService(db, config.SQLite, auth, 10)
+	actor, err := auth.Authorize(ctx, owner.UserID, workspace, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := h.transactions.Create(ctx, actor, workspace, transactions.Input{Description: "Original", Direction: "in", AmountMinor: 125, Currency: "USD", PaymentMethod: "cash", OccurredOn: "2026-01-02"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspace.String() + "/transactions"
+	action := path + "/entries/" + entry.ID.String() + "/field?details=" + entry.ID.String() + "&page=1"
+	form := url.Values{"csrf": {session.CSRFSecret}, "field": {"description"}, "value": {"Revised"}, "version": {strconv.FormatInt(entry.Revision, 10)}}
+	if result := request(h.Routes(), http.MethodPost, action, form, cookies, nil); result.Code != http.StatusSeeOther || !strings.Contains(result.Header().Get("Location"), "details="+entry.ID.String()) {
+		t.Fatalf("edit: %d %s", result.Code, result.Body)
+	}
+	form.Set("value", "Rejected draft")
+	conflict := request(h.Routes(), http.MethodPost, action, form, cookies, nil)
+	if conflict.Code != http.StatusConflict || !strings.Contains(conflict.Body.String(), "Rejected draft") || !strings.Contains(conflict.Body.String(), "Revised") || !strings.Contains(conflict.Body.String(), "This entry changed") {
+		t.Fatalf("conflict recovery: %d %s", conflict.Code, conflict.Body)
+	}
+	form.Set("version", strconv.FormatInt(entry.Revision+1, 10))
+	form.Set("value", " ")
+	invalid := request(h.Routes(), http.MethodPost, action, form, cookies, nil)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), "The change could not be saved") {
+		t.Fatalf("invalid edit: %d %s", invalid.Code, invalid.Body)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE workspace_members SET role = 'member' WHERE workspace_id = $1 AND user_id = $2`, workspace, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	form.Set("value", "Unauthorized")
+	if result := request(h.Routes(), http.MethodPost, action, form, cookies, nil); result.Code != http.StatusForbidden {
+		t.Fatalf("member edit: %d", result.Code)
+	}
+	member := request(h.Routes(), http.MethodGet, path+"?details="+entry.ID.String(), nil, cookies, nil)
+	if strings.Contains(member.Body.String(), `transaction-inline-description`) {
+		t.Fatal("members must not see transaction editors")
+	}
+}
+
+func TestTransactionsClientOptionsWorkspaceAndLimits(t *testing.T) {
+	ctx := context.Background()
+	h, auth, workspace, owner, db := testWebWithMFARawDB(t, 2, false)
+	h.EnableTransactions(transactions.NewService(db, auth))
+	h.clients = clients.NewService(db, config.SQLite, auth, 10)
+	actor, err := auth.Authorize(ctx, owner.UserID, workspace, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.clients.Create(ctx, actor, workspace, clients.Input{DisplayName: "Needle local"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 26 {
+		if _, err := h.clients.Create(ctx, actor, workspace, clients.Input{DisplayName: "Paged " + strconv.Itoa(i)}, identity.AuditContext{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other, err := auth.CreateWorkspace(ctx, actor, identity.WorkspaceCreateInput{Name: "Other"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherActor, err := auth.Authorize(ctx, owner.UserID, other, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.clients.Create(ctx, otherActor, other, clients.Input{DisplayName: "Needle foreign"}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspace.String() + "/transactions/client-options"
+	result := request(h.Routes(), http.MethodGet, path+"?q=Needle", nil, cookies, nil)
+	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Needle local") || strings.Contains(result.Body.String(), "Needle foreign") || result.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("workspace search: %d %s", result.Code, result.Body)
+	}
+	first := request(h.Routes(), http.MethodGet, path+"?q=Paged&page=1", nil, cookies, nil)
+	second := request(h.Routes(), http.MethodGet, path+"?q=Paged&page=2", nil, cookies, nil)
+	if first.Code != http.StatusOK || second.Code != http.StatusOK || strings.Count(first.Body.String(), `"value":`) != 25 || strings.Count(second.Body.String(), `"value":`) != 1 || !strings.Contains(second.Body.String(), `"total":26`) {
+		t.Fatalf("paginated search: %d %s; %d %s", first.Code, first.Body, second.Code, second.Body)
+	}
+	for _, query := range []string{"?page=0", "?page=1000001", "?q=" + strings.Repeat("a", 201)} {
+		if got := request(h.Routes(), http.MethodGet, path+query, nil, cookies, nil); got.Code != http.StatusBadRequest {
+			t.Fatalf("invalid query %q: %d", query, got.Code)
+		}
+	}
+	if got := request(h.Routes(), http.MethodGet, path, nil, nil, nil); got.Code == http.StatusOK {
+		t.Fatal("anonymous search must not succeed")
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE workspace_members SET role = 'viewer' WHERE workspace_id = $1 AND user_id = $2`, workspace, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	if got := request(h.Routes(), http.MethodGet, path, nil, cookies, nil); got.Code == http.StatusOK {
+		t.Fatal("viewer must not access transaction client search")
 	}
 }

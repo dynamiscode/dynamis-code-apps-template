@@ -26,6 +26,10 @@ these principles into journey-specific acceptance criteria.
 - Present money as human-readable exact amounts with currency and correct
   precision. Never combine different currencies into one total or use
   floating-point rounding for financial values.
+- Use the workspace's enabled currency list and default for new monetary
+  records. Offer a labeled, searchable selection without accepting free-form
+  codes, including an ordinary form path without JavaScript. Keep historical
+  amounts and currencies visible even after a currency is disabled.
 - Use predictable navigation: show where the user is, offer a clear way back,
   and keep destination labels consistent. Links navigate; buttons act.
   For detail and subpages, use the shared `molecules.BackLink` before the
@@ -85,6 +89,11 @@ these principles into journey-specific acceptance criteria.
   Do not distinguish empty values by color alone.
 - When creation and review share the same properties, align their labels and
   values alike. Keep quiet creation controls visibly focusable without JavaScript.
+- Creation uses one unsaved draft across field editors, searches and pages; reveal
+  a closed invalid field before focusing it. Detail edits confirm one field at a time.
+- Replace a value in place while editing it; never append a second input below
+  the saved value. Put optional creation fields and empty optional detail fields
+  in Advanced; keep saved values visible and reopen Advanced for recovery.
 - On detail pages, show concise saved values with clearly labeled edit actions.
   For independently saved single values, including text, numbers, and dates,
   use an in-place editor: the value reads as text with a right-aligned pencil
@@ -92,12 +101,20 @@ these principles into journey-specific acceptance criteria.
   keyboard focus remains visible. On activation replace it in the same position
   without shifting surrounding content. Focus the input; select text where
   appropriate. Show accessible check and cancel icons in a floating toolbar
-  only while editing. Enter saves when not operating a native picker; Escape,
-  cancel, or a click outside restores the saved value without a confirmation
-  alert. Native picker interaction must not count as an outside click. An
-  outside click must not steal focus from the control the user selected.
-  Preserve clearing, validation and conflict recovery, and a usable ordinary
-  form without JavaScript.
+  only while editing. Enter saves when not operating a picker; Escape or cancel
+  restores the saved value. Clicking outside closes the editor without saving
+  or discarding the typed draft, and must not steal focus. Preserve clearing,
+  validation, conflict recovery and an ordinary form without JavaScript.
+  Reuse `molecules.EntryField` for creation and persisted entry controls. Empty
+  labels act as placeholders and float above populated values. Choice lists open
+  in a floating panel; lists over five choices provide live search. Draft fields
+  remain local to their form until its submit action.
+  Use theme-muted, readable placeholders and a decorative pencil for editable
+  entry controls, including text, number, date, select and textarea fields.
+  Selected defaults read as values until focused, without a permanent box.
+  Align placeholder and floating label text with the entered or selected value.
+  Preserve control geometry, clickable labels, visible keyboard focus and native
+  select arrows and form operation without JavaScript.
   Keep independently saved finite-choice selectors visible with the current
   value selected. When the user chooses a different value, open a confirmation
   dialog naming the field and proposed value. Confirming saves the selection;

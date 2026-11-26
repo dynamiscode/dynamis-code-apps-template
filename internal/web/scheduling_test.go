@@ -69,6 +69,17 @@ func TestSchedulingBookingWeb(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Visit") || !strings.Contains(page.Body.String(), "2026-11-23 09:00") || !strings.Contains(page.Body.String(), eng.ID.String()) {
 		t.Fatalf("schedule: %d %s", page.Code, page.Body)
 	}
+	for _, want := range []string{
+		`for="scheduling-create-name"`, `id="scheduling-create-name"`,
+		`for="scheduling-create-user"`, `id="scheduling-create-user"`,
+		`for="booking-entry-` + r.ID.String() + `"`, `id="booking-entry-` + r.ID.String() + `"`,
+		`for="booking-new-start-` + r.ID.String() + `"`, `type="datetime-local" name="start"`,
+		`name="entry_id" required data-entry-picker`, `name="engagement_id" data-entry-picker`,
+	} {
+		if !strings.Contains(page.Body.String(), want) {
+			t.Errorf("scheduling form missing %q", want)
+		}
+	}
 	clientPage := request(h.Routes(), http.MethodGet, "/workspaces/"+workspace.String()+"/clients/"+client.ID.String(), nil, cookies, nil)
 	engagementDetailPath := "/workspaces/" + workspace.String() + "/clients/" + client.ID.String() + "/engagements/" + eng.ID.String()
 	tileStart := strings.Index(clientPage.Body.String(), `<ul class="detail-engagements`)

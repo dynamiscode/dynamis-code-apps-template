@@ -21,7 +21,7 @@ MCP bootstrap route. REST-only `appctl` commands are included when Clients is se
 omitting Agent or Files removes their respective code. Files requires Identity. Clients
 requires Identity and Agent; generation refuses it otherwise. Selecting Clients
 adds the client module, its REST and web surfaces, and migration 000022; omitting
-it removes those files and their wiring. Catalog requires Identity and adds an initially empty active catalog list through web and REST; omitting it removes the module and its routes. Transactions requires Identity and Clients (and therefore Agent, which Clients requires). It records immutable workspace money-in and money-out entries; omitting Transactions removes its module, surfaces, migrations 000057–000062, and wiring. No other profile content is currently defined, including CompanySite and Integrations.
+it removes those files and their wiring. Catalog requires Identity and adds an initially empty active catalog list through web and REST; omitting it removes the module and its routes. Transactions requires Identity and Clients (and therefore Agent, which Clients requires). It records workspace money-in and money-out entries with audited corrections; omitting Transactions removes its module, surfaces, migrations 000057–000062, and wiring. No other profile content is currently defined, including CompanySite and Integrations.
 The generated application receives repository-specific README, support and
 security links, CODEOWNERS, image, telemetry, package, and runtime-branding
 values. It copies

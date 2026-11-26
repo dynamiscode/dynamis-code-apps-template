@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	workspacecurrency "example.com/dynamis-code/apps-template/internal/currency"
 	"golang.org/x/text/currency"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -22,6 +23,9 @@ var currentCurrencies = func() map[currency.Unit]bool {
 
 // CurrencyScale reports the standard decimal precision when it is defined.
 func CurrencyScale(code string) (int, bool) {
+	if canonical, ok := workspacecurrency.Canonical(code); ok {
+		return canonical.Decimals, true
+	}
 	unit, err := currency.ParseISO(code)
 	if err != nil {
 		return 0, false
@@ -87,6 +91,20 @@ func monetaryLocale(locale string) moneyLocale {
 		}
 	}
 	return l
+}
+
+// AmountLocaleInfo describes the locale rules used to parse and format amounts.
+type AmountLocaleInfo struct {
+	Digits             [10]string
+	Decimal, Group     string
+	Primary, Secondary int
+	MinGroup           int
+}
+
+// AmountLocale returns the same locale metadata used by ParseAmount.
+func AmountLocale(locale string) AmountLocaleInfo {
+	l := monetaryLocale(locale)
+	return AmountLocaleInfo{Digits: l.digits, Decimal: l.decimal, Group: l.group, Primary: l.primary, Secondary: l.secondary, MinGroup: l.minGroup}
 }
 
 // FormatAmount formats an int64 amount stored in minor units.

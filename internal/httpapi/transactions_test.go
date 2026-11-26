@@ -20,6 +20,9 @@ func TestTransactionsREST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.Exec(`INSERT INTO workspace_currencies (workspace_id, code, decimals, is_default) VALUES ($1, 'USD', 2, TRUE), ($1, 'EUR', 2, FALSE)`, identity.ParseWorkspaceIDOrZero(workspace)); err != nil {
+		t.Fatal(err)
+	}
 	h := &handler{identity: auth, transactions: transactions.NewService(db, auth)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/workspaces/{workspaceId}/transactions/entries", h.listTransactionsEntries)
