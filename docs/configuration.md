@@ -219,15 +219,19 @@ conformance check, see
 
 ## HTTP
 
-`HTTP_SECURE=true` enables Secure cookies and HSTS and is the default even
-when `APP_PUBLIC_URL` is missing or names a loopback URL. Terminate TLS before
-the application for public deployments. Explicit `HTTP_SECURE=false` is for
-local HTTP only: `HTTP_ADDRESS` must bind a literal loopback IP, requests with
-non-loopback Host are rejected, and an HTTPS `APP_PUBLIC_URL` is rejected at
-startup. Host is client-controlled. A loopback listener can still be exposed
-by a public reverse proxy, so never proxy local HTTP mode to public clients,
-including through a proxy that rewrites Host. A reverse proxy must preserve the
-configured limits. Rate limits are per source address and reset on restart.
+Browser cookies always use the `Secure` attribute. Use HTTPS for remote access.
+For local development, use `http://localhost:8080` in a browser that treats
+localhost as a secure context.
+
+`HTTP_SECURE=true` enables HSTS and is the default even when `APP_PUBLIC_URL`
+is missing or names a loopback URL. Terminate TLS before the application for
+public deployments. Explicit `HTTP_SECURE=false` is for local HTTP only:
+`HTTP_ADDRESS` must bind a literal loopback IP, requests with non-loopback Host
+are rejected, and an HTTPS `APP_PUBLIC_URL` is rejected at startup. Host is
+client-controlled. A loopback listener can still be exposed by a public
+reverse proxy, so never proxy local HTTP mode to public clients, including
+through a proxy that rewrites Host. A reverse proxy must preserve the configured
+limits. Rate limits are per source address and reset on restart.
 
 SSE connection limits are per application instance. Event replay state is in
 the database; multi-instance deployment therefore requires PostgreSQL but no

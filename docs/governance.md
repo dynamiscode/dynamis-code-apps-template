@@ -38,15 +38,16 @@ requests. Security vulnerabilities belong in the private channel described by
 [SECURITY.md](../SECURITY.md), never in a public issue.
 Use [SUPPORT.md](../SUPPORT.md) for safe issue content and support triage.
 
-Reviewers check behavior, authorization boundaries, data handling, accessible
-fallbacks, dependency obligations, and documentation. A pull request may be
-merged only after required checks pass and an owner approves it. The pull
-request template is a checklist, not a substitute for review judgment.
+Before merging, the author checks behavior, authorization boundaries, data
+handling, accessible fallbacks, dependency obligations, and documentation.
+An owner may merge their own pull request after the required checks pass.
+The pull request template is a checklist, not a substitute for review judgment.
 
-The `main` branch merge policy requires one CODEOWNERS approval, successful CI
-and source security checks, resolved review conversations, and up-to-date
-status checks. GitHub branch protection must enforce this policy, including
-administrator enforcement and disabled force-pushes and branch deletion.
+The `main` branch merge policy requires successful CI and source security
+checks, resolved review conversations, and up-to-date status checks. GitHub
+branch protection enforces this policy for administrators and disables
+force-pushes and branch deletion. Independent approval is not required while
+the project has a single owner.
 
 ## Releases and changes to governance
 

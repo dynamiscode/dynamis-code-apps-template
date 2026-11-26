@@ -123,8 +123,9 @@ object bytes go to one private bucket. Variables are described in
 - Container user: UID/GID 65532; writable path: `/data`; port: `8080`.
 - Liveness: `/health/live`; readiness: `/health/ready`.
 - Send SIGTERM for the configured graceful drain, 10 seconds by default.
-- Terminate public TLS before the application. Secure cookies and HSTS default
-  on; retain `HTTP_SECURE=true` on all public deployments.
+- Terminate public TLS before the application. Browser cookies always use the
+  Secure attribute; HSTS defaults on. Retain `HTTP_SECURE=true` on all public
+  deployments.
 - Inject secrets at runtime. Do not bake `.env`, database URLs, OIDC secrets,
   OTLP headers, TLS keys, or backups into the image.
 - Persist and protect database and backup storage before accepting durable
