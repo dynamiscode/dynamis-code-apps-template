@@ -31,4 +31,63 @@ Source security checks include secret scanning, govulncheck, pinned workflow
 validation, CodeQL analysis for Go and JavaScript/TypeScript, and bounded fuzz
 smoke tests for import and URL validation.
 
+## Pull request security review
+
+A successful workflow means that its jobs passed, not that they emitted no
+security findings. Before merging, a maintainer should inventory the open pull
+request after its checks complete:
+
+```sh
+node scripts/pr-security-inventory.mjs OWNER/REPO PR_NUMBER > inventory.json
+```
+
+The command uses the authenticated GitHub CLI (`gh`); set `GH_PATH` to select
+its executable explicitly. Its token needs read access to pull requests, checks
+and code scanning alerts in the target
+repository. Organization policy, fork permissions, disabled code scanning,
+or missing access can prevent a complete inventory; the command fails rather
+than interpreting an API error as zero findings. It reads check-run annotations
+on the PR head and GitHub's merge commit, including non-security annotations
+because checks do not reliably label security annotations. It also reads open
+code scanning alerts for `refs/pull/PR_NUMBER/merge`. It does not inventory
+other repositories, secret scanning, Dependabot, or closed alerts. Review those
+separately when applicable. Checks or alerts may appear after the command runs;
+rerun it after checks complete and immediately before merge.
+
+For each finding, record an independent decision in a JSON review file. Copy the
+repository, pull request, head, merge and each finding's `id` from the inventory:
+
+```json
+{
+  "repository": "OWNER/REPO",
+  "pull_request": 123,
+  "head": "HEAD_SHA",
+  "merge": "MERGE_SHA",
+  "dispositions": [
+    {
+      "id": "alert:123",
+      "disposition": "accepted-risk",
+      "reviewer": "maintainer",
+      "reason": "Document the impact and rationale here."
+    }
+  ]
+}
+```
+
+Allowed dispositions are `fixed`, `false-positive`, and `accepted-risk`.
+`fixed` requires evidence of the fix; a stale finding must not be marked fixed
+without investigation. Keep sensitive details in an appropriately private
+review record. Then run:
+
+```sh
+node scripts/pr-security-inventory.mjs OWNER/REPO PR_NUMBER review.json
+```
+
+Exit 0 means all currently observed findings have dispositions and all observed
+checks completed; it is not a clean-security certification. Exit 1 means
+findings lack dispositions, dispositions are stale, or checks are incomplete.
+Exit 2 means the inventory or review is invalid or unavailable. A changed head
+or merge commit invalidates the review; rerun and reassess each finding. The
+command only reads GitHub data and never dismisses or modifies alerts.
+
 Release verification is documented in [docs/release.md](docs/release.md).

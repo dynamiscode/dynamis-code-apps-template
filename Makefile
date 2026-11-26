@@ -35,6 +35,7 @@ web-conformance:
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
+	node --test scripts/pr-security-inventory.test.mjs
 
 test-postgres:
 	set -e; \
