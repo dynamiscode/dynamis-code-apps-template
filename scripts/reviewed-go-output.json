@@ -1,11 +1,11 @@
 {
   ".env.example": "cbdf36ffa9c9f740b0add3651960c74cd13f1bde8f7f7b3bf228e93981bc1214",
-  ".github/workflows/ci.yml": "9a93c3944888198f0daf328d4ffbdd8978e414e3817a855c93a12ff9e2311c34",
+  ".github/workflows/ci.yml": "56e8afcfb3d8fa3446b4fe9ddc0841d69c8cff68ea07a104830e3537a677df7d",
   ".github/workflows/release.yml": "47cab5d921ff1b33d3bf57a73334d5e48712c13a872c444fe607500f789ade41",
   ".github/workflows/scorecard.yml": "4bad5937df3d6f802fe2fffc44bdf2015ee132cfa0f7b1b115e67e5d0eab9ab3",
   ".github/workflows/source-security.yml": "55af64fb203896276ea987007a2e8a5e478bb18acf2cfa1266eec02bbbfc19d5",
   "Dockerfile": "f8c93a788babf1da83f6c039d7bb17bd1e1c8d268aed067856ca0b0ccb66eb31",
-  "Makefile": "b46ad159a8bac550b605a10fe814f534070caa831f09eb730859c2f461202798",
+  "Makefile": "72171b6aefa1576812f1bd542870de8801688e8361fa2f06504dae599b919b75",
   "README.md": "9efc3e1e93a523522f1a1d0db7a5e0acb16f2e19e2a8b9f56721f9825a81dc4c",
   "VERSION": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
   "api/contract.gen.go": "45344874613f8ee6c47fdecac06a448d972e60027b1a54748a29cb4b54f8d526",
