@@ -1,0 +1,98 @@
+package web
+
+import "example.com/dynamis-code/apps-template/internal/transactions"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ transactionsTotalsPage(data viewmodel.PageData, totals transactions.Totals, period, start, end string, invalid bool) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
+  @molecules.BackLink("/workspaces/"+data.Workspace.ID.String()+"/transactions", data.T("transactions.totals_back"))
+  @molecules.PageHeading(data.T("transactions.totals"), "")
+  if invalid {
+   @transactionsTotalsPeriodForm(data, period, start, end, invalid)
+  }
+  if !invalid {
+   <p class="mt-4 font-semibold">{ data.T("transactions.totals_"+totals.Period) }</p>
+   <p>{ data.T("transactions.date") }: <time datetime={ totals.Start }>{ totals.Start }</time> – <time datetime={ totals.End }>{ totals.End }</time></p>
+   <p>{ data.T("transactions.totals_timezone") }</p>
+   <a class="link" href="#transactions-totals-period-heading">{ data.T("transactions.totals_period") }</a>
+   if len(totals.Currencies) == 0 {
+    <p role="status">{ data.T("transactions.totals_empty") }</p>
+   }
+   for _, currency := range totals.Currencies {
+    <section class="card bg-base-100 p-5 my-4" aria-label={ currency.Currency }>
+     <h2 class="text-xl font-bold">{ currency.Currency }</h2>
+     <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3 my-4">
+      <div><dt>{ data.T("transactions.in") }</dt><dd class="text-lg font-bold">{ transactions.FormatTotal(currency.MoneyIn, currency.Currency, data.Locale) }</dd></div>
+      <div><dt>{ data.T("transactions.out") }</dt><dd class="text-lg font-bold">{ transactions.FormatTotal(currency.MoneyOut, currency.Currency, data.Locale) }</dd></div>
+      <div><dt>{ data.T("transactions.totals_net") }</dt><dd class="text-lg font-bold">{ transactions.FormatTotal(currency.Net, currency.Currency, data.Locale) }</dd></div>
+     </dl>
+     <details class="my-2">
+      <summary class="cursor-pointer font-semibold">{ data.T("transactions.totals_methods") }</summary>
+      <ul class="space-y-3 my-3">
+       for _, method := range currency.Methods {
+        <li><h3 class="font-semibold">{ transactionsMethodLabel(data, method.ID, method.Name) }</h3><dl class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+         <div><dt>{ data.T("transactions.in") }</dt><dd>{ transactions.FormatTotal(method.MoneyIn, currency.Currency, data.Locale) }</dd></div>
+         <div><dt>{ data.T("transactions.out") }</dt><dd>{ transactions.FormatTotal(method.MoneyOut, currency.Currency, data.Locale) }</dd></div>
+         <div><dt>{ data.T("transactions.totals_net") }</dt><dd>{ transactions.FormatTotal(method.Net, currency.Currency, data.Locale) }</dd></div>
+        </dl></li>
+       }
+      </ul>
+     </details>
+     <details class="my-2">
+      <summary class="cursor-pointer font-semibold">{ data.T("transactions.totals_category_expenses") }</summary>
+      <dl class="my-3 space-y-2">
+       for _, category := range currency.Categories {
+        <div>
+         if category.Uncategorized {
+          <dt>{ data.T("transactions.totals_uncategorized") }</dt>
+         } else {
+          {{ duplicate := false; for _, other := range currency.Categories { if !other.Uncategorized && other.Name == category.Name && other.Archived == category.Archived && other.ID.String() != category.ID.String() { duplicate = true } } }}
+          <dt>{ category.Name }
+           if category.Archived {
+            ({ data.T("transactions.totals_category_archived") })
+           } else {
+            ({ data.T("transactions.totals_category_active") })
+           }
+           if duplicate {
+            <span class="text-sm">({ data.T("transactions.totals_category_id") }: { category.ID.String() })</span>
+           }
+          </dt>
+         }
+         <dd>{ transactions.FormatTotal(category.MoneyOut, currency.Currency, data.Locale) }</dd>
+        </div>
+       }
+      </dl>
+     </details>
+    </section>
+   }
+   @transactionsTotalsPeriodForm(data, period, start, end, invalid)
+  }
+ }
+}
+
+templ transactionsTotalsPeriodForm(data viewmodel.PageData, period, start, end string, invalid bool) {
+ <section class="card bg-base-100 p-5 my-4" aria-labelledby="transactions-totals-period-heading">
+  <h2 id="transactions-totals-period-heading" class="text-lg font-bold">{ data.T("transactions.totals_period") }</h2>
+  if invalid {
+   @molecules.ErrorAlert(data.T("transactions.totals_invalid"))
+  }
+  <form method="get" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions/totals") } class="space-y-3 max-w-xl">
+   <label class="form-control flex flex-col gap-1" for="transactions-totals-period"><span>{ data.T("transactions.totals_period") }</span>
+    <select id="transactions-totals-period" name="period" class="select select-bordered">
+     <option value="this_month" selected?={ period == "this_month" }>{ data.T("transactions.totals_this_month") }</option>
+     <option value="last_month" selected?={ period == "last_month" }>{ data.T("transactions.totals_last_month") }</option>
+     <option value="custom" selected?={ period == "custom" }>{ data.T("transactions.totals_custom") }</option>
+    </select>
+   </label>
+   <details open?={ period == "custom" || invalid }>
+    <summary class="cursor-pointer font-semibold">{ data.T("transactions.totals_custom") }</summary>
+    <p id="transactions-totals-custom-required">{ data.T("transactions.totals_custom_required") }</p>
+    @molecules.TextField("transactions-totals-start", data.T("transactions.totals_start"), templ.Attributes{"name":"start", "type":"date", "value":start, "aria-describedby":"transactions-totals-custom-required"})
+    @molecules.TextField("transactions-totals-end", data.T("transactions.totals_end"), templ.Attributes{"name":"end", "type":"date", "value":end, "aria-describedby":"transactions-totals-custom-required"})
+   </details>
+   <button class="btn btn-primary" type="submit">{ data.T("transactions.totals_apply") }</button>
+  </form>
+ </section>
+}

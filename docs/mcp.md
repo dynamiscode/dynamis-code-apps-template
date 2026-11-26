@@ -54,6 +54,60 @@ in this section prompt for client-host approval through the MRTR flow described 
 - Audit records use the client, field, or option target type with its integer
   key. Client values are never written to audit metadata.
 
+## Transactions tools (Transactions profile)
+
+`transactions_method_list_v1` requires `resources:read` and returns payment methods
+as `{id, name, enabled}`. Members see enabled methods; owners and admins also
+see disabled methods. Use the stable `id` as `paymentMethod` when creating an
+entry; the name may change. `transactions_methods_v1` returns enabled IDs only.
+Both tools return up to 100 methods ordered by stable ID. Pass the preceding
+result's `nextCursor` as `cursor` until `nextCursor` is absent. Keep the same
+workspace across pages. Pages are not a snapshot: methods added or enabled
+before the cursor will not appear on later pages.
+
+`transactions_totals_v1` requires `resources:read` and an owner or admin role.
+It accepts `period`, `start`, and `end` as in the REST totals endpoint, plus
+`limit` (1–100, default 50) and an optional `cursor` from the preceding result's
+`nextCursor`. Each result contains the resolved period and a flat `items` page.
+Items are ordered by currency, then currency summary, method ID, and category ID;
+the uncategorized item precedes identified categories. Continue until
+`nextCursor` is absent. Each currency summary and method item has complete
+`moneyIn`, `moneyOut`, and `net` sums; category items have `moneyOut`. Amounts
+are exact decimal strings in minor units. Category items include their stable
+`id` when categorized, plus `archived` and `uncategorized` when true. Method
+items include their stable `id`. Names are display values, not pagination keys.
+Keep the same workspace and resolved dates across pages. For a relative period,
+use the returned `start` and `end` with `period: "custom"` on subsequent pages.
+Pages are not a snapshot: changes between calls can change sums or add or remove
+items; newly added items before the cursor will not appear in later pages.
+
+`transactions_method_create_v1` creates an enabled method from `name`.
+`transactions_method_update_v1` takes `id`, `name`, and `enabled`, and preserves
+the ID. Both require `resources:write` and an owner or admin role. Names
+are limited to 64 characters. Disabling the last enabled method returns a
+conflict.
+
+`transactions_list_v1` and `transactions_methods_v1` require `resources:read`.
+`transactions_list_v1` accepts optional `clientId`, `categoryId`, `paymentMethod`,
+`direction` (`in` or `out`), `from`, and `to`. Filters combine with AND;
+dates are inclusive `YYYY-MM-DD` bounds. Results use 1-based pages of at most
+100 entries. Viewers cannot read transactions entries.
+`transactions_create_v1` requires a nonblank `description` of at most 200
+Unicode characters after trimming; `note` remains optional. Entry results
+include `description`, which can be empty for historical entries.
+`transactions_create_v1` and `transactions_void_v1` require `resources:write`; the shared
+service permits owners, admins, and members to create entries and refunds, and
+restricts voids and replacements to owners and admins. Entry IDs are transactions
+short IDs. Replacements link to a voided entry; refund replacements must retain
+the original receipt link. Refunds are money-out entries linked to money-in
+and cannot exceed the unrefunded remainder. A receipt with active refunds cannot
+be voided. Entry results include
+these links and the void actor, timestamp, and reason.
+
+`transactions_void_v1` takes `workspaceId`, `entryId`, and an optional `reason` of at
+most 1,000 characters. Voiding requires client-host human approval through the
+MRTR flow below. Creating entries and voiding are not idempotent.
+
 ## Prompts
 
 No application prompts, resource templates, or completions are registered.
@@ -77,7 +131,7 @@ by this policy.
 - The endpoint is stateless and never issues `Mcp-Session-Id`.
 - Bodies and structured results are limited to 1 MiB. Collection results are
   capped at 100 items.
-- Destructive Client, field, and option deletion requires client-host confirmation. On `2026-07-28` and later
+- Destructive Client, field, and option deletion and transactions voiding require client-host confirmation. On `2026-07-28` and later
   sessions, the first call returns an MRTR `input_required` result with one
   `human-approval` form elicitation (`confirm` boolean) and a `requestState`.
   The client retries the same arguments with `inputResponses` and the echoed
@@ -145,6 +199,13 @@ Discovery does not change authentication by itself. Bearer API tokens are
 always accepted. Access tokens from an external authorization server are
 rejected; that path remains deferred in [capabilities](capabilities.md#deferred-capabilities).
 Decision: [0007](decisions/0007-mcp-oauth-protected-resource-metadata.md).
+
+## Transactions expense categories
+
+The Transactions profile exposes `transactions_categories_v1` (100 per page),
+`transactions_category_create_v1`, `transactions_category_rename_v1`, and
+`transactions_category_archive_v1`. `transactions_create_v1` accepts `categoryId` for
+money-out entries. Shared workspace and role rules apply.
 
 ## Built-in authorization server
 

@@ -83,6 +83,9 @@ func TestWorkspaceSidebarNavigationPermissions(t *testing.T) {
 		{"owner settings", viewmodel.PageData{NavSection: "settings", NavPage: "email", ClientsEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Owner}}, []string{base + "/settings/email", base + "/settings/audit", base + "/settings/provisioning", base + "/intake"}, nil},
 		{"workspace features disabled", viewmodel.PageData{NavPage: "workspace", Workspace: identity.WorkspaceSummary{ID: workspaceID}}, []string{base + "/settings"}, []string{base + "/clients", base + "/engagements", base + "/catalog", base + "/files"}},
 		{"workspace features enabled", viewmodel.PageData{NavPage: "catalog", ClientsEnabled: true, EngagementEnabled: true, CatalogEnabled: true, FilesEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID}}, []string{base + "/clients", base + "/engagements", base + "/catalog", base + "/files"}, nil},
+		{"transactions member", viewmodel.PageData{NavPage: "transactions", TransactionsEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Member}}, []string{base + "/transactions"}, nil},
+		{"transactions viewer", viewmodel.PageData{NavPage: "workspace", TransactionsEnabled: true, Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Viewer}}, nil, []string{base + "/transactions"}},
+		{"transactions omitted", viewmodel.PageData{NavPage: "workspace", Workspace: identity.WorkspaceSummary{ID: workspaceID, Role: identity.Owner}}, nil, []string{base + "/transactions"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.data.Catalog, tc.data.Locale = catalog, "en"

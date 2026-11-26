@@ -1147,7 +1147,8 @@
 				form._wizard.advance();
 				return;
 			}
-			const invalid = validateFields(controls(form));
+			const skipValidation = event.submitter?.formNoValidate === true;
+			const invalid = skipValidation ? [] : validateFields(controls(form));
 			if (invalid.length) {
 				event.preventDefault();
 				event.stopImmediatePropagation();
@@ -1161,7 +1162,7 @@
 			}
 			form.querySelector(".error-summary")?.remove();
 			for (const el of form.querySelectorAll("input[data-enhanced]")) el.type = "password";
-			if (form.dataset.persist) writeDraft(form, true);
+			if (form.dataset.persist && !skipValidation) writeDraft(form, true);
 			// The file upload form runs its own state machine (file-upload-form skill).
 			if (form.matches("[data-file-upload]")) return;
 			// Block a second submit now; disable the buttons after the browser and htmx
@@ -1219,6 +1220,7 @@
 		document.addEventListener("htmx:after:swap", (event) => {
 			enhance(document, false);
 			wireCatalogDialog(document);
+			wireTransactionsDialog(document);
 			wireClientDialog(document);
 			wireEngagementDialog(document);
 			wireDetailDialogs(document);
@@ -1550,6 +1552,32 @@
 		catalogCancel.addEventListener("click", (event) => { event.preventDefault(); catalogDialog.close(); });
 		catalogDialog.addEventListener("close", () => catalogOpen.focus());
 		if (initiallyOpen) catalogDialog.showModal();
+	};
+	const wireTransactionsDialog = (root) => {
+		const details = root.querySelector("[data-transactions-details-dialog]");
+		const detailsClose = details?.querySelector("[data-transactions-details-close]");
+		if (details && detailsClose && !details.dataset.bound && typeof details.showModal === "function") {
+			details.dataset.bound = "true";
+			details.removeAttribute("open");
+			details.addEventListener("click", (event) => { if (event.target === details) details.close(); });
+			details.addEventListener("close", () => { window.location.assign(detailsClose.href); });
+			details.showModal();
+		}
+		const dialog = root.querySelector("[data-transactions-dialog]");
+		const open = root.querySelector("[data-transactions-create]");
+		const cancel = root.querySelector("[data-transactions-cancel]");
+		if (!dialog || !cancel || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		const initiallyOpen = dialog.open;
+		if (initiallyOpen) dialog.removeAttribute("open");
+		open?.addEventListener("click", (event) => { event.preventDefault(); dialog.showModal(); });
+		if (open) cancel.addEventListener("click", (event) => { event.preventDefault(); dialog.close(); });
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+		dialog.addEventListener("close", () => open?.focus());
+		if (initiallyOpen) {
+			dialog.showModal();
+			if (!dialog.querySelector("[autofocus]")) dialog.querySelector('[role="alert"].error')?.focus();
+		}
 	};
 	const wireClientDialog = (root) => {
 		const dialog = root.querySelector("[data-client-dialog]");
@@ -1889,6 +1917,7 @@
 		init() {
 			wireTimelineDialog(document);
 			wireCatalogDialog(document);
+			wireTransactionsDialog(document);
 			wireClientDialog(document);
 			wireClientDeleteDialog(document);
 			wireDetailDialogs(document);
@@ -1906,7 +1935,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireTransactionsDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	// The pinned HTMX runtime dispatches this before reading or parsing the body.
 	// Keep downloads, EventSource, API data and external redirects out of swaps.

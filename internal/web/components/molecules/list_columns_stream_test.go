@@ -47,6 +47,9 @@ func TestListColumnsMenuStreamsPanel(t *testing.T) {
 	if !output.streamed || !strings.Contains(output.String(), "column-0199") {
 		t.Fatal("columns did not stream through item 100 and finish")
 	}
+	if !strings.Contains(output.String(), `<noscript><button`) {
+		t.Fatal("column visibility has no submit button without JavaScript")
+	}
 	original := atoms.Dropdown(atoms.DropdownProps{
 		Class: "list-menu", SummaryClass: "btn btn-sm",
 		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.columns"), "title": data.T("clients.columns")},

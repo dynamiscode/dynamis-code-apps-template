@@ -23,10 +23,11 @@ var (
 
 // Keys of the lists that can hold saved views. They match the list preference keys.
 const (
-	ListClients = "clients"
-	ListItems   = "items"
-	ListFiles   = "files"
-	ListMembers = "members"
+	ListClients      = "clients"
+	ListItems        = "items"
+	ListFiles        = "files"
+	ListMembers      = "members"
+	ListTransactions = "transactions"
 )
 
 // Limits keep the view menu usable: per list, per person, and per workspace for shared views.
@@ -72,7 +73,8 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	if err := validListKey(listKey); err != nil {
 		return nil, 0, err
 	}
-	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
+	principal, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead)
+	if err != nil || !canReadList(principal, listKey) {
 		return nil, 0, identity.ErrForbidden
 	}
 	rows, err := s.db.QueryContext(ctx, database.Rebind(s.driver, `
@@ -111,12 +113,14 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if err != nil {
 		return View{}, err
 	}
+	principal, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead)
+	if err != nil || !canReadList(principal, listKey) {
+		return View{}, identity.ErrForbidden
+	}
 	if shared {
 		if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
 			return View{}, identity.ErrForbidden
 		}
-	} else if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
-		return View{}, identity.ErrForbidden
 	}
 	// Serializable, so two creates cannot both pass the count and exceed the per-list limit.
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -194,7 +198,8 @@ func (s *Service) SetDefault(ctx context.Context, actor identity.Principal, work
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+	principal, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead)
+	if err != nil || !canReadList(principal, listKey) {
 		return identity.ErrForbidden
 	}
 	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `
@@ -221,10 +226,18 @@ func (s *Service) SetDefault(ctx context.Context, actor identity.Principal, work
 
 // Get returns one view the actor can see.
 func (s *Service) Get(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, id int64) (View, error) {
-	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
+	principal, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead)
+	if err != nil {
 		return View{}, identity.ErrForbidden
 	}
-	return s.visibleTo(ctx, s.db, actor, workspaceID, id)
+	view, err := s.visibleTo(ctx, s.db, actor, workspaceID, id)
+	if err != nil {
+		return View{}, err
+	}
+	if !canReadList(principal, view.ListKey) {
+		return View{}, identity.ErrForbidden
+	}
+	return view, nil
 }
 
 // visibleTo reads a view the actor can see, on a database or a transaction.
@@ -244,12 +257,16 @@ func (s *Service) visibleTo(ctx context.Context, q queryer, actor identity.Princ
 // manage as a workspace admin.
 func (s *Service) loadForChange(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, id int64) (View, error) {
 	// A removed member keeps no rights to change views, even their own personal ones.
-	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+	principal, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead)
+	if err != nil {
 		return View{}, identity.ErrForbidden
 	}
 	view, err := s.visibleTo(ctx, tx, actor, workspaceID, id)
 	if err != nil {
 		return View{}, err
+	}
+	if !canReadList(principal, view.ListKey) {
+		return View{}, identity.ErrForbidden
 	}
 	if view.Shared {
 		if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
@@ -327,9 +344,13 @@ func validate(listKey, name string, state State) (string, string, error) {
 	return name, string(encoded), nil
 }
 
+func canReadList(principal identity.Principal, listKey string) bool {
+	return listKey != ListTransactions || identity.CanReadTransactions(principal)
+}
+
 func validListKey(listKey string) error {
 	switch listKey {
-	case ListClients, ListItems, ListFiles, ListMembers:
+	case ListClients, ListItems, ListFiles, ListMembers, ListTransactions:
 		return nil
 	default:
 		return ErrInvalidInput

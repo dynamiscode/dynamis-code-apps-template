@@ -46,6 +46,7 @@ means the complete encrypted database backup described in
 | scheduling / `scheduling_resources`, `scheduling_working_hours`, `workspaces.time_zone` | workspace, resource name, optional member user, weekly local time ranges and IANA time zone (internal/user content) | Workspace bookable resources and shared time zone | Workspace lifetime; workspace deletion cascades and membership or account removal clears the user link. Included in database backups, excluded from workspace export. Owners and admins can edit. |
 | scheduling / `scheduling_bookings` | workspace, resource, catalog entry, optional engagement, UTC start and end, status (internal/user content) | Resource schedule | Workspace lifetime; deletion cascades with the workspace. Client deletion clears the engagement link; referenced catalog entries cannot be deleted. Included in database backups, excluded from workspace export. |
 | catalog / `catalog_currencies` | workspace, currency code, decimal precision, default marker (workspace configuration) | Allowed catalog price currencies and default | Workspace lifetime; owner/admin correction; used currencies cannot be removed; workspace deletion cascades. Included in backups, excluded from workspace export. |
+| transactions / `transactions_entries`, `transactions_payment_methods`, `transactions_expense_categories` | workspace, direction, description, amount, currency, method, method display name and enabled state, date, optional client, category and note, creator and timestamp, void actor/time/reason and correction/refund links; category name and archive state (personal/user content) | Immutable money-in and money-out record, workspace payment configuration and expense classification | Workspace lifetime; workspace deletion cascades. Owners and admins can rename or disable methods and rename or archive categories. Neither is deleted, preserving historical references. Permanent client deletion clears the client link while preserving the entry. Included in database backups, not workspace export. |
 | clients / `client_timeline_entries` | workspace, client, author, type, channel, correction, timestamp (internal/personal); text (personal user content) | Append-only client history | Client or workspace lifetime; client/workspace deletion cascades; author account deletion anonymizes author and preserves entries and corrections. Excluded from workspace export, included in database backups. |
 | engagement / `engagement_stages` | workspace, position, kind, archive state (internal); name (user content) | Workspace-owned ordered stages | Workspace lifetime; workspace deletion cascades; included in database backups and workspace export. Stages can be reordered or archived; this slice does not expose correction or deletion. |
 | engagement / `engagement_stage_history` | workspace, engagement, actor, stages, timestamp (personal/internal) | Append-only history of stage moves | Engagement or workspace lifetime; deletion cascades; actor ID remains after account deletion. Included in backups and workspace export when Clients is enabled, including retained actor user short IDs. Audit events for the same moves follow ordinary audit retention. |
@@ -55,12 +56,21 @@ means the complete encrypted database backup described in
 | files / `files` | Integer key (public as the file short ID), workspace/owner, object key, original name, detected MIME, size, SHA-256, status, timestamps (personal user content/internal) | Workspace-scoped private file metadata and object reconciliation | Workspace lifetime; metadata is included in backup but excluded from workspace export; owner deletion sets owner NULL; live object deletion/reconciliation is not exposed in this slice. Valid transitions are Pending -> Ready and Pending -> Failed; Pending and Failed rows remain quota-reserved until cleaned up by operator reconciliation or `CleanupStaleFiles`. |
 | platform / `background_jobs` | IDs, workspace, handler kind, deduplication key, bounded payload, status/attempt/lease/timestamps, redacted error category (internal; payload personal) | Durable retry and lease ownership for bounded asynchronous handlers | Pending and leased rows remain until settlement; settled rows retained 365 days and pruned by maintenance; excluded from export; workspace deletion cascades. |
 
+Payment-method audit metadata includes the stable method identifier and the
+before/after display name and enabled state. It follows ordinary audit retention
+and workspace export. The browser audit projection shows only validated method
+identifiers, not method names or other method metadata. Category create and
+archive events show the category name; rename events show the previous and new names.
+Migration `000062_transaction_description.sql` adds a description; existing
+entries receive an empty value.
+
 Every row is included in database backup until the operator's backup retention
 expires. Production fixtures must never contain copied production data.
 
 Workspace owners and admins can view the latest 100 events for their workspace
 at Settings → Audit history, using the existing `workspace:export` permission.
-The browser projection omits metadata, workspace and target IDs, request IDs,
+The browser projection omits metadata except the category names described above,
+workspace IDs, target IDs other than validated payment-method IDs, request IDs,
 and source addresses. Older workspace events remain available through the
 authorized bounded export. Members, viewers, and cross-workspace requests are
 denied. No public instance-wide audit endpoint exists. Only the deployment

@@ -52,6 +52,8 @@ func (h *Handler) listViewBase(workspaceID identity.WorkspaceID, listKey string)
 		segment = "clients"
 	case listviews.ListFiles:
 		segment = "files"
+	case listviews.ListTransactions:
+		segment = "transactions"
 	}
 	return "/workspaces/" + workspaceID.String() + "/" + segment
 }
@@ -144,7 +146,22 @@ func (h *Handler) viewRequest(writer http.ResponseWriter, request *http.Request)
 	if !ok {
 		return "", identity.Principal{}, 0, false
 	}
+	if listKey == listviews.ListTransactions && !identity.CanReadTransactions(principal) {
+		h.renderError(writer, http.StatusForbidden)
+		return "", identity.Principal{}, 0, false
+	}
 	return listKey, principal, identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId")), true
+}
+
+func (h *Handler) listViewForRoute(request *http.Request, principal identity.Principal, workspaceID identity.WorkspaceID, listKey string, id int64) (listviews.View, error) {
+	view, err := h.listViews.Get(request.Context(), principal, workspaceID, id)
+	if err != nil {
+		return listviews.View{}, err
+	}
+	if view.ListKey != listKey {
+		return listviews.View{}, listviews.ErrNotFound
+	}
+	return view, nil
 }
 
 // viewError maps a saved-view failure to a response.
@@ -206,7 +223,7 @@ func (h *Handler) updateListView(writer http.ResponseWriter, request *http.Reque
 		h.renderError(writer, http.StatusInternalServerError)
 		return
 	}
-	current, err := h.listViews.Get(request.Context(), principal, workspaceID, id)
+	current, err := h.listViewForRoute(request, principal, workspaceID, listKey, id)
 	if err != nil {
 		h.viewError(writer, err)
 		return
@@ -229,7 +246,7 @@ func (h *Handler) applyListView(writer http.ResponseWriter, request *http.Reques
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	view, err := h.listViews.Get(request.Context(), principal, workspaceID, id)
+	view, err := h.listViewForRoute(request, principal, workspaceID, listKey, id)
 	if err != nil {
 		h.viewError(writer, err)
 		return
@@ -276,7 +293,7 @@ func (h *Handler) renameListView(writer http.ResponseWriter, request *http.Reque
 		h.renderError(writer, http.StatusNotFound)
 		return
 	}
-	current, err := h.listViews.Get(request.Context(), principal, workspaceID, id)
+	current, err := h.listViewForRoute(request, principal, workspaceID, listKey, id)
 	if err != nil {
 		h.viewError(writer, err)
 		return
@@ -296,6 +313,10 @@ func (h *Handler) deleteListView(writer http.ResponseWriter, request *http.Reque
 	id, err := strconv.ParseInt(request.PathValue("viewId"), 10, 64)
 	if err != nil {
 		h.renderError(writer, http.StatusNotFound)
+		return
+	}
+	if _, err := h.listViewForRoute(request, principal, workspaceID, listKey, id); err != nil {
+		h.viewError(writer, err)
 		return
 	}
 	if err := h.listViews.Delete(request.Context(), principal, workspaceID, id); err != nil {

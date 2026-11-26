@@ -75,6 +75,10 @@ templ WorkspaceNav(data viewmodel.PageData) {
 				@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/general", "navigation.general", data.NavPage == "general")
 				if data.Workspace.Role == "owner" || data.Workspace.Role == "admin" {
 					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/email", "navigation.email", data.NavPage == "email")
+					if data.TransactionsEnabled {
+						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/transactions/methods", "transactions.methods", data.NavPage == "transactions-methods")
+						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/settings/transactions/categories", "transactions.manage_categories", data.NavPage == "transactions-categories")
+					}
 					if data.ClientsEnabled {
 						@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/intake", "intake.title", data.NavPage == "intake")
 					}
@@ -106,6 +110,9 @@ templ WorkspaceNav(data viewmodel.PageData) {
 				}
 				if data.CatalogEnabled {
 					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/catalog", "catalog.title", data.NavPage == "catalog")
+				}
+				if data.TransactionsEnabled && (data.Workspace.Role == "owner" || data.Workspace.Role == "admin" || data.Workspace.Role == "member") {
+					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/transactions", "transactions.title", data.NavPage == "transactions")
 				}
 				if data.FilesEnabled {
 					@sidebarNavLi(data, "/workspaces/"+data.Workspace.ID.String()+"/files", "files.files", data.NavPage == "files")

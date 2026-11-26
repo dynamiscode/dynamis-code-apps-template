@@ -16,8 +16,20 @@ these principles into journey-specific acceptance criteria.
 - Make the primary task and current context apparent. Put the information
   needed for a decision next to the action; distinguish multiple similar
   records by useful names and context.
+- For transaction-heavy work, lead with a scannable list and compact filters;
+  keep setup and management distinct from routine recording and review.
+- Identify records by meaningful context, not opaque IDs users must copy or
+  remember. Put correction actions on the relevant record, preserve financial
+  history, and show only actions allowed by the user's role.
+- Make each record's descriptive title the detail link; legacy records without
+  titles need a localized, navigable fallback.
+- Present money as human-readable exact amounts with currency and correct
+  precision. Never combine different currencies into one total or use
+  floating-point rounding for financial values.
 - Use predictable navigation: show where the user is, offer a clear way back,
   and keep destination labels consistent. Links navigate; buttons act.
+  For detail and subpages, use the shared `molecules.BackLink` before the
+  heading, preserving the originating list's filters and return context.
 - Prefer recognition over memory. Show current values, status, ownership, and
   available next actions. Explain prerequisites where needed.
 - Group related information; use progressive disclosure when it reduces work,
@@ -43,6 +55,23 @@ these principles into journey-specific acceptance criteria.
   Reuse the same row-action menu across tables, including catalog. Highlight
   the entire action cell on hover or keyboard focus, and present each menu
   action as a labeled tile.
+- Use shared list search, filter chips, sorting, columns, and saved views where
+  supported. Keep filter state across navigation and apply it before pagination.
+  Column visibility controls need a submit button when JavaScript is disabled.
+  Use the shared Columns menu directly in the list toolbar. Update its
+  results and preferences in place, with a form fallback without JavaScript.
+  Do not add bulk selection to immutable history without a bulk action.
+- Keep list tables in the shared list layout, without an extra surrounding card.
+  Keep responsive row cards where the shared table uses them.
+- Put list creation and its adjacent settings menu at the right of the search
+  and filter toolbar, as on Engagements. Match the primary action height.
+  Allow the action group to wrap without overlapping controls on narrow screens.
+  Keep a visible gap between adjacent buttons, inputs, and cards. Use the
+  same spacing conventions as other list and settings pages.
+  Creation dialogs close when users click the backdrop, with the ordinary
+  full-page form available when JavaScript is disabled.
+- Detail dialogs retain the originating list context and offer a real close
+  link; enhance it with modal keyboard and backdrop behavior when available.
 - On detail pages, put secondary record actions in a reusable three-dot menu
   at the top right. Use labeled tile actions and show only actions permitted
   for the current user and record. Keep destructive confirmations.
@@ -54,6 +83,8 @@ these principles into journey-specific acceptance criteria.
   notes their own full-width section. Show absent values as localized “Not set”
   in muted, readable text; keep the whole empty value area editable for writers.
   Do not distinguish empty values by color alone.
+- When creation and review share the same properties, align their labels and
+  values alike. Keep quiet creation controls visibly focusable without JavaScript.
 - On detail pages, show concise saved values with clearly labeled edit actions.
   For independently saved single values, including text, numbers, and dates,
   use an in-place editor: the value reads as text with a right-aligned pencil
@@ -94,6 +125,8 @@ these principles into journey-specific acceptance criteria.
 - Dialogs and inline editors retain drafts on errors, restore focus when closed,
   and prevent accidental loss of unsaved input. Preserve an ordinary form path
   without JavaScript, including validation and confirmation.
+- Use two columns when space permits. Reveal optional fields on demand, and
+  reopen them when they contain a draft.
 - Prevent mistakes without obstructing routine work. Explain consequential
   actions, provide cancel or recovery where appropriate, and preserve unsaved
   input on validation failure. Give specific errors near fields and a summary

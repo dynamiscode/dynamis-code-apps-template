@@ -166,6 +166,11 @@ func renderMigration(sql string, driver config.DatabaseDriver) string {
 	}
 	sql = strings.ReplaceAll(sql, "{{history_identity_override}}", override)
 	sql = strings.ReplaceAll(sql, "{{history_identity_reset}}", reset)
+	transactionsReset := ""
+	if driver == config.Postgres {
+		transactionsReset = `SELECT setval(pg_get_serial_sequence('transactions_entries_next', 'id'), GREATEST(COALESCE((SELECT MAX(id) FROM transactions_entries), 0), (SELECT last_value FROM transactions_entries_id_seq)), true);`
+	}
+	sql = strings.ReplaceAll(sql, "{{transactions_identity_reset}}", transactionsReset)
 	return renderJSONTextExpr(sql, driver)
 }
 

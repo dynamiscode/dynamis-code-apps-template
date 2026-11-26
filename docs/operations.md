@@ -127,6 +127,17 @@ loss of encrypted data.
 
 ## Upgrades and alerts
 
+The Transactions branch rewrites unreleased migrations under the
+[approved exception](decisions/exceptions/2026-11-26-transactions-migration-rewrite.md).
+Stop the application and recreate disposable databases that applied earlier
+branch migrations. Recreation deletes all data; do not use it for databases that
+must be retained or for production.
+
+Migration 000060 adds payment-method display names while retaining existing
+method keys and entry links. Use the stop-the-world procedure below; older
+binaries do not maintain display names. Rollback requires restoring a verified
+pre-upgrade backup and loses later writes.
+
 Migration 000055 adds nullable encrypted public intake tokens and key versions;
 existing hash-only links remain valid but cannot be retrieved until rotated.
 Configure and back up the encryption keyring before creating or rotating links.

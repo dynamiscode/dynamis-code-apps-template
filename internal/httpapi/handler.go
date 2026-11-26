@@ -26,6 +26,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/telemetry"
 	"example.com/dynamis-code/apps-template/internal/portability"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 )
 
@@ -45,6 +46,7 @@ type handler struct {
 	engagement     *engagement.Service
 	scheduling     *scheduling.Service
 	intake         *intake.Service
+	transactions   *transactions.Service
 }
 
 func NewHandler(
@@ -198,6 +200,7 @@ func newHandlerWithIntake(
 		engagement:     engagementService,
 		scheduling:     scheduling.NewService(db, identityService),
 		intake:         intakeService,
+		transactions:   transactions.NewService(db, identityService),
 	}
 	handlers := map[string]http.HandlerFunc{
 		"getLiveness": h.liveness, "getReadiness": h.readiness,
@@ -225,6 +228,10 @@ func newHandlerWithIntake(
 		"initiateFileUpload": h.initiateFileUpload,
 		"completeFileUpload": h.completeFileUpload, "uploadFileContent": h.uploadFileContent,
 		"listCatalog": h.listCatalog, "createCatalog": h.createCatalog, "createCatalogPrice": h.createCatalogPrice,
+		"listTransactionsEntries": h.listTransactionsEntries, "createTransactionsEntry": h.createTransactionsEntry, "voidTransactionsEntry": h.voidTransactionsEntry, "listTransactionsMethods": h.listTransactionsMethods,
+		"transactionsTotals":         h.transactionsTotals,
+		"listTransactionsCategories": h.listTransactionsCategories, "createTransactionsCategory": h.changeTransactionsCategory, "renameTransactionsCategory": h.changeTransactionsCategory, "archiveTransactionsCategory": h.changeTransactionsCategory,
+		"createTransactionsMethod": h.saveTransactionsMethod, "updateTransactionsMethod": h.saveTransactionsMethod,
 		"listSchedulingResources": h.listSchedulingResources, "createSchedulingResource": h.createSchedulingResource,
 		"updateSchedulingResource": h.updateSchedulingResource, "setSchedulingTimeZone": h.setSchedulingTimeZone, "setSchedulingWorkingHours": h.setSchedulingWorkingHours,
 		"listSchedulingBookings": h.schedulingBookings, "createSchedulingBooking": h.schedulingBookings,

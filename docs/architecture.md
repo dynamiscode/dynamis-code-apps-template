@@ -164,5 +164,9 @@ validation, authorization, audit), REST and web create and edit, and migrations
 Clients does not depend on the sample Item. Omitting it removes its files
 and wiring.
 Catalog is optional and requires Identity. It stores workspace-scoped entries and exact decimal-string price options and exposes creation, editing, listing, archiving, unarchiving, and unused-entry deletion through its service, REST, and web. A transaction-scoped in-use checker is injectable; sale linkage is deferred.
+Transactions is optional and requires Identity and Clients. It records immutable,
+workspace-scoped money-in and money-out entries through shared policy. The
+[Transactions decision](decisions/0017-transactions-entries.md) defines the entry and access
+boundaries.
 
 CompanySite and Integrations remain unimplemented.

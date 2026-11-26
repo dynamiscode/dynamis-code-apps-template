@@ -211,6 +211,7 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .list-footer .btn | kept: structural layout remainder |
 | .js-enhanced [data-submit-button] | kept: structural layout remainder |
 | .detail-split, .detail-main, .detail-sidebar, .detail-values, .detail-engagement-meta, [data-detail-divider], [data-detail-range] | kept: progressive split layout, draggable divider and range popup, with pane-width-responsive detail content |
+| .transaction-entry-form, .transaction-detail-values | kept: matching responsive label/value rows and quiet creation controls; native inputs remain visible and focusable without JavaScript |
 | .list-column-switch | kept: column-switch menu (drag handles, grid list) |
 | .list-column-handle | kept: column-switch menu (drag handles, grid list) |
 | .list-column-switch[draggable="true"] | kept: column-switch menu (drag handles, grid list) |

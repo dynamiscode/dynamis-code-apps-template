@@ -55,9 +55,22 @@ templ auditTable(data viewmodel.PageData) {
 								}
 							</td>
 							<td><code>{ event.AuthMethod }</code></td>
-							<td><code>{ event.Action }</code></td>
+							<td><code>{ event.Action }</code>
+								if event.CategoryName != "" {
+									<p>{ data.T("audit.category_name") }: { event.CategoryName }</p>
+								}
+								if event.CategoryPreviousName != "" && event.CategoryNewName != "" {
+									<p>{ data.T("audit.category_before") }: { event.CategoryPreviousName }</p>
+									<p>{ data.T("audit.category_after") }: { event.CategoryNewName }</p>
+								}
+							</td>
 							<td>{ data.AuditOutcome(event.Outcome) }</td>
-							<td><code>{ event.TargetType }</code></td>
+							<td>
+								<code>{ event.TargetType }</code>
+								if event.TargetLabel != "" {
+									<code>{ event.TargetLabel }</code>
+								}
+							</td>
 						</tr>
 					}
 				</tbody>

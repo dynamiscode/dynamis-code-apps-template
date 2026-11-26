@@ -1,6 +1,7 @@
 package web
 
 import "example.com/dynamis-code/apps-template/internal/web/components/actionattrs"
+import "example.com/dynamis-code/apps-template/internal/transactions"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
@@ -60,6 +61,46 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 		}
 		<a class="link lg:hidden" href="#client-timeline-heading">{ data.T("clients.timeline_heading") }</a>
 		@clientDetail(data)
+		if data.CanReadClientTransactions {
+			<section class="card my-4 p-6" aria-labelledby="client-transactions-heading">
+				<h2 id="client-transactions-heading" class="text-xl font-bold">{ data.T("transactions.client_history") }</h2>
+				<a class="link" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions?client_id="+data.Client.ID.String()+"#transactions-entries-heading") }>{ data.T("transactions.view_client_entries") }</a>
+				if len(data.ClientTransactions) == 0 {
+					<p>{ data.T("transactions.history_empty") }</p>
+				} else {
+					<ul class="divide-y divide-base-300 my-3">
+						for _, entry := range data.ClientTransactions {
+							<li class="py-3">
+								<div class="flex flex-wrap items-baseline justify-between gap-2">
+									<div><time datetime={ entry.OccurredOn }>{ entry.OccurredOn }</time> · { data.T("transactions."+entry.Direction) }</div>
+									<strong>{ transactions.FormatAmount(entry.AmountMinor, entry.Currency, data.Locale) }</strong>
+								</div>
+								<p>{ transactionsMethodLabel(data, entry.PaymentMethod, entry.PaymentMethodName) }
+									if entry.CategoryID != nil {
+										· { entry.CategoryName }
+									}
+								</p>
+								if entry.Note != "" {
+									<p class="break-words whitespace-pre-wrap">{ entry.Note }</p>
+								}
+								if entry.VoidedAt != "" {
+									<p>{ data.T("transactions.voided_at") }: { transactionsVoidTime(entry.VoidedAt) }</p>
+									<p class="break-words">{ data.T("transactions.void_reason") }: { entry.VoidReason }</p>
+								}
+							</li>
+						}
+					</ul>
+				}
+				<nav aria-label={ data.T("transactions.client_history") }>
+					if data.ClientTransactionsPage > 1 {
+						<a class="btn btn-sm" href={ templ.SafeURL(clientTransactionsPageURL(data, data.ClientTransactionsPage-1)) }>{ data.T("ui.previous_page") }</a>
+					}
+					if len(data.ClientTransactions) == 100 && data.ClientTransactionsPage < 1000000 {
+						<a class="btn btn-sm" href={ templ.SafeURL(clientTransactionsPageURL(data, data.ClientTransactionsPage+1)) }>{ data.T("items.next_page") }</a>
+					}
+				</nav>
+			</section>
+		}
 		if data.EngagementEnabled {
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
 				<div class="flex flex-wrap items-center justify-between gap-4">

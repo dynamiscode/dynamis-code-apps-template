@@ -150,7 +150,7 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			output := t.TempDir()
-			if err := copyTemplate(root, output, nil, "old", "new", true, true, tc.clients, tc.catalog); err != nil {
+			if err := copyTemplate(root, output, nil, "old", "new", true, true, tc.clients, tc.catalog, false); err != nil {
 				t.Fatal(err)
 			}
 			data, err := os.ReadFile(filepath.Join(output, "scripts/actioncheck/exceptions.json"))

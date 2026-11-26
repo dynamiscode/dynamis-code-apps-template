@@ -1,0 +1,537 @@
+package web
+
+import "strconv"
+import "net/url"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
+import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
+import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
+import "example.com/dynamis-code/apps-template/internal/clients"
+import "example.com/dynamis-code/apps-template/internal/transactions"
+import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+
+templ transactionsPage(data viewmodel.PageData, rows []transactionsRow, sources map[transactions.EntryID]transactions.Entry, clientNames map[clients.ClientID]string, methods, filterMethods []transactions.Method, categories []transactions.Category, canManage, canManageCategories bool, picker transactionsPicker, draft transactionsDraft, errorKey, errorMessage, methodError, methodID, methodName string, saved, methodSaved, categorySaved, voided bool, page int, canWrite, canVoid, canConfigure bool, query url.Values, filterPicker transactionsPicker) {
+ @templates.DashboardShell(data, templates.DashboardHome) {
+  {{ recordView := query.Get("view") == "record" || picker.focus || draft.correctionFocus || draft.recordView || (errorKey != "" && draft.voidError == ""); base := "/workspaces/"+data.Workspace.ID.String()+"/transactions"; settings := "/workspaces/"+data.Workspace.ID.String()+"/settings/transactions" }}
+  if recordView {
+   @molecules.BackLink(base+transactionsPageURL(query, page)+"#transactions-entries-heading", data.T("transactions.totals_back"))
+  }
+  @molecules.PageHeading(data.T("transactions.title"), "")
+  <dialog class="modal" aria-labelledby="transactions-create-heading" data-transactions-dialog open?={ recordView }>
+  <div class="modal-box detail-main w-11/12 max-w-3xl">
+  <section aria-labelledby="transactions-create-heading">
+   <h2 id="transactions-create-heading" class="text-xl font-bold">{ data.T("transactions.create") }</h2>
+   if errorKey != "" && draft.voidError == "" {
+    @molecules.ErrorAlert(errorMessage)
+   }
+   <form id="transactions-create-form" method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions"+transactionsPageURL(query, page)) } class="transaction-entry-form space-y-3">
+    <input type="hidden" name="csrf" value={ data.CSRF }/>
+    <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
+    {{ amountLocale := draft.amountLocale; if amountLocale == "" { amountLocale = data.Locale } }}
+    <input type="hidden" name="amount_locale" value={ amountLocale }/>
+    <div>
+    @molecules.TextField("transactions-description", data.T("transactions.description"), templ.Attributes{"name":"description", "required":true, "value":draft.description, "aria-invalid":templ.KV("true", errorKey == "transactions.description_invalid"), "aria-describedby":templ.KV("transactions-description-error", errorKey == "transactions.description_invalid")})
+    if errorKey == "transactions.description_invalid" {
+     <p id="transactions-description-error">{ data.T(errorKey) }</p>
+    }
+    </div>
+    <label class="form-control flex flex-col gap-1" for="transactions-direction"><span>{ data.T("transactions.direction") }</span>
+     <select id="transactions-direction" name="direction" class="select select-bordered" required autofocus?={ draft.directionFocus }>
+      <option value="in" selected?={ draft.direction == "in" }>{ data.T("transactions.in") }</option>
+      <option value="out" selected?={ draft.direction == "out" }>{ data.T("transactions.out") }</option>
+     </select>
+    </label>
+    <noscript><button class="btn btn-outline btn-sm" type="submit" name="picker_action" value="direction" formnovalidate>{ data.T("transactions.update_direction") }</button></noscript>
+    <div>
+    @molecules.TextField("transactions-amount", data.T("transactions.amount"), templ.Attributes{"name":"amount", "inputmode":"decimal", "required":true, "value":draft.amount, "autofocus":draft.correctionFocus, "aria-invalid":templ.KV("true", errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor"), "aria-describedby":templ.KV("transactions-amount-error", errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor")})
+    if errorKey == "transactions.refund_limit" || errorKey == "transactions.amount_unknown" || errorKey == "transactions.amount_invalid" || errorKey == "transactions.amount_invalid_minor" {
+     <p id="transactions-amount-error">{ errorMessage }</p>
+    }
+    </div>
+    <details class="md:col-span-2" open?={ draft.amountMode == "minor" || errorKey == "transactions.amount_unknown" }>
+     <summary class="cursor-pointer">{ data.T("transactions.advanced_amount") }</summary>
+     <label class="form-control flex flex-col gap-1" for="transactions-amount-mode"><span>{ data.T("transactions.amount_format") }</span>
+      <select id="transactions-amount-mode" name="amount_mode" class="select select-bordered">
+       <option value="decimal" selected?={ draft.amountMode != "minor" }>{ data.T("transactions.amount_decimal") }</option>
+       <option value="minor" selected?={ draft.amountMode == "minor" }>{ data.T("transactions.amount_minor_fallback") }</option>
+      </select>
+     </label>
+     <p>{ data.T("transactions.amount_help") }</p>
+    </details>
+    if amountLocale != data.Locale {
+     <p class="md:col-span-2">{ data.T("transactions.amount_locale") }: { amountLocale }</p>
+    }
+    <div>
+    {{ currencyHelp := "transactions-currency-help"; if errorKey == "transactions.invalid_currency" { currencyHelp = "transactions-currency-error" } }}
+    @molecules.TextField("transactions-currency", data.T("transactions.currency"), templ.Attributes{"name":"currency", "list":"transactions-currencies", "required":true, "value":draft.currency, "aria-invalid":templ.KV("true", errorKey == "transactions.invalid_currency"), "aria-describedby":currencyHelp})
+    <datalist id="transactions-currencies">
+     <option value="USD" label={ data.T("transactions.currency_usd") }></option>
+     <option value="EUR" label={ data.T("transactions.currency_eur") }></option>
+     <option value="GBP" label={ data.T("transactions.currency_gbp") }></option>
+     <option value="CAD" label={ data.T("transactions.currency_cad") }></option>
+     <option value="AUD" label={ data.T("transactions.currency_aud") }></option>
+     <option value="MXN" label={ data.T("transactions.currency_mxn") }></option>
+     <option value="COP" label={ data.T("transactions.currency_cop") }></option>
+     <option value="JPY" label={ data.T("transactions.currency_jpy") }></option>
+    </datalist>
+    <p id="transactions-currency-help">{ data.T("transactions.currency_help") }</p>
+    if errorKey == "transactions.invalid_currency" {
+     <p id="transactions-currency-error">{ data.T(errorKey) }</p>
+    }
+    </div>
+    <label class="form-control flex flex-col gap-1" for="transactions-method"><span>{ data.T("transactions.method") }</span>
+     <select id="transactions-method" name="payment_method" class="select select-bordered" required>
+      <option value="">{ data.T("transactions.choose_method") }</option>
+      for _, method := range methods {
+       if method.Enabled {
+        <option value={ method.ID } selected?={ draft.method == method.ID }>{ transactionsMethodLabel(data, method.ID, method.Name) }</option>
+       }
+      }
+     </select>
+    </label>
+    <div { templ.Attributes{"data-show-when": templ.KV("transactions-direction=out", draft.categoryID == "")}... }>
+    <label class="form-control flex flex-col gap-1" for="transactions-category"><span>{ data.T("transactions.category") } { data.T("ui.optional") }</span>
+     <select id="transactions-category" name="category_id" class="select select-bordered" aria-describedby="transactions-category-help" { templ.Attributes{"aria-invalid": templ.KV("true", errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != ""))}... }>
+      <option value="">{ data.T("transactions.no_category") }</option>
+      {{ categoryFound := false }}
+      for _, category := range categories {
+       if draft.categoryID == category.ID.String() {
+        {{ categoryFound = true }}
+       }
+       if !category.Archived || draft.categoryID == category.ID.String() {
+        <option value={ category.ID.String() } selected?={ draft.categoryID == category.ID.String() }>{ category.Name }
+         if category.Archived {
+          ({ data.T("transactions.category_archived") })
+         }
+        </option>
+       }
+      }
+      if draft.categoryID != "" && !categoryFound {
+       <option value={ draft.categoryID } selected>{ data.T("transactions.category_unavailable") }</option>
+      }
+     </select>
+    </label>
+    if errorKey == "transactions.category_direction" || (draft.direction == "in" && draft.categoryID != "") {
+     <p id="transactions-category-help">{ data.T("transactions.category_direction") }</p>
+    } else {
+     <p id="transactions-category-help">{ data.T("transactions.category_out_only") }</p>
+    }
+    </div>
+    @molecules.TextField("transactions-date", data.T("transactions.date"), templ.Attributes{"name":"occurred_on", "type":"date", "required":true, "value":draft.occurredOn})
+    <details class="md:col-span-2" open?={ picker.focus || picker.search != "" || picker.selected.ID != 0 || draft.note != "" }>
+    <summary class="cursor-pointer">{ data.T("transactions.additional_details") }</summary>
+    <div class="grid grid-cols-1 gap-4 pt-3 md:grid-cols-2">
+    <label class="form-control flex flex-col gap-1" for="transactions-client-search"><span>{ data.T("transactions.search_clients") }</span>
+     <input id="transactions-client-search" class="input input-bordered" type="search" name="client_search" value={ picker.search } maxlength="200"/>
+    </label>
+    <div class="flex flex-wrap items-end gap-2">
+     <p>{ data.T("transactions.search_submit_hint") }</p>
+     <button class="btn btn-outline" type="submit" name="picker_action" value="search" formnovalidate>{ data.T("ui.search") }</button>
+    </div>
+    <label class="form-control flex flex-col gap-1" for="transactions-client"><span>{ data.T("transactions.client") } { data.T("ui.optional") }</span>
+     <select id="transactions-client" name="client_id" class="select select-bordered" autofocus?={ picker.focus }>
+      <option value="">{ data.T("transactions.no_client") }</option>
+      if picker.selected.ID != 0 {
+       <option value={ picker.selected.ID.String() } selected>{ picker.selected.DisplayName }</option>
+      }
+      for _, client := range picker.choices {
+       if client.ID != picker.selected.ID {
+        <option value={ client.ID.String() }>{ client.DisplayName }</option>
+       }
+      }
+     </select>
+    </label>
+    if len(picker.choices) == 0 && picker.search != "" {
+     <p class="md:col-span-2" role="status">{ data.T("engagement.no_client_matches") }</p>
+    }
+    <nav class="flex flex-wrap gap-2 md:col-span-2" aria-label={ data.T("transactions.client_pages") }>
+     if picker.page > 1 {
+      <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page-1) } formnovalidate>{ data.T("ui.previous_page") }</button>
+     }
+     if picker.page < 1000000 && picker.page*25 < picker.total {
+      <button class="btn btn-outline btn-sm" type="submit" name="picker_action" value={ "page:" + strconv.Itoa(picker.page+1) } formnovalidate>{ data.T("items.next_page") }</button>
+     }
+    </nav>
+    @molecules.TextareaField("transactions-note", data.T("transactions.note")+" "+data.T("ui.optional"), draft.note, templ.Attributes{"name":"note"})
+    </div>
+    </details>
+    if canVoid {
+     <input type="hidden" name="replaces_entry_id" value={ draft.replacesID }/>
+    }
+    <input type="hidden" name="refund_of_entry_id" value={ draft.refundOfID }/>
+    for _, source := range sources {
+     if (draft.replacesID != "" && source.ID.String() == draft.replacesID) || (draft.replacesID == "" && draft.refundOfID != "" && source.ID.String() == draft.refundOfID) {
+      <p class="md:col-span-2">{ data.T("transactions.source_entry") }: @transactionsSourceLink(data, source, clientNames)</p>
+     }
+    }
+    <div class="flex flex-wrap gap-2 md:col-span-2">
+     <button class="btn btn-primary" type="submit" data-transactions-submit>{ data.T("transactions.create") }</button>
+     <a class="btn btn-outline" href={ templ.SafeURL(base+transactionsPageURL(query, page)+"#transactions-entries-heading") } data-transactions-cancel>{ data.T("common.cancel") }</a>
+    </div>
+   </form>
+  </section>
+  </div>
+  </dialog>
+  if !recordView {
+  <section aria-labelledby="transactions-entries-heading" x-data="listScreen">
+   <h2 id="transactions-entries-heading" class="text-xl font-bold scroll-mt-24">{ data.T("transactions.entries") }</h2>
+   <div class="list-toolbar">
+    @molecules.ListSearch(data, "transactions.search_entries", data.ListSearch)
+    if data.ListViewRoute != "" {
+     @organisms.ListViewSwitcher(data)
+    }
+    if data.Filter.Step != nil && data.Filter.Step.FieldKey == "client_id" {
+     @molecules.ListAddMenu(data.T("clients.add_filter"), true, true) {
+      <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="space-y-3">
+       for _, field := range data.Filter.Preserved {
+        if field.Name != "filter_search" && field.Name != "filter_client_page" {
+         <input type="hidden" name={ field.Name } value={ field.Value }/>
+        }
+       }
+       <input type="hidden" name="filter_field" value="client_id"/>
+       @molecules.TextField("transactions-filter-search", data.T("transactions.search_clients"), templ.Attributes{"name":"filter_search", "type":"search", "maxlength":"200", "value":filterPicker.search})
+       <button class="btn btn-outline btn-sm" type="submit" name="filter_picker_action" value="search">{ data.T("ui.search") }</button>
+       <nav class="flex flex-wrap gap-2" aria-label={ data.T("transactions.client_pages") }>
+        if filterPicker.page > 1 {
+         <button class="btn btn-outline btn-sm" type="submit" name="filter_client_page" value={ strconv.Itoa(filterPicker.page-1) }>{ data.T("ui.previous_page") }</button>
+        }
+        if filterPicker.page < clients.MaxListPage && filterPicker.page*25 < filterPicker.total {
+         <button class="btn btn-outline btn-sm" type="submit" name="filter_client_page" value={ strconv.Itoa(filterPicker.page+1) }>{ data.T("items.next_page") }</button>
+        }
+       </nav>
+      </form>
+      <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="space-y-3">
+       for _, field := range data.Filter.Preserved {
+        if field.Name != "filter_search" && field.Name != "filter_client_page" {
+         <input type="hidden" name={ field.Name } value={ field.Value }/>
+        }
+       }
+       <input type="hidden" name="filter_field" value="client_id"/>
+       <input type="hidden" name="filter_op" value="equals"/>
+       <label class="form-control flex flex-col gap-1" for="transactions-filter-client"><span>{ data.T("transactions.client") }</span>
+        <select id="transactions-filter-client" name="filter_value" class="select select-bordered" required autofocus?={ filterPicker.focus }>
+         <option value="">{ data.T("transactions.no_client") }</option>
+         if filterPicker.selected.ID != 0 {
+          <option value={ filterPicker.selected.ID.String() } selected>{ filterPicker.selected.DisplayName }</option>
+         }
+         for _, client := range filterPicker.choices {
+          if client.ID != filterPicker.selected.ID {
+           <option value={ client.ID.String() }>{ client.DisplayName }</option>
+          }
+         }
+        </select>
+       </label>
+       <div class="flex flex-wrap gap-2">
+        <a class="btn btn-sm" href={ templ.SafeURL(data.Filter.BackHref) }>{ data.T("clients.back_to_fields") }</a>
+        <button class="btn btn-primary btn-sm" type="submit">{ data.T("clients.filter_add") }</button>
+       </div>
+      </form>
+     }
+    } else {
+     @organisms.ListAddFilter(data)
+    }
+    if canConfigure {
+     @molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+    }
+   <div class="list-create ml-auto flex items-center gap-2" data-transactions-actions>
+    if !recordView {
+     <a class="btn btn-primary" href={ templ.SafeURL(base+transactionsPageURL(query, page)+"&view=record") } data-transactions-create>{ data.T("transactions.create") }</a>
+    }
+    if canManage || canManageCategories {
+     <details class="dropdown dropdown-end">
+      <summary class="btn btn-outline btn-square" aria-label={ data.T("navigation.settings") }><span aria-hidden="true">⋮</span></summary>
+      <div class="dropdown-content z-50 w-64 max-w-[90vw] rounded-box bg-base-100 p-2 shadow-lg">
+       <ul class="menu">
+        <li><a href={ templ.SafeURL(settings) }>{ data.T("transactions.manage") }</a></li>
+        if canManage {
+         <li><a href={ templ.SafeURL(settings+"/methods") }>{ data.T("transactions.methods") }</a></li>
+         <li><a href={ templ.SafeURL(base+"/totals?period=this_month") }>{ data.T("transactions.totals") }</a></li>
+        }
+        if canManageCategories {
+         <li><a href={ templ.SafeURL(settings+"/categories") }>{ data.T("transactions.manage_categories") }</a></li>
+        }
+       </ul>
+      </div>
+     </details>
+    }
+   </div>
+   </div>
+   @organisms.ListFilterBar(data)
+   @transactionsResults(data, rows, sources, clientNames, draft, errorMessage, saved, voided, page, canWrite, canVoid, query, filterPicker)
+  </section>
+  }
+ }
+}
+
+templ transactionsResults(data viewmodel.PageData, rows []transactionsRow, sources map[transactions.EntryID]transactions.Entry, clientNames map[clients.ClientID]string, draft transactionsDraft, errorMessage string, saved, voided bool, page int, canWrite, canVoid bool, query url.Values, filterPicker transactionsPicker) {
+ <div id="list-results">
+   if filterPicker.dateError {
+    <p id="transactions-filter-date-error" role="alert" tabindex="-1" class="text-error">{ data.T("transactions.filter_date_order") }</p>
+   }
+   if draft.voidError != "" {
+    <div tabindex="-1" autofocus>@molecules.ErrorAlert(errorMessage)</div>
+   }
+   <nav class="flex flex-wrap gap-2 sm:hidden" aria-label={ data.T("clients.sort_label") }>
+    for _, column := range data.ListColumns {
+     if column.Visible && column.SortHref != "" {
+      <a class="btn btn-sm btn-outline" href={ templ.SafeURL(column.SortHref) }>{ data.T(column.LabelKey) }</a>
+     }
+    }
+   </nav>
+   if saved {
+    @molecules.SuccessAlert(data.T("transactions.saved"))
+   }
+   if voided {
+    @molecules.SuccessAlert(data.T("transactions.voided_success"))
+   }
+   if !filterPicker.dateError && len(rows) == 0 {
+    if data.HasClientFilters || data.ListSearch != "" {
+     <p>{ data.T("transactions.filter_empty") }</p>
+    } else if page == 1 {
+     <p>{ data.T("transactions.empty") }</p>
+    } else {
+     <p>{ data.T("transactions.empty_page") }</p>
+    }
+   } else if !filterPicker.dateError {
+    @organisms.ListTable(data.T("transactions.entries"), true) {
+     @organisms.ListHeader(data, data.T("clients.actions"))
+     <tbody>
+      for _, row := range rows {
+       @organisms.ListRow("") {
+        for _, column := range data.ListColumns {
+         if column.Visible && column.Key == "description" {
+          @organisms.ListLinkedCell(transactionsDetailsURL(query, page, row.entry.ID), templ.Attributes{"data-column": column.Key}) {
+           @transactionsCell(data, row, column.Key)
+          }
+         } else if column.Visible {
+          <td data-column={ column.Key }>@transactionsCell(data, row, column.Key)</td>
+         }
+        }
+        @organisms.ListActionsContentCell(data) {
+         @transactionsRowActions(data, row, canWrite, canVoid, query, page)
+        }
+       }
+      }
+     </tbody>
+    }
+    @molecules.ListCards() {
+     for _, row := range rows {
+      <li class="list-row card relative p-4">
+       <dl>
+        for _, column := range data.ListColumns {
+         if column.Visible {
+          <dt>{ data.T(column.LabelKey) }</dt>
+          <dd data-column={ column.Key }>
+           if column.Key == "description" {
+            <a class="link" href={ templ.SafeURL(transactionsDetailsURL(query, page, row.entry.ID)) }>@transactionsCell(data, row, column.Key)</a>
+           } else {
+            @transactionsCell(data, row, column.Key)
+           }
+          </dd>
+         }
+        }
+       </dl>
+       @organisms.ListRowMenuCard(data) {
+        @transactionsRowActions(data, row, canWrite, canVoid, query, page)
+       }
+      </li>
+     }
+    }
+    for _, row := range rows {
+     if (draft.voidID == row.entry.ID.String() && draft.voidError != "") || query.Get("details") == row.entry.ID.String() {
+      <dialog id="transactions-entry-details" class="modal" open data-transactions-details-dialog aria-labelledby="transactions-details-heading">
+       <div class="modal-box detail-main w-11/12 max-w-3xl">
+        <div class="flex items-start justify-between gap-3">
+         <h3 id="transactions-details-heading" class="text-xl font-bold">{ data.T("transactions.details_actions") }</h3>
+         <a class="btn btn-outline btn-square" href={ templ.SafeURL(transactionsPageURL(query, page)+"#transactions-entries-heading") } data-transactions-details-close aria-label={ data.T("ui.close") }><span aria-hidden="true">×</span></a>
+        </div>
+        @transactionsEntryDetails(data, row, sources, clientNames, draft, errorMessage, canWrite, canVoid, query, page, "dialog")
+       </div>
+      </dialog>
+     }
+    }
+   }
+   if !filterPicker.dateError && (data.ListTotal > 0 || data.HasClientFilters || data.ListSearch != "") {
+    <div class="list-footer">
+     if len(rows) > 0 {
+      <p class="list-footer-count">{ data.T("ui.rows_range", map[string]any{"start": data.ListStart, "end": data.ListStart+len(rows)-1, "total": data.ListTotal}) }</p>
+     } else if data.ListTotal > 0 {
+      <p class="list-footer-count">{ data.T("ui.rows_past_end", map[string]any{"total": data.ListTotal}) }</p>
+     }
+     @molecules.ListPager(data)
+     if page > 1 && data.ListPager.PageCount == 1 {
+      <a class="btn btn-sm" href={ templ.SafeURL(transactionsPageURL(query, page-1)+"#transactions-entries-heading") }>{ data.T("ui.previous_page") }</a>
+     }
+     @molecules.ListPageSize(data, data.ClientQuery.Limit, listPageSizeOptions(data.ClientQuery.Limit, listPageSizes))
+    </div>
+   }
+ </div>
+ if data.ListFragment {
+  @molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
+ }
+}
+
+templ transactionsRowActions(data viewmodel.PageData, row transactionsRow, canWrite, canVoid bool, query url.Values, page int) {
+ {{ entry := row.entry; base := "/workspaces/"+data.Workspace.ID.String()+"/transactions" }}
+ <a class="list-action-item border border-base-300 rounded-field" href={ templ.SafeURL(transactionsDetailsURL(query, page, entry.ID)) }>
+  @organisms.ListActionIcon("open") <span>{ data.T("transactions.details_actions") }</span>
+ </a>
+ if canWrite && entry.Direction == "in" && entry.VoidedAt == "" {
+  <form class="list-action-form" method="post" action={ templ.SafeURL(base+transactionsPageURL(query, page)) }>
+   <input type="hidden" name="csrf" value={ data.CSRF }/>
+   <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
+   <button class="list-action-item border border-base-300 rounded-field" type="submit" name="correction_action" value={ "refund:"+entry.ID.String() }>
+    @organisms.ListActionIcon("open") <span>{ data.T("transactions.refund_action") }</span>
+   </button>
+  </form>
+ }
+ if canVoid && entry.VoidedAt != "" {
+  <form class="list-action-form" method="post" action={ templ.SafeURL(base+transactionsPageURL(query, page)) }>
+   <input type="hidden" name="csrf" value={ data.CSRF }/>
+   <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
+   <button class="list-action-item border border-base-300 rounded-field" type="submit" name="correction_action" value={ "replace:"+entry.ID.String() }>
+    @organisms.ListActionIcon("edit") <span>{ data.T("transactions.replace_action") }</span>
+   </button>
+  </form>
+ }
+ if canVoid && entry.VoidedAt == "" {
+  <a class="list-action-item is-danger border border-error rounded-field" href={ templ.SafeURL(transactionsPageURL(query, page)+"&details="+url.QueryEscape(entry.ID.String())+"&action=void#transactions-entry-details") }>
+   @organisms.ListActionIcon("delete") <span>{ data.T("transactions.void") }</span>
+  </a>
+ }
+}
+
+templ transactionsEntryDetails(data viewmodel.PageData, row transactionsRow, sources map[transactions.EntryID]transactions.Entry, clientNames map[clients.ClientID]string, draft transactionsDraft, errorMessage string, canWrite, canVoid bool, query url.Values, page int, suffix string) {
+ {{ entry := row.entry; base := "/workspaces/"+data.Workspace.ID.String()+"/transactions" }}
+       <div class="space-y-3">
+       <dl class="detail-values transaction-detail-values grid grid-cols-1 gap-y-1 break-words">
+        <dt>{ data.T("transactions.description") }</dt><dd>@transactionsCell(data, row, "description")</dd>
+        <dt>{ data.T("transactions.entry_id") }</dt><dd>{ entry.ID.String() }</dd>
+        <dt>{ data.T("transactions.date") }</dt><dd>{ entry.OccurredOn }</dd>
+        <dt>{ data.T("transactions.direction") }</dt><dd>{ data.T("transactions."+entry.Direction) }</dd>
+        <dt>{ data.T("transactions.amount") }</dt><dd>{ transactions.FormatAmount(entry.AmountMinor, entry.Currency, data.Locale) }</dd>
+        <dt>{ data.T("transactions.method") }</dt><dd>{ transactionsMethodLabel(data, entry.PaymentMethod, row.methodName) }</dd>
+        if entry.CategoryID != nil {
+         <dt>{ data.T("transactions.category") }</dt><dd>{ entry.CategoryName }</dd>
+        }
+        <dt>{ data.T("transactions.client") }</dt><dd>{ row.clientName }</dd>
+        <dt>{ data.T("transactions.note") }</dt><dd>{ entry.Note }</dd>
+        <dt>{ data.T("transactions.author") }</dt><dd>
+         if row.authorName == "" {
+          { data.T("transactions.former_member") }
+         } else {
+          { row.authorName }
+         }
+        </dd>
+        <dt>{ data.T("transactions.created") }</dt><dd>{ entry.CreatedAt.UTC().Format("2006-01-02 15:04 UTC") }</dd>
+        if entry.VoidedAt != "" {
+         <dt>{ data.T("transactions.voided_by") }</dt><dd>
+          if row.voiderName == "" {
+           { data.T("transactions.former_member") }
+          } else {
+           { row.voiderName }
+          }
+         </dd>
+         <dt>{ data.T("transactions.voided_at") }</dt><dd>{ transactionsVoidTime(entry.VoidedAt) }</dd>
+         <dt>{ data.T("transactions.void_reason") }</dt><dd>{ entry.VoidReason }</dd>
+        }
+        if entry.ReplacesEntryID != 0 {
+         <dt>{ data.T("transactions.original_replacement") }</dt><dd>
+          {{ source, ok := sources[entry.ReplacesEntryID] }}
+          if ok {
+           @transactionsSourceLink(data, source, clientNames)
+          } else {
+           { data.T("transactions.source_unavailable") }
+          }
+         </dd>
+        }
+        if entry.RefundOfEntryID != 0 {
+         <dt>{ data.T("transactions.original_refund") }</dt><dd>
+          {{ source, ok := sources[entry.RefundOfEntryID] }}
+          if ok {
+           @transactionsSourceLink(data, source, clientNames)
+          } else {
+           { data.T("transactions.source_unavailable") }
+          }
+         </dd>
+        }
+       </dl>
+       if row.refundCount > 0 {
+        <a href={ templ.SafeURL("?refund_of_entry_id="+entry.ID.String()+"#transactions-entries-heading") } aria-label={ data.T("transactions.linked_refunds")+" "+entry.ID.String() }>{ data.T("transactions.linked_refunds") } ({ strconv.Itoa(row.refundCount) })</a>
+       }
+       if canWrite && entry.Direction == "in" && entry.VoidedAt == "" {
+        <form method="post" action={ templ.SafeURL(base+transactionsPageURL(query, page)) }>
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
+         <button class="btn btn-outline btn-sm" type="submit" name="correction_action" value={ "refund:"+entry.ID.String() }>{ data.T("transactions.refund_action") }</button>
+        </form>
+       }
+       if canVoid && entry.VoidedAt != "" {
+        <form method="post" action={ templ.SafeURL(base+transactionsPageURL(query, page)) }>
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         <input type="hidden" name="entry_page" value={ strconv.Itoa(page) }/>
+         <button class="btn btn-outline btn-sm" type="submit" name="correction_action" value={ "replace:"+entry.ID.String() }>{ data.T("transactions.replace_action") }</button>
+        </form>
+       }
+       if canVoid && entry.VoidedAt == "" {
+        <details open?={ (draft.voidID == entry.ID.String() && draft.voidError != "") || query.Get("action") == "void" }>
+         <summary class="cursor-pointer">{ data.T("transactions.void") }</summary>
+        if draft.voidID == entry.ID.String() && draft.voidError != "" {
+         <div id={ "transactions-void-error-"+entry.ID.String()+"-"+suffix }>@molecules.ErrorAlert(errorMessage)</div>
+        }
+        <form method="post" action={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions/entries/"+entry.ID.String()+"/void"+transactionsPageURL(query, page)) } class="space-y-3">
+         <input type="hidden" name="csrf" value={ data.CSRF }/>
+         @molecules.TextField("transactions-void-reason-"+entry.ID.String()+"-"+suffix, data.T("transactions.void_reason")+" "+data.T("ui.optional")+" "+entry.ID.String(), templ.Attributes{"name":"reason", "maxlength":"1000", "value":transactionsVoidReason(draft, entry.ID.String()), "aria-describedby":templ.KV("transactions-void-error-"+entry.ID.String()+"-"+suffix, draft.voidID == entry.ID.String() && draft.voidError != "")})
+         <label class="flex items-start gap-2"><input type="checkbox" class="checkbox" name="confirm_void" value="yes" required/> <span>{ data.T("transactions.void_confirm") } { entry.ID.String() }</span></label>
+         <button class="btn btn-outline" type="submit" aria-label={ data.T("transactions.void")+" "+entry.ID.String() }>{ data.T("transactions.void") }</button>
+        </form>
+        </details>
+       }
+       </div>
+}
+
+templ transactionsCell(data viewmodel.PageData, row transactionsRow, key string) {
+ if key == "description" {
+  if row.entry.Description == "" {
+   { data.T("transactions.no_description") }
+  } else {
+   { row.entry.Description }
+  }
+ } else if key == "date" {
+  { row.entry.OccurredOn }
+ } else if key == "direction" {
+  { data.T("transactions."+row.entry.Direction) }
+ } else if key == "amount" {
+  { transactions.FormatAmount(row.entry.AmountMinor, row.entry.Currency, data.Locale) }
+ } else if key == "method" {
+  { transactionsMethodLabel(data, row.entry.PaymentMethod, row.methodName) }
+ } else if key == "category" {
+  { row.entry.CategoryName }
+ } else if key == "client" {
+  if row.clientName != "" {
+   { row.clientName }
+  } else if row.entry.ClientID != nil {
+   { data.T("transactions.client_unavailable") }
+  }
+ } else if key == "note" {
+  if row.entry.Note != "" {
+   { row.entry.Note }
+  }
+ } else if key == "status" && row.entry.VoidedAt != "" {
+  { data.T("transactions.status_voided") }
+ }
+}
+
+templ transactionsSourceLink(data viewmodel.PageData, source transactions.Entry, clientNames map[clients.ClientID]string) {
+ <a class="link" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions?entry_id="+url.QueryEscape(source.ID.String())+"#transactions-entries-heading") }>{ data.T("transactions."+source.Direction) } · { transactions.FormatAmount(source.AmountMinor, source.Currency, data.Locale) } · { source.OccurredOn } · { transactionsMethodLabel(data, source.PaymentMethod, source.PaymentMethodName) }
+  if source.ClientID != nil {
+   if clientNames[*source.ClientID] != "" {
+    · { clientNames[*source.ClientID] }
+   } else {
+    · { data.T("transactions.client_unavailable") }
+   }
+  }
+  if source.Note != "" {
+   · { source.Note }
+  }
+ </a>
+}

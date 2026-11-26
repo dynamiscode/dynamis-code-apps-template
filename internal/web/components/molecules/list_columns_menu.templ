@@ -74,6 +74,9 @@ templ ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) {
 						Disabled: i == 0,
 						Attrs:    templ.Attributes{"data-autosubmit": "true", "aria-label": ClientColumnLabelText(data, column)},
 					})
+					if i > 0 {
+						<noscript><button class="btn btn-outline btn-xs" type="submit">{ data.T("clients.apply") }</button></noscript>
+					}
 				</form>
 				<span class="list-column-name">
 					@ClientColumnLabel(data, column)

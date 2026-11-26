@@ -9,16 +9,18 @@ import (
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/mcpserver"
 	"example.com/dynamis-code/apps-template/internal/platform/config"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 )
 
 func registerAgent(
 	mux *http.ServeMux,
 	identityService *identity.Service,
 	clientService *clients.Service,
+	transactionsService *transactions.Service,
 	cfg config.Config,
 ) {
 	mux.Handle("/mcp", httpapi.Wrap(
-		mcpserver.NewHandler(identityService, cfg.MCP, slog.Default(), mcpserver.WithClients(clientService)),
+		mcpserver.NewHandler(identityService, cfg.MCP, slog.Default(), mcpserver.WithClients(clientService), mcpserver.WithTransactions(transactionsService)),
 		cfg.HTTP, slog.Default(),
 	))
 	if metadata := mcpserver.NewProtectedResourceMetadataHandler(cfg.MCP); metadata != nil {

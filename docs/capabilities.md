@@ -7,6 +7,72 @@ group rows describe the supported application.
 
 This ledger records implemented conformance evidence and deferred triggers.
 
+## Transactions filters and client history (#633)
+
+Transactions readers can filter entries by client, payment method, expense category,
+direction, and inclusive occurred-on dates through web, REST, MCP, and the
+remote CLI. Filters and client history use workspace-scoped shared transactions
+authorization; viewers see no transactions panel. Historical disabled methods and
+archived categories remain filterable. Coverage: [service](../internal/transactions/service_test.go),
+[REST](../internal/httpapi/transactions_test.go), [MCP](../internal/mcpserver/transactions_test.go),
+[CLI](../internal/appctl/transactions_test.go), [web](../internal/web/transactions_history_test.go),
+and [browser journey](../internal/browsertest/transactions_history_test.go).
+An independent [rendered review](https://gist.github.com/davidlondono/f2d34984b1a6d5ce10bdd5b267cdf191)
+covered member, admin, viewer, and no-JavaScript flows at revision `7599a107`.
+Its findings were addressed and [retested](https://gist.github.com/davidlondono/69fa859243197023093559c336a04062)
+at revision `3f071e7429`. The later integrated review is recorded below.
+
+The Transactions UX redesign was reviewed on the working tree based on
+`9d40be3035`. A disposable workspace was used to inspect the owner journey at
+1522×882 and 390×844, including recording a USD 125.00 cash entry and reviewing
+payment-method status. A no-JavaScript invalid-amount submission retained its
+draft and associated the error with the amount field. [Synthetic screenshots
+and review notes](https://gist.github.com/davidlondono/5d2847e0db7b5736ad12c826d5235c35)
+are retained for review. Focused Transactions browser tests, monetary and web tests,
+and the UX evidence-validator tests passed. Screen-reader and contrast review
+remain unverified; the evidence gate cannot judge screenshot quality.
+
+## Transactions period totals (#632)
+
+Owners and admins with read scope can view workspace-local month presets or
+inclusive custom periods through web, REST, MCP, and the REST-only CLI.
+Totals use exact decimal-string minor units, grouped by currency, method, and
+expense category. Voids are excluded; refunds count as money out. Historical
+categories retain their IDs and archived state. MCP output is paginated.
+Evidence: [SQLite and PostgreSQL totals tests](../internal/transactions/totals_test.go),
+[REST](../internal/httpapi/transactions_test.go), [MCP](../internal/mcpserver/transactions_test.go),
+[CLI](../internal/appctl/transactions_test.go), and [web](../internal/web/transactions_totals_test.go).
+Independent [rendered review](https://gist.github.com/davidlondono/e74ab45cfbcb70d03ef287bdd73a2edb)
+and [retest](https://gist.github.com/davidlondono/9d7427e8b7469fba274faa4ba5ced163)
+covered the period flow. Screen-reader and contrast review remain unverified.
+
+## Transactions expense categories (#629)
+
+Workspace owners and admins create, rename and archive categories; no default
+categories are seeded. Staff may select an active category for money out only.
+History displays the current category name after rename and archive. Category
+mutations are audited. [Migration 000061](../internal/platform/database/migrations/000061_transactions_categories.sql)
+stores category records and entry links. Evidence: [service](../internal/transactions/service_test.go),
+[PostgreSQL concurrency](../internal/transactions/postgres_test.go),
+[REST](../internal/httpapi/transactions_test.go), [MCP](../internal/mcpserver/transactions_test.go),
+[CLI](../internal/appctl/transactions_test.go), and
+[browser journey](../internal/browsertest/transactions_test.go) tests. Independent
+[rendered review](https://gist.github.com/davidlondono/78c346bd05478ec765bbe37f04ac95a5)
+covered owner, admin, member and no-JavaScript flows; findings were fixed and
+[retested](https://gist.github.com/davidlondono/eec0cf795a31500636d0fd2fb584c2fa)
+at revision `e59fd05598`. Contrast was not independently verified.
+
+## Transactions payment methods (#631)
+
+Owners and admins can add, rename, disable, and re-enable workspace payment
+methods through web, REST, MCP, and the remote CLI. Members can select enabled
+methods; viewers have no transactions access. Method keys remain stable across renames.
+Disabled methods remain on historical entries, and a workspace cannot disable
+its final enabled method. The shared service serializes method writes per
+workspace and records audit events. Migration
+[000060](../internal/platform/database/migrations/000060_transactions_method_names.sql)
+adds display names. Evidence is in the transactions, REST, MCP, CLI, and web tests.
+
 ## Scheduling resources (#579)
 
 Booking engagement links (#598) use [migration 000049](../internal/platform/database/migrations/000049_scheduling_engagement.sql). Writers may set or clear a same-workspace engagement on creation or later; readers see links and engagement bookings. Evidence: [service](../internal/scheduling/service_test.go), [REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go). MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
@@ -337,6 +403,7 @@ reconciliation](web.md#browser-journey-coverage-reconciliation).
 | Agent | conforming | [Phase 05 evidence](#phase-05-evidence) |
 | Files | conforming | [Files evidence](#files-evidence) |
 | Catalog | partial | Create, edit, list, archive, unarchive, and delete unused entries, and add, edit, and remove fixed and manual prices via [service](../internal/catalog/service_test.go), [PostgreSQL](../internal/catalog/postgres_test.go), [REST](../internal/httpapi/catalog_test.go), and [web](../internal/web/catalog_test.go); include/omit generation covered by `cmd/template-init/catalog_profiles_test.go`. Sale usage linkage and agent surfaces remain future work. |
+| Transactions | partial | Immutable workspace entries, owner/admin voids, linked replacements and capped refunds use the [shared service](../internal/transactions/service.go), with [REST](../internal/httpapi/transactions.go), [web](../internal/web/transactions.go), [MCP](../internal/mcpserver/transactions.go), and [CLI](../internal/appctl/transactions.go) adapters. [Migration 000059](../internal/platform/database/migrations/000059_transactions_corrections.sql) adds correction history; [profile generation tests](../cmd/template-init/transactions_profiles_test.go) cover inclusion and omission. Method configuration, categories, and totals remain separate. Browser accessibility review and PostgreSQL compatibility verification remain pending. |
 | Clients | partial | Create and edit clients over REST and web: [service tests](../internal/clients/service_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/clients_test.go), [web tests](../internal/web/clients_test.go), template-init generation tests (`cmd/template-init`). Client list, detail, and custom-field management pages use templ and shared form components; detail and field lifecycle route checks are in [client web tests](../internal/web/clients_test.go), [field tests](../internal/web/client_fields_test.go), [option tests](../internal/web/client_options_test.go), and [field-delete tests](../internal/web/client_field_delete_test.go). The list uses `clients.templ`, loads local HTMX and the shared `alpine-components.js`, and refreshes its list fragment from the `client.changed` and `resync` SSE events under `ResourcesRead`; it defers replacement while forms are focused, dirty, or submitting: [#415 evidence](clients-list-evidence-415.md), [browser coverage](../internal/browsertest/clients_list_test.go), [listener tests](../internal/web/assets/realtime-lists.test.mjs). Define, archive, and restore text, number, date, and yes/no custom fields over REST and web: [field service tests](../internal/clients/fields_test.go), [REST tests](../internal/httpapi/client_fields_test.go), [slot-index tests](../internal/platform/database/client_slot_indexes_test.go). Set and clear text, number, date, and yes/no values with the field type lock: [value service tests](../internal/clients/values_test.go), [typed value tests](../internal/clients/typed_values_test.go), [PostgreSQL values](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_values_test.go), [web tests](../internal/web/client_values_test.go). Client changes have a workspace SSE feed and list fragment: [change feed tests](../internal/clients/events_test.go), [PostgreSQL feed check](../internal/clients/postgres_test.go), [stream and fragment tests](../internal/web/clients_events_test.go), [listener unit tests](../internal/web/assets/realtime-lists.test.mjs). Single-choice fields with up to 100 options per field over REST and web, with option deletion clearing values: [option service tests](../internal/clients/options_test.go), [option ID tests](../internal/clients/option_id_test.go), [PostgreSQL options](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_options_test.go). Permanent deletion of an archived custom field over REST and web, clearing its values and choice options in one transaction: [field delete service tests](../internal/clients/field_delete_test.go), [REST tests](../internal/httpapi/client_field_delete_test.go), [PostgreSQL lifecycle](../internal/clients/postgres_test.go). Client archive, unarchive, and permanent client delete over REST and web, with the archived list selector: [lifecycle service tests](../internal/clients/lifecycle_test.go), [PostgreSQL archive and delete](../internal/clients/postgres_test.go), [REST tests](../internal/httpapi/client_lifecycle_test.go), [web tests](../internal/web/client_lifecycle_test.go). Client webhook events `client.created`, `client.updated`, `client.archived`, and `client.deleted` through the existing outbox, written in the change's transaction, with custom value set and clear emitting `client.updated`: [SQLite and PostgreSQL outbox tests](../internal/clients/webhook_events_test.go), [subscription test](../internal/webhooks/client_events_test.go). Client export, MCP, and `appctl` for archive and delete not implemented |
 | Client timeline service | partial | Append-only manual entries, same-client corrections, read/write authorization, audit and client change events: [SQLite and PostgreSQL service tests](../internal/clients/timeline_test.go). Timeline entries are exposed through web, REST, and MCP; workspace export remains separate. |
 | Clients shared list view | partial | Per-user columns and custom Client values, responsive table/card markup, sort/filter/pagination URL state, explicit-empty and typed timestamp filters, filter chips, reset actions, and viewer isolation: [web behavior tests](../internal/web/clients_test.go), [typed query tests](../internal/clients/query_test.go), [REST compatibility tests](../internal/httpapi/clients_test.go), [preference service tests](../internal/listprefs/service_test.go), and generated-profile checks (`cmd/template-init`). Required 1,000/10,000-row latency benchmarks and VoiceOver walkthrough remain pending. |

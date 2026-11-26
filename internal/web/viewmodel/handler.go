@@ -8,6 +8,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/i18n"
 	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/scheduling"
+	"example.com/dynamis-code/apps-template/internal/transactions"
 	"example.com/dynamis-code/apps-template/internal/webhooks"
 	"example.com/dynamis-code/apps-template/internal/workspaceemail"
 )
@@ -78,6 +79,9 @@ type PageData struct {
 	ClientValues               []ClientValueRow
 	ClientTimeline             []clients.TimelineEntry
 	TimelinePage               int
+	ClientTransactions         []transactions.Entry
+	ClientTransactionsPage     int
+	CanReadClientTransactions  bool
 	TimelineDraft              TimelineDraft
 	ClientDraft                clients.Input
 	ClientEditRejected         bool
@@ -99,6 +103,7 @@ type PageData struct {
 	CanDeleteClients           bool
 	ClientsEnabled             bool
 	CatalogEnabled             bool
+	TransactionsEnabled        bool
 	SchedulingEnabled          bool
 	ErrorKey                   string
 	Files                      []appfiles.File

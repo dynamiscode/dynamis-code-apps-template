@@ -1048,6 +1048,31 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := auth.RecordAudit(ctx, identity.AuditEvent{
+		EventType: "transactions.category.rename", ActorUserID: owner.UserID, AuthMethod: "session",
+		WorkspaceID: workspaceID, TargetType: "transactions_category", Action: "transactions.category.rename",
+		Outcome: "success", Metadata: `{"before":"Old <name>","after":"New name","invite_secret":"category-secret"}`,
+		CreatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, eventType := range []string{"transactions.category.create", "transactions.category.archive"} {
+		if err := auth.RecordAudit(ctx, identity.AuditEvent{
+			EventType: eventType, ActorUserID: owner.UserID, AuthMethod: "session",
+			WorkspaceID: workspaceID, TargetType: "transactions_category", Action: eventType,
+			Outcome: "success", Metadata: `{"name":"Audit category","invite_secret":"category-secret"}`,
+			CreatedAt: time.Now().UTC(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := auth.RecordAudit(ctx, identity.AuditEvent{
+		EventType: "transactions.method.updated", ActorUserID: owner.UserID, AuthMethod: "session",
+		WorkspaceID: workspaceID, TargetType: "transactions_method", Action: "transactions.method.updated",
+		Outcome: "success", Metadata: `{"methodId":"method-5","after":{"name":"sensitive-method-name"}}`, CreatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
 	if err != nil {
 		t.Fatal(err)
@@ -1085,12 +1110,12 @@ func TestWebAuditHistoryIsScopedRedactedAndNotWebMCP(t *testing.T) {
 	if page.Code != http.StatusOK || page.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("audit page status/cache = %d, %q", page.Code, page.Header().Get("Cache-Control"))
 	}
-	for _, visible := range []string{"Audit history", "test.audit.visible", "audit.visible"} {
+	for _, visible := range []string{"Audit history", "test.audit.visible", "audit.visible", "Audit category", "Old &lt;name&gt;", "New name", "Previous category name", "New category name", "method-5"} {
 		if !strings.Contains(body, visible) {
 			t.Errorf("audit page missing marker %q", visible)
 		}
 	}
-	for _, secret := range []string{"request-secret", "invite-secret", "example.test", "signed-secret", "198.51.100.9"} {
+	for _, secret := range []string{"request-secret", "invite-secret", "category-secret", "example.test", "signed-secret", "198.51.100.9", "Old <name>", "sensitive-method-name"} {
 		if strings.Contains(body, secret) {
 			t.Errorf("audit page exposed forbidden marker %q", secret)
 		}

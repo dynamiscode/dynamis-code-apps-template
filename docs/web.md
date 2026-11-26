@@ -24,6 +24,19 @@ When creating a catalog entry, an entered amount creates a fixed price; an empty
 
 Catalog profile: the resource schedule shows bookings in the workspace time zone. Writers can select a catalog entry and start time; readers see the schedule without booking controls. Invalid, overlapping, and out-of-hours requests retain the draft and show an error.
 
+Transactions administrators can open Manage transactions from the transactions menu, then choose
+payment methods or expense categories. Both settings pages use the workspace
+settings sidebar and link back to the transactions. Owners and admins can add or rename
+methods and enable or disable them; at least one method must remain enabled.
+They can add, rename, and archive expense categories. Disabled methods and
+archived categories remain visible for historical entries. All settings forms
+work without JavaScript and retain invalid drafts with feedback.
+
+Transaction entries require a short description separate from the optional note.
+Historical entries without one show a localized link to their details. Detail
+dialogs preserve the list context, with ordinary navigation when JavaScript is
+unavailable. Rejected submissions and client-picker requests retain the draft.
+
 Member and invitation pages explain role permissions, ownership transfer,
 invited-email matching, and safe recovery for unavailable links.
 Settings groups general and email setup, member access, API tokens, webhooks,
@@ -162,6 +175,8 @@ tables, linked and responsive list cards, empty states, and next-page links. Wor
 home, and Files use these components; other routes retain their existing templates
 until their migrations. Callers supply translated text, field attributes,
 table rows, equivalent mobile card contents, authorization, and CSRF-protected forms.
+Use linked-card grids for navigation choices. Keep short editors visible rather
+than hidden in disclosures. Space cards, fields, and actions; let actions wrap.
 Use `listTable` with `listCards` for paired responsive lists; use `dataTable`
 for standalone scrollable tables. A field error must be
 associated with its input through `aria-describedby`. Destructive buttons use
@@ -663,6 +678,16 @@ the same page. The route uses generated `client_fields.templ` and shared
 DaisyUI form, alert, and confirmation components. Choice fields expose option
 add and delete forms to owners and admins; deleting an option warns that client
 values using it will be cleared. All actions retain ordinary POST fallback.
+
+## Transactions expense categories
+
+The Transactions page lets owners and admins create, rename and archive expense
+categories. Staff may select an active category on a money-out entry; the
+category is optional. History shows the current name after rename or archival.
+
+Transactions readers can filter entries by client, payment method, category,
+direction, and inclusive dates. The client page shows paginated transactions history
+only to transactions readers; viewers see no money panel.
 
 ## Realtime contract
 

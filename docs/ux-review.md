@@ -5,6 +5,13 @@ Backend-only changes and copy-only changes without usability impact are exempt;
 state why. This is a completion gate, not an automated CI guarantee. An
 independent reviewer is useful when available and authorized, but no particular
 AI tool or model is required.
+For pull requests touching `internal/` or browser-related commands, CI requires
+a structured review record or a reasoned non-visual exemption. A reviewed
+record must name the current PR head SHA or an unambiguous prefix of at least
+seven hex digits. Update it after new commits and repeat the drive as applicable.
+The check validates fields, commit identity, and link syntax, not the evidence,
+the exemption, the completeness of the path filter, or usability. Reviewers
+must judge those.
 
 1. **Inventory.** List affected journeys, entry and return paths, roles, and
    relevant states. Identify task, success, failure and realistic data, including
@@ -15,16 +22,22 @@ AI tool or model is required.
    acceptance criteria for each changed journey.
 3. **Drive.** Run the real application with disposable data using the
    repository's [verification procedure](../.agents/skills/verify/SKILL.md).
-   Complete each changed journey, not just visit a page. Inspect desktop and
-   narrow screens and sample applicable empty, populated, error, success,
-   permission and long-content states. Check keyboard, visible focus, and
-   ordinary form fallback. Run applicable accessibility and behavior tests.
+   Complete each changed journey, including entry, action, outcome, and return,
+   not just visit a page or run isolated tests. Inspect desktop and narrow
+   screens and sample applicable empty, populated, error, success, permission
+   and long-content states. Exercise permitted and restricted roles, keyboard,
+   visible focus, assistive technology where applicable, and ordinary form
+   fallback without JavaScript.
 4. **Judge.** Apply the three perspectives in the [UX decision guide](ux-decisions.md).
    For each journey assess navigation and orientation, task priority,
    recognition, information grouping, choice and control, feedback, error
    recovery, consistency, and responsive behavior. Name exact friction and the
    consequence for the user; fix findings in scope and repeat the affected drive.
    Review rendered screens, not source or automated scores alone.
+   For financial journeys, check exact amounts and currency precision, separate
+   currency totals, and correction history with realistic records. Assess whether
+   routine work starts with a scannable list, whether management distracts from
+   it, and whether users must find or copy opaque identifiers to act.
 5. **Record.** In the change report or pull request give tested revision,
    viewport, role, journey and state, actions and outcomes, links to screenshots
    or other durable evidence, checks run, and unresolved findings. Use synthetic data;
