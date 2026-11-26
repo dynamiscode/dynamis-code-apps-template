@@ -5,6 +5,7 @@ Read only the route needed for the change.
 | Task | Read | Skill |
 |---|---|---|
 | Add an ordinary feature slice | [Architecture](architecture.md), affected interface contract, [development](development.md) | `implement-go-feature` |
+| Add or change a validator or repository check | [Validator design](agents/validator-design.md) | None |
 | Change schema, migrations, repositories, retention, export, or restore | [Architecture](architecture.md), [data lifecycle](data-lifecycle.md), [operations](operations.md) | `change-go-data` |
 | Change authentication, authorization, workspaces, roles, credentials, or OIDC | [Authentication](authentication.md), [configuration](configuration.md), [security](../SECURITY.md) | `change-go-identity` |
 | Change workspace member management, role changes, removal, or ownership transfer | [Authentication](authentication.md), [web behavior](web.md), [accessibility](accessibility.md) | `change-go-identity` |
