@@ -161,7 +161,7 @@ jobs:
             exit 0
           fi
           # On pull_request HEAD is the merge commit; HEAD^1 is the base.
-          if git diff --name-only HEAD^1 HEAD | grep -Eq '^(cmd/template-init/|go\.mod$|go\.sum$|Makefile$|AGENTS\.md$|docs/README\.md$|docs/development\.md$|\.github/workflows/ci\.yml$)'; then
+          if git diff --name-only HEAD^1 HEAD | grep -Eq '^(api/|cmd/|internal/|scripts/|go\.mod$|go\.sum$|package(-lock)?\.json$|Makefile$|AGENTS\.md$|docs/README\.md$|docs/development\.md$|\.github/workflows/ci\.yml$)'; then
             echo run=true >> "$GITHUB_OUTPUT"
           else
             echo run=false >> "$GITHUB_OUTPUT"

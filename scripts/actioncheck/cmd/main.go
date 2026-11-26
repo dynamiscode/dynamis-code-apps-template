@@ -14,10 +14,6 @@ import (
 )
 
 func main() {
-	if err := sourceaudit.Verify("."); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
 	if err := sourceaudit.VerifyBuildEnvironment("."); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

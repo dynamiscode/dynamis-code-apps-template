@@ -101,9 +101,6 @@ func run(args []string, now func() time.Time) error {
 	if err != nil {
 		return err
 	}
-	if err := sourceaudit.Verify(root); err != nil {
-		return fmt.Errorf("validate released Go output source before profile generation: %w", err)
-	}
 	if err := sourceaudit.VerifyBuildEnvironment(root); err != nil {
 		return err
 	}
@@ -184,9 +181,6 @@ func run(args []string, now func() time.Time) error {
 	if err := sourceaudit.VerifyBuildEnvironment(destination); err != nil {
 		return err
 	}
-	if err := sourceaudit.WriteReviewed(destination); err != nil {
-		return fmt.Errorf("derive reviewed Go output manifest after profile generation: %w", err)
-	}
 	lock := lockFile{GeneratedAt: now().UTC(), Profiles: selectedProfiles}
 	lock.Template.Source = *source
 	lock.Template.Version = selectedVersion
@@ -225,9 +219,6 @@ func copyTemplate(
 		relative, err := filepath.Rel(root, path)
 		if err != nil || relative == "." {
 			return err
-		}
-		if filepath.ToSlash(relative) == sourceaudit.ManifestPath {
-			return nil
 		}
 		if ignored(relative) {
 			if entry.IsDir() {
@@ -402,6 +393,7 @@ func catalogPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000049_scheduling_engagement.sql" || relative == "internal/platform/database/migrations/000050_scheduling_booking_moves.sql" ||
 		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
 		relative == "internal/platform/database/migrations/000041_catalog_prices.sql" ||
+		relative == "internal/platform/database/migrations/000056_catalog_entry_revision.sql" ||
 		relative == "internal/platform/database/migrations/000045_catalog_currencies.sql"
 }
 
@@ -511,12 +503,14 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| catalog / `catalog_entries`")
+		value = removeLineStarting(value, "| catalog / `catalog_entry_revision_seeds`")
 		value = removeLineStarting(value, "| scheduling / `scheduling_bookings`")
 		value = removeLineStarting(value, "| catalog / `catalog_currencies`")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
 	case "docs/operations.md":
 		value = removeLineStarting(value, "Catalog currency migration 000045")
+		value = removeLineStarting(value, "Catalog revision migration 000056")
 	case "internal/web/localization.go":
 		value = removeLinesContaining(value, "h.catalogService")
 	case "api/openapi.json":

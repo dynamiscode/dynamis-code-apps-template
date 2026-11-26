@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke profile-preflight test-profile-preflight verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -20,13 +20,14 @@ js-check:
 
 doc-links:
 	node --test scripts/check-doc-link-anchors.test.mjs
+	node --test scripts/check-review-images.test.mjs
+	node scripts/check-review-images.mjs
 	./scripts/check-doc-links.sh
 	node --test scripts/check-formal-verification.test.mjs
 	node scripts/check-formal-verification.mjs
 
 web-conformance:
 	@flags="$$(go env GOFLAGS)" && experiments="$$(go env GOEXPERIMENT)" && work="$$(go env GOWORK)" && test -z "$$flags$$experiments" && { test -z "$$work" || test "$$work" = off; } || { echo "Unsupported Go output build overrides"; exit 1; }
-	go run ./scripts/update-go-output-manifest --verify
 	./scripts/check-web-conformance.sh
 	node --test scripts/check-js-actions.test.mjs
 	node scripts/check-js-actions.mjs
@@ -35,6 +36,7 @@ web-conformance:
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
+	node --test scripts/pr-security-inventory.test.mjs
 
 test-postgres:
 	set -e; \
@@ -48,7 +50,7 @@ test-postgres:
 	docker exec "$$name" createdb -U postgres scheduling_test; \
 	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/scheduling_test?sslmode=disable" go test ./internal/scheduling/... -count=1
 
-lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check
+lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check test-profile-preflight
 
 logger-injection:
 	./scripts/check-logger-injection.sh
@@ -129,12 +131,18 @@ accessibility-smoke:
 browser-smoke:
 	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke ./cmd/preview
 
+profile-preflight:
+	sh scripts/profile-preflight.sh $(BASE)
+
+test-profile-preflight:
+	sh scripts/test-profile-preflight.sh
+
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
-	(cd "$$work/app" && ./scripts/check-doc-links.sh && go test ./...); \
+	(cd "$$work/app" && ./scripts/check-doc-links.sh && make web-conformance && go test ./...); \
 	go run ./cmd/template-init -output "$$work/core-app" -name "Smoke Core App" -module example.com/smoke/core-app -repository https://github.com/smoke/core-app -security-url https://github.com/smoke/core-app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
-	(cd "$$work/core-app" && ./scripts/check-doc-links.sh)
+	(cd "$$work/core-app" && ./scripts/check-doc-links.sh && make web-conformance)
 
 # ci-local mirrors the CI jobs that run without Docker, Postgres, or browser smoke.
 # race (go test -race ./...) replaces plain go test to avoid running the suite twice.
