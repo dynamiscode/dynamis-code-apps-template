@@ -2,6 +2,8 @@ package bootstrap
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -28,6 +30,64 @@ func TestNewBuildsSQLiteApplication(t *testing.T) {
 
 	if err := app.DB.PingContext(context.Background()); err != nil {
 		t.Fatalf("PingContext() error = %v", err)
+	}
+}
+
+func TestCookieSecurityAtHTTPBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name, secure, publicURL, host string
+		status                        int
+		cookieSecure                  bool
+	}{
+		{"default without URL", "", "", "app.example.com", http.StatusOK, true},
+		{"misleading local URL", "", "http://localhost:8080", "app.example.com", http.StatusOK, true},
+		{"public HTTPS", "", "https://app.example.com", "app.example.com", http.StatusOK, true},
+		{"local HTTP", "false", "", "localhost:8080", http.StatusOK, false},
+		{"local IPv6 HTTP", "false", "", "[::1]:8080", http.StatusOK, false},
+		{"local mode rejects public host", "false", "http://localhost:8080", "app.example.com", http.StatusBadRequest, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			values := map[string]string{"APP_PUBLIC_URL": tc.publicURL}
+			if tc.secure != "" {
+				values["HTTP_SECURE"] = tc.secure
+			}
+			cfg, err := config.LoadFrom(func(key string) (string, bool) {
+				value, ok := values[key]
+				return value, ok
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.Database.SQLitePath = ":memory:"
+			cfg.Database.MaxOpenConns = 1
+			cfg.Database.MaxIdleConns = 1
+			app, err := New(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { app.Close() })
+			request := httptest.NewRequest(http.MethodGet, "http://"+tc.host+"/setup", nil)
+			response := httptest.NewRecorder()
+			app.Handler.ServeHTTP(response, request)
+			if response.Code != tc.status {
+				t.Fatalf("status = %d, want %d", response.Code, tc.status)
+			}
+			if tc.status != http.StatusOK {
+				if len(response.Result().Cookies()) != 0 {
+					t.Fatal("rejected host received cookies")
+				}
+				return
+			}
+			for _, cookie := range response.Result().Cookies() {
+				if cookie.Name == "setup_csrf" {
+					if cookie.Secure != tc.cookieSecure || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode {
+						t.Fatalf("setup cookie = %+v", cookie)
+					}
+					return
+				}
+			}
+			t.Fatal("missing setup CSRF cookie")
+		})
 	}
 }
 
