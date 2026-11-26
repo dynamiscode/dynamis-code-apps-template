@@ -130,3 +130,57 @@ test("Enter in client search submits the client picker rather than another form 
 	assert.equal(prevented, true);
 	assert.equal(submitted, button);
 });
+
+test("closing transaction details restores the visible receipt link without reloading", () => {
+	const previous = globalThis.window;
+	let focused = "", replaced = "", removed = false;
+	globalThis.window = {
+		location: { href: "https://example.test/transactions?page=2&details=receipt-7#transactions-entry-details" },
+		history: { state: {}, replaceState(_state, _title, href) { replaced = href; } },
+	};
+	const handlers = {};
+	const listen = (name) => (type, handler) => { handlers[`${name}:${type}`] = handler; };
+	const close = { href: "https://example.test/transactions?page=2#transactions-entries-heading", addEventListener: listen("close") };
+	const link = (name, visible) => ({
+		href: "https://example.test/transactions?page=2&details=receipt-7#transactions-entry-details",
+		isConnected: true, getClientRects: () => visible ? [{}] : [], focus() { focused = name; },
+	});
+	const hidden = link("hidden", false);
+	const receipt = link("receipt", true);
+	const details = {
+		dataset: {}, open: true, contains: () => false,
+		querySelector: (selector) => selector === "[data-transactions-details-close]" ? close : null,
+		removeAttribute() { this.open = false; }, showModal() { this.open = true; },
+		remove() { removed = true; },
+		addEventListener: listen("dialog"),
+		close() { this.open = false; handlers["dialog:close"](); },
+	};
+	const root = {
+		activeElement: null,
+		querySelector: (selector) => selector === "[data-transactions-details-dialog]" ? details : null,
+		querySelectorAll: (selector) => selector === "a.list-row-link, .list-row.card a.link" ? [hidden, receipt] : [],
+		getElementById: () => null,
+	};
+	try {
+		wireTransactionsDialog(root);
+		assert.equal(details.open, true);
+		details.close();
+		assert.equal(focused, "receipt");
+		assert.equal(replaced, close.href);
+		assert.equal(details.open, false);
+		assert.equal(removed, true);
+		removed = false;
+		const action = link("original action", true);
+		action.closest = () => action;
+		root.activeElement = action;
+		details.dataset.bound = "";
+		wireTransactionsDialog(root);
+		let prevented = false;
+		handlers["close:click"]({ preventDefault() { prevented = true; } });
+		assert.equal(prevented, true);
+		assert.equal(focused, "original action");
+		assert.equal(removed, true);
+	} finally {
+		globalThis.window = previous;
+	}
+});

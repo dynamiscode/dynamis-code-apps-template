@@ -1623,9 +1623,26 @@
 		const detailsClose = details?.querySelector("[data-transactions-details-close]");
 		if (details && detailsClose && !details.dataset.bound && typeof details.showModal === "function") {
 			details.dataset.bound = "true";
+			const current = new URL(window.location.href);
+			const detailURL = details.querySelector('form[action*="details="], a[href*="details="]');
+			const entryID = current.searchParams.get("details") || (detailURL && new URL(detailURL.action || detailURL.href, current).searchParams.get("details"));
+			const links = [...(root.querySelectorAll?.("a.list-row-link, .list-row.card a.link") || [])];
+			const matches = (link) => entryID && new URL(link.href, current).searchParams.get("details") === entryID;
+			const active = root.activeElement?.closest?.("a[href]");
+			const opener = (active && matches(active) && !details.contains(active) && active.getClientRects().length && active) ||
+				links.find((link) => matches(link) && link.getClientRects().length);
 			details.removeAttribute("open");
+			detailsClose.addEventListener("click", (event) => { event.preventDefault(); details.close(); });
 			details.addEventListener("click", (event) => { if (event.target === details) details.close(); });
-			details.addEventListener("close", () => { window.location.assign(detailsClose.href); });
+			details.addEventListener("close", () => {
+				details.remove();
+				window.history.replaceState(window.history.state, "", detailsClose.href);
+				const target = opener?.isConnected ? opener : root.getElementById("transactions-entries-heading");
+				if (target) {
+					if (target !== opener) target.setAttribute("tabindex", "-1");
+					target.focus();
+				}
+			});
 			details.showModal();
 			details.querySelector('[role="alert"]')?.focus();
 		}
