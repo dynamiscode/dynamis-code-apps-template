@@ -30,10 +30,9 @@ Focused render tests fail before the changes for unbounded feature, footer,
 menu, step, megamenu, and preview-index links and pass after.
 
 Isolated headless Chrome, on integration `66ee529` merged with `6e2502c`,
-rendered synthetic catalog components without accounts or personal data:
-
-- [Desktop light, 1280 × 900](reviews/issue-657/desktop-light.png).
-- [Mobile dark, 390 × 844](reviews/issue-657/mobile-dark.png).
+rendered synthetic catalog components without accounts or personal data at
+1280 × 900 in light mode and 390 × 844 in dark mode. The screenshots are no
+longer retained in the repository.
 
 `go test -tags browser -count=1 -run TestCatalogNavigationBrowser -v ./cmd/preview`
 rendered the feature, footer, menu, step, megamenu, and supported Link variant.
@@ -49,17 +48,11 @@ fresh synthetic SQLite workspace and isolated Chrome. `TestSignInKeyboardFocus`
 checked visible focus through the mobile sign-in recovery link. In
 `TestIdentityRolesWithoutJavaScript`, sign-in rejected a wrong password,
 accepted the synthetic owner, and navigated account → sessions at 390 × 844.
-See [keyboard sign-in](reviews/public-roles-656/mobile-login-keyboard-recovery.png),
-[no-JS login](reviews/public-roles-656/mobile-nojs-login.png), and
-[no-JS account](reviews/public-roles-656/mobile-nojs-account.png).
 
 `TestPublicIntakeLongConsentReflow` exercised the real public form, validation,
 keyboard focus and long consent at 1440 × 900 light and 390 × 844 dark; it
-submitted successfully with JavaScript disabled. See [desktop form](reviews/issue-657/desktop-light-form.png),
-[mobile keyboard](reviews/public-roles-656/mobile-dark-keyboard-consent.png), and
-[no-JS success](reviews/public-roles-656/mobile-nojs-success.png). Links into
-the #656 review point to byte-identical copies of the original #657 captures.
-Screenshots contain synthetic fixture data only.
+submitted successfully with JavaScript disabled. The screenshots contained
+synthetic fixture data only and are no longer retained in the repository.
 
 ## Mobile nested megamenu
 
@@ -71,8 +64,7 @@ layout; desktop layout and native popovers remain unchanged.
 
 With JavaScript disabled, isolated Chrome opened the outer popover with Enter,
 Tabbed to the nested trigger, opened it with Enter, Tabbed to its link with a
-visible focus indicator, and followed it to `#item` with Enter. See the
-[synthetic nested-menu keyboard state](reviews/issue-657/mobile-megamenu-nested-nojs.png).
+visible focus indicator, and followed it to `#item` with Enter.
 `TestCatalogNavigationBrowser` now passes without a skipped nested journey.
 The atom is not currently used by a production page. Other theme/viewport
 combinations and complete variant coverage remain unreviewed.

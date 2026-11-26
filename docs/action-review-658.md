@@ -95,16 +95,16 @@ output.
 
 On `da09dd2` plus the guardrail-only changes, a disposable SQLite app and
 isolated Playwright contexts used synthetic owner and member accounts. Captures
-were inspected and contain synthetic data only.
+were inspected and contained synthetic data only. They are no longer retained in
+the repository.
 
 - Owner, 1280 × 900 light: signed in, opened workspace and Clients; document
-  width stayed 1280 px. [Clients](reviews/issue-658/owner-desktop-light.png).
+  width stayed 1280 px.
 - Owner, 390 × 844 dark: selected Dark, focused the navigation trigger and
   pressed Enter; workspace navigation opened and document width stayed 390 px.
-  [Open drawer](reviews/issue-658/owner-mobile-dark.png).
 - Member, 390 × 844 light: signed in and opened Clients. Share action was
   absent and direct intake settings returned HTTP 403; document width stayed
-  390 px. [Clients](reviews/issue-658/member-mobile-light.png).
+  390 px.
 
 ## Password reveal follow-up
 
@@ -112,7 +112,7 @@ On `ad51647` with the password reveal fix, a new disposable SQLite server was
 verified by its process ID and listening socket before Playwright connected.
 At 390 × 844, Spanish login showed a bordered reveal control. Enter changed the
 password field to text, `aria-pressed` to true, and its accessible label to
-“Ocultar contraseña”; document width remained 390 px. [Spanish login](reviews/issue-658/password-reveal-es-mobile.png).
+"Ocultar contraseña"; document width remained 390 px.
 
 With JavaScript disabled, owner login succeeded through the ordinary form and
 reached Workspaces; no reveal control was rendered. With default OIDC disabled
@@ -130,10 +130,8 @@ a dark system theme at 1280 × 900 and 390 × 844.
 - The owner signed in, pressed Enter to select a workspace, and opened
   Clients. The page fit both viewports. Mobile Clients navigation used a DOM
   click and did not verify keyboard navigation in the drawer.
-  [Desktop Clients](reviews/issue-658/enabled-clients-desktop.png).
 - In the setup wizard, Enter activated Next and focus moved to the legend.
   Back returned to the previous step, and setup completed successfully.
-  [Mobile wizard](reviews/issue-658/wizard-back-mobile.png).
 
 The focused browser suite passed 16 tests, including `TestFormUXPatterns`,
 `TestWorkspaceHomePassesAxe`, `TestClientsListAdaptsAcrossViewports`, and

@@ -9,14 +9,13 @@ This ledger records implemented conformance evidence and deferred triggers.
 
 ## Scheduling resources (#579)
 
-Booking engagement links (#598) use [migration 000049](../internal/platform/database/migrations/000049_scheduling_engagement.sql). Writers may set or clear a same-workspace engagement on creation or later; readers see links and engagement bookings. Evidence: [service](../internal/scheduling/service_test.go), [REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go), and [browser review](reviews/scheduling-598.md). MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
+Booking engagement links (#598) use [migration 000049](../internal/platform/database/migrations/000049_scheduling_engagement.sql). Writers may set or clear a same-workspace engagement on creation or later; readers see links and engagement bookings. Evidence: [service](../internal/scheduling/service_test.go), [REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go). MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
 
 Owners and admins can create and edit workspace resources and set the IANA time
 zone; members and viewers can list resources. A resource may link to a current
 workspace member. [Migration 000046](../internal/platform/database/migrations/000046_scheduling_resources.sql)
 defaults existing workspaces to UTC. Evidence: [service](../internal/scheduling/service_test.go),
-[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
-and [browser review](reviews/scheduling-594.md).
+[REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go).
 The workspace export does not include these fields. MCP, CLI and WebMCP are
 deferred until scheduling agent workflows are defined; realtime is unnecessary
 for these ordinary configuration forms.
@@ -47,8 +46,8 @@ distinct errors. [Migration 000048](../internal/platform/database/migrations/000
 stores UTC instants and booked status. A booked entry cannot be deleted; it can
 be archived. Evidence: [service and permissions](../internal/scheduling/service_test.go),
 [PostgreSQL concurrency](../internal/scheduling/postgres_test.go),
-[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
-and [browser review](reviews/scheduling-588.md). Workspace export excludes bookings.
+[REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go).
+Workspace export excludes bookings.
 MCP, CLI, and WebMCP are deferred until scheduling agent workflows are defined;
 realtime is unnecessary for this ordinary form.
 
@@ -70,8 +69,7 @@ Resource writers can record a booked booking as done, cancelled, or no-show.
 Outcomes are terminal; cancelled and no-show bookings release the slot while
 done bookings keep it. Readers see outcomes without mutation controls. Evidence:
 [service and permissions](../internal/scheduling/service_test.go),
-[REST](../internal/httpapi/scheduling_test.go), [web](../internal/web/scheduling_test.go),
-and [browser review](reviews/scheduling-591.md).
+[REST](../internal/httpapi/scheduling_test.go), and [web](../internal/web/scheduling_test.go).
 MCP, CLI, and WebMCP remain deferred until scheduling agent workflows are defined.
 
 Resource writers can move bookings in place while preserving their duration,
@@ -1612,7 +1610,7 @@ WebMCP page marker and script.
   `make css-check`. English and Spanish `make accessibility-smoke` reported
   zero axe violations, including sessions, keyboard/focus, and 320px reflow.
   `make browser-smoke` passed 42 checks; `make browser-smoke` passed 14 Playwright
-  tests. See [session evidence](reviews/sessions-445-evidence.md).
+  tests.
 - Not run: full `make verify`, race suite, security gates, and PostgreSQL tests.
 
 ## Items list and editing UI evidence (#413, 2026-11-16)

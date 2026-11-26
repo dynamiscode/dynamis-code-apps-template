@@ -1,50 +1,19 @@
-# daisyUI/Tailwind style replacement audit (temporary tracker)
+# Custom CSS disposition
 
-Every custom CSS rule in app.css / clients.css / import.css is a finding.
-Plan: replace with a daisyUI component class when one exists, else Tailwind
-utilities on the element; delete the replaced CSS rule. Status marked when done.
+Prefer daisyUI components and Tailwind utilities. The rules below are retained
+for accessibility, JavaScript state, pseudo-content, structural layout, or
+other documented reasons. Update this map when adding or changing custom CSS.
 
-| # | Finding | Files | Replacement | Status |
-|---|---|---|---|---|
-| W1a | `.topbar` shell + `.topbar-context` + `.topbar-title` | app.css, workspace.templ, dashboard_header.templ | daisyUI `navbar` + utilities | done |
-| W1b | `.app-shell` grid + `.sidebar` + `.sidebar-back` + max-38rem sidebar block | app.css, templates/workspace.templ, home_navigation.templ | daisyUI `drawer drawer-open lg:drawer-open` | done |
-| W1c | `.workspace-main` width rules | app.css, pages | Tailwind `max-w-*` on main | done |
-| W2a | `.cards a`, `.items` li, `.workspace-cards` | app.css, workspace page | daisyUI `card` | done |
-| W2b | `.first-task`, `.notification-empty`, `.auth-card`/`.narrow` | app.css | daisyUI `card` + border-s utilities | done |
-| W2c | `.webhook-card`, `.session-card`, `.notification-card`, `.settings-panel`, `.settings-page section/form`, `.settings-record`, `.client-panel`, `.client-value`, `.client-field-card`, `.client-field-option-list li`, `.file-upload-panel`, `.list-view-cards li`, `#item-list .items li` | app.css, clients.css | daisyUI `card` | done |
-| W2d | `import.css` preview/error/confirm | import.css | daisyUI `card` + utilities | done (import.css deleted: rules dead, file never linked; preview section now daisyUI card) |
-| W3 | `.list-badge`, `.session-status*`, `.notification-read/unread`, `.list-view-badge`, `.list-view-summary-current`, `.client-bulk-count` | app.css | daisyUI `badge` (+ variants) | done |
-| W4a | `.toast`/`.toasts` (JS-created) | app.css, alpine-components.js | daisyUI `toast toast-end toast-bottom` + `alert` | done |
-| W4b | `.error-summary`, `.field-error`, `.draft-notice`, `.strength` (JS-created) | app.css, alpine-components.js | daisyUI `alert alert-error` / `label` / `progress`? evaluate | done (fieldset note-reservation rules kept: a11y, see form-field-input skill) |
-| W4c | form[aria-busy] CSS spinner + @keyframes spin | app.css, alpine-components.js | daisyUI `loading loading-spinner` span | done (setBusy injects daisyUI loading-spinner; CSS spinner + keyframes deleted) |
-| W4d | `.reveal`, `.secondary`, `.wizard-nav/status` | app.css, alpine-components.js | daisyUI `btn btn-ghost btn-xs` / utilities | done |
-| W5a | global `input, select, button` element styling | app.css | delete; daisyUI inputs/buttons already classed | done |
-| W5b | global `label` styling | app.css | delete; label classes at use sites | done |
-| W5c | global `table/th/td` styling | app.css | delete; daisyUI `.table` | done |
-| W5d | `.visually-hidden` → Tailwind `sr-only` | app.css, 11 templ uses | class swap, delete rule | done |
-| W5e | `.skip-link` | app.css, skip_link.templ | Tailwind `sr-only focus:not-sr-only` pattern | kept (skip-link CSS retained deliberately: focus-positioning, a11y-critical) |
-| W6 | clients.css remainder (match/field-choices/steps/detail dl) | clients.css | Tailwind utilities inline | done (chips/filter cosmetics -> utilities; structural dl/steps kept) |
-| W7 | residual layout rules (grids, spacing, sticky columns) | app.css | Tailwind utilities inline where touched | done (daisyUI-conflicting overrides + dead .error/.warning/.success/.secondary deleted; structural layout kept) |
-| W8 | final: rebuild CSS, make test, browser-smoke, a11y smoke | — | verify | done: full browser suite 0 failures, accessibility-smoke EXIT 0, make verify green, templ 0 drift |
-
-Rules kept on purpose: tokens.css (design token layer), `:focus-visible` global
-(a11y), prefers-reduced-motion globals, JS-hook rules with no class equivalent
-([aria-busy], [data-optimistic], data-submit-button).
-
-## Final custom-CSS map (post-replacement)
-
-
-Rule-by-rule disposition of the remainder after waves W1-W9. All daisyUI-
-equivalent surfaces (cards, badges, toasts, alerts, drawer, navbar, badges,
-progress, buttons, labels) and dead rules are gone; what remains below is
-a11y state, JS-hook state, pseudo-content, or structural layout.
+The `tokens.css` design token layer, global `:focus-visible` and
+`prefers-reduced-motion` rules, and JavaScript state hooks such as
+`[aria-busy]`, `[data-optimistic]`, and `data-submit-button` are intentional.
 
 | Selector | Disposition |
 |---|---|
 | body | kept: token-driven base (margin/background/color) |
 | header | kept: legacy header base (navbar carries its own now; candidate for deletion after header sweep) |
 | .workspace-name | kept: navbar brand name truncation |
-| .sidebar-navigation .menu | kept: scoped navigation state overrides global link color and daisyUI active background using theme tokens |
+| .sidebar-navigation .menu | kept: 44px targets and keyboard focus, plus text colors overriding global link styles while daisyUI supplies menu hover and active surfaces |
 | .dropdown-content, .modal-box | kept: shared token border distinguishes floating surfaces from matching dark backgrounds |
 | @media min-width: 38.001rem | kept: responsive block (table<->card switch, form stacking) |
 | .client-controls | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
@@ -53,19 +22,18 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .client-controls[open] summary | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .list-toolbar | kept: toolbar structural block (dropdown summaries are custom details controls) |
 | .list-toolbar .menu | kept: toolbar structural block (dropdown summaries are custom details controls) |
-| .list-toolbar > details | kept: toolbar structural block (dropdown summaries are custom details controls) |
+| .list-toolbar > details and #list-filter-add > details | kept: toolbar disclosure positioning, including the out-of-band filter wrapper |
 | .list-page-size | kept: page-size control row |
 | .workspace-main .list-page-size .select | kept: shell width + search-mark tint (color-mix with token vars) |
-| .list-toolbar > details > summary | kept: toolbar structural block (dropdown summaries are custom details controls) |
-| .list-toolbar > details > summary::-webkit-details-marker | kept: toolbar structural block (dropdown summaries are custom details controls) |
-| .list-toolbar > details > summary::after | kept: toolbar structural block (dropdown summaries are custom details controls) |
-| .list-toolbar > details[open] > summary | kept: toolbar structural block (dropdown summaries are custom details controls) |
+| .list-toolbar disclosure summaries and states | kept: consistent trigger sizing, surface, marker, and chevron for direct and wrapped toolbar menus |
 | .list-view-table tbody td:first-child | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
 | .list-row | kept: row interaction states tied to sticky-cell backgrounds |
 | .list-row:hover | kept: row interaction states tied to sticky-cell backgrounds |
 | .list-row-link | kept: row interaction states tied to sticky-cell backgrounds |
 | .list-row-link:hover | kept: row interaction states tied to sticky-cell backgrounds |
-| .list-view-table thead th > a | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
+| .list-view-table thead th:has(> a) | kept: remove cell padding so sortable links cover the full header |
+| .list-view-table thead th > a | kept: table layout block (full-cell sort target and right-aligned indicator) |
+| .list-view-table thead th > a:hover | kept: full-cell sort hover affordance |
 | .list-view-table thead th > a::after | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
 | .list-view-table thead th[aria-sort="ascending"] > a::after | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
 | .list-view-table thead th[aria-sort="descending"] > a::after | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
@@ -96,7 +64,7 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .brand-mark | kept: gradient logo pseudo-content |
 | .brand-mark::after | kept: gradient logo pseudo-content |
 | a | kept: global link color/tie to brand tokens |
-| .workspace-main :is(a.link, p > a:not(.btn), a.detail-back) | kept: inline navigation boundaries clone across wrapped text without changing anchor layout |
+| .workspace-main :is(a.link, p > a:not(.btn, .detail-back)) | kept: inline navigation boundaries clone across wrapped text without changing anchor layout; quiet back links remain borderless |
 | .list-page-size-options a, .workspace-main a.btn-ghost | kept: shared list and workspace navigation retain visible boundaries |
 | main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal-box, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
 | main form .btn | kept: 44px touch height contract (a11y smoke asserts it) |
@@ -222,19 +190,27 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .list-select | kept: row select cell |
 | .client-bulk-count | kept: muted count text |
 | .list-select-cell | kept: select cell width |
-| .list-actions-cell | kept: sticky actions column |
-| .list-view-table tbody .list-row:hover > .list-actions-cell | kept: table layout block (sticky first column/actions cell, nowrap/ellipsis sizing, header height) |
-| .list-action-items | kept: menu block |
-| .list-action-items a, .list-action-items button | kept: row action menu block (menu-item styling overrides daisyUI btn on purpose) |
-| .list-action-items a:hover, .list-action-items button:hover | kept: row action menu block (menu-item styling overrides daisyUI btn on purpose) |
-| .list-action-items .btn | kept: row action menu block (menu-item styling overrides daisyUI btn on purpose) |
-| .list-action-items .btn:hover | kept: row action menu block (menu-item styling overrides daisyUI btn on purpose) |
+| .list-actions-cell | kept: sticky actions column and row-matching surface |
+| .list-view-table tbody td.list-actions-cell | kept: visible menu overflow and full-cell trigger |
+| .list-actions-cell:has(details[open]), .list-view-cards > li:has(> details[open]) | kept: open menu stacking above adjacent rows |
+| .list-actions-cell > details.dropdown | kept: anchor menu to the action cell |
+| .list-actions-cell > details > summary.list-row-menu-button | kept: borderless full-cell keyboard-accessible trigger |
+| .list-actions-cell > details > .dropdown-content | kept: right-aligned fallback without JavaScript |
+| .list-view-cards .list-row-menu-button | kept: borderless mobile row trigger |
+| .list-view-table tbody .list-row:hover > .list-actions-cell | kept: sticky cell matches row hover |
+| .list-action-items | kept: row-matching menu surface and layout |
+| .list-view-cards .list-action-items | kept: menu surface matches mobile cards |
+| .dropdown-content > .menu | kept: action lists fill their dropdown panel |
+| dropdown menu action links, buttons, and .list-view-option | kept: shared full-width unboxed touch targets and hover/focus states; excludes form inputs and submission controls outside action lists |
+| dropdown menu actions with aria-current | kept: selected workspace and theme state |
+| .list-action-items .list-action-item.is-danger | kept: destructive action color and hover/focus state |
 | .list-name | kept: two-line name cell (flex column) |
 | .list-columns-icon | kept: icon display |
 | .workspace-main mark | kept: shell width + search-mark tint (color-mix with token vars) |
 | .workspace-main .list-row-link mark | kept: row interaction states tied to sticky-cell backgrounds |
 | .list-footer .btn | kept: structural layout remainder |
 | .js-enhanced [data-submit-button] | kept: structural layout remainder |
+| .detail-split, .detail-main, .detail-sidebar, .detail-values, .detail-engagement-meta, [data-detail-divider], [data-detail-range] | kept: progressive split layout, draggable divider and range popup, with pane-width-responsive detail content |
 | .list-column-switch | kept: column-switch menu (drag handles, grid list) |
 | .list-column-handle | kept: column-switch menu (drag handles, grid list) |
 | .list-column-switch[draggable="true"] | kept: column-switch menu (drag handles, grid list) |
@@ -251,9 +227,7 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .list-views-list | kept: saved-views panel (disclosure summaries + menu items, custom details controls) |
 | .list-view-row | kept: structural layout remainder |
 | .list-view-apply | kept: structural layout remainder |
-| .list-view-option | kept: structural layout remainder |
-| .list-view-option:hover | kept: structural layout remainder |
-| .list-view-option.is-applied | kept: structural layout remainder |
+| .list-view-option.is-applied, .list-views-list .list-view-option[aria-current="true"] | kept: selected client and engagement view state |
 | .list-view-name | kept: overflow name |
 | .list-view-manage > summary | kept: structural layout remainder |
 | .list-view-manage > summary:hover | kept: structural layout remainder |
@@ -269,7 +243,7 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | .list-view-note | kept: structural layout remainder |
 | .list-view-manage > summary, .list-views-save > summary | kept: saved-views panel (disclosure summaries + menu items, custom details controls) |
 | .list-view-action .btn | kept: structural layout remainder |
-| click's mousedown can trigger the note, and the layout shift between mousedown and mouseup can push the intended target out from under the pointer. Fieldsets reserve the note space and the note sits in it. */ .fieldset | kept: inline-note space reservation (mousedown-shift fix, form-field-input skill) |
+| .fieldset | kept: reserve inline-note space so a note triggered on mousedown cannot shift the intended target before mouseup (form-field-input skill) |
 | .fieldset .field-error | kept: JS-created field note |
 | .client-results | kept: results spacing |
 | .client-match | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
@@ -319,3 +293,4 @@ a11y state, JS-hook state, pseudo-content, or structural layout.
 | tokens.css `--border` → `--border-color` | renamed: the app token was a color, daisyUI's `--border` is a border *width*. Same `:root` name meant `border: var(--border) solid …` resolved to `border: #ccd3dd solid`, which is invalid, so every daisyUI control lost its outline (0px). Checkbox, radio, toggle, and any control drawn from that variable were invisible. |
 | `.input, .select, .textarea, .checkbox, .radio, .toggle { --input-color: var(--border-color) }` | kept: daisyUI defaults each control's `--input-color` to base-content at 20%, a different grey from the app border. One declaration gives fields, selects, textareas, and selector controls the same outline in both themes. |
 | `.checkbox:checked, .checkbox:indeterminate, .radio:checked` | kept: daisyUI fills `:checked` from `--input-color` and leaves it unset, so a checked box was an unfilled outline with a base-content tick. Accent fill plus on-accent glyph, one rule for every selector control. |
+| `.engagement-markdown` and descendants | kept: server-rendered Markdown has no utility classes; scoped rules restore headings, lists, links, tables, and code overflow after Tailwind's reset. |
