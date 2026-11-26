@@ -115,7 +115,7 @@ object bytes go to one private bucket. Variables are described in
 - Liveness: `/health/live`; readiness: `/health/ready`.
 - Send SIGTERM for the configured graceful drain, 10 seconds by default.
 - Terminate public TLS before the application and set `HTTP_SECURE=true` so
-  HSTS and Secure cookies are enabled.
+  HSTS is enabled. Browser cookies always use the Secure attribute.
 - Inject secrets at runtime. Do not bake `.env`, database URLs, OIDC secrets,
   OTLP headers, TLS keys, or backups into the image.
 - Persist and protect database and backup storage before accepting durable

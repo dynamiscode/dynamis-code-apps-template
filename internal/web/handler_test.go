@@ -348,6 +348,12 @@ func TestLogoutAdapterRejectsInvalidCSRFBeforeRevoking(t *testing.T) {
 	if good.Code != http.StatusSeeOther || good.Header().Get("Location") != "/login" {
 		t.Fatalf("valid logout status %d, location %q", good.Code, good.Header().Get("Location"))
 	}
+	for _, name := range []string{"session", "csrf"} {
+		cookie := responseCookie(good, name)
+		if cookie == nil || !cookie.Secure || cookie.MaxAge >= 0 {
+			t.Fatalf("logout cookie %s was not securely cleared: %+v", name, cookie)
+		}
+	}
 	if _, err := auth.AuthenticateSession(t.Context(), session.Secret); err == nil {
 		t.Fatal("valid logout did not revoke the session")
 	}
@@ -1551,7 +1557,7 @@ func TestLoginPageAdapterPreservesLocalizedFormAndCookie(t *testing.T) {
 		page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "es" {
 		t.Fatalf("login response = %d, %v", page.Code, page.Header())
 	}
-	if cookie == nil || !cookie.HttpOnly || cookie.SameSite != http.SameSiteLaxMode || len(cookie.Value) != 32 {
+	if cookie == nil || !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode || len(cookie.Value) != 32 {
 		t.Fatal("login CSRF cookie missing expected protection")
 	}
 	body := page.Body.String()

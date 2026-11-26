@@ -219,10 +219,11 @@ conformance check, see
 
 ## HTTP
 
-Set `HTTP_SECURE=true` only when clients reach the application over HTTPS; it
-enables secure cookies and HSTS. A reverse proxy may terminate TLS, but must
-preserve the configured limits. Rate limits are per source address and reset
-on process restart.
+Browser cookies always use the `Secure` attribute. Use HTTPS for remote access.
+For local development, use `http://localhost:8080` in a browser that treats
+localhost as a secure context. Set `HTTP_SECURE=true` when clients use HTTPS
+to enable HSTS. A reverse proxy may terminate TLS, but must preserve the
+configured limits. Rate limits are per source address and reset on process restart.
 
 SSE connection limits are per application instance. Event replay state is in
 the database; multi-instance deployment therefore requires PostgreSQL but no
