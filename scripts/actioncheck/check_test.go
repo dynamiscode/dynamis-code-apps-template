@@ -254,11 +254,20 @@ func TestCheckPathRejectsNestedGoFactories(t *testing.T) {
 }
 
 func TestListColumnHeadingActions(t *testing.T) {
-	source, err := os.ReadFile("../../internal/web/components/molecules/list_column_heading.templ")
+	const path = "internal/web/components/molecules/list_column_heading.templ"
+	source, err := os.ReadFile("../../" + path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	violations, err := Check(string(source))
+	data, err := os.ReadFile("exceptions.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exceptions []Exception
+	if err := json.Unmarshal(data, &exceptions); err != nil {
+		t.Fatal(err)
+	}
+	violations, err := CheckPath(string(source), path, exceptions)
 	if err != nil || len(violations) != 0 {
 		t.Fatalf("column actions: %v %v", violations, err)
 	}

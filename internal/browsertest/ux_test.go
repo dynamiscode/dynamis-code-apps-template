@@ -132,7 +132,7 @@ func TestFormUXPatterns(t *testing.T) {
 	typeInto("#client-email", "ada@example.com")
 	click("form.create button[type=submit]")
 	waitVisible(t, tab, "#client-detail")
-	check(js(`document.querySelector("#client-detail #client-display-name").value === "Ada Lovelace"`), "clients: creating a client opens its detail page")
+	check(js(`document.querySelector("#client-detail dd").textContent.includes("Ada Lovelace")`), "clients: creating a client opens its detail page")
 	clientPath := eval[string](t, tab, `location.pathname`)
 
 	run(t, tab, chromedp.Navigate(base+workspace+"/client-fields"))
@@ -146,9 +146,9 @@ func TestFormUXPatterns(t *testing.T) {
 	waitVisible(t, tab, ".client-field-option-list")
 
 	run(t, tab, chromedp.Navigate(base+clientPath))
-	waitVisible(t, tab, "#client-values")
-	eval[any](t, tab, `(() => { const select = document.querySelector('select[id^="value-"]'); select.value = [...select.options].find((o) => o.textContent === "Gold").value; })()`)
-	click("form.client-value button[type=submit]")
+	waitVisible(t, tab, `#client-values select[id^="value-"]`)
+	eval[any](t, tab, `(() => { const select = document.querySelector('select[id^="value-"]'); select.value = [...select.options].find((o) => o.textContent === "Gold").value; select.dispatchEvent(new Event("change", { bubbles: true })); })()`)
+	click("[data-confirm-select-dialog][open] [data-confirm-select-accept]")
 	eventually(t, tab, `document.querySelector("form.client-value-clear") !== null`, "saved value did not reload")
 	check(js(`document.querySelector('select[id^="value-"]').selectedOptions[0].textContent === "Gold"`), "clients: a choice value is entered and saved")
 	click("form.client-value-clear button")

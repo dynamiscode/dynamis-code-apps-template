@@ -22,6 +22,8 @@ func TestPublicIntakeLongConsentReflow(t *testing.T) {
 	}
 	workspace := eval[string](t, owner, `location.pathname`)
 	navigate(t, owner, workspace+"/engagement-stages")
+	click(t, owner, `#stages details > summary`)
+	waitVisible(t, owner, "#stage-name")
 	fill(t, owner, "#stage-name", "Discovery")
 	click(t, owner, `form:has(#stage-name) button[type=submit]`)
 	navigate(t, owner, workspace+"/intake")

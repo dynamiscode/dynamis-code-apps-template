@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -31,9 +33,76 @@ func TestClientsOmissionKeepsSchedulingMembershipCleanup(t *testing.T) {
 	}
 }
 
+func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
+	root := t.TempDir()
+	paths := []string{
+		"internal/web/catalog.templ",
+		"internal/web/engagement_list.templ",
+		"internal/web/components/molecules/list_column_heading.templ",
+	}
+	for _, path := range append(paths, "scripts/actioncheck/exceptions.json") {
+		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(path)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		content := []byte("template")
+		if path == "scripts/actioncheck/exceptions.json" {
+			content = []byte(`[{"Path":"internal/web/catalog.templ","Reason":"catalog"},{"Path":"internal/web/engagement_list.templ","Reason":"clients"},{"Path":"internal/web/components/molecules/list_column_heading.templ","Reason":"shared"}]`)
+		}
+		if err := os.WriteFile(filepath.Join(root, path), content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		name             string
+		clients, catalog bool
+		want             []string
+	}{
+		{"neither", false, false, []string{"shared"}},
+		{"catalog", false, true, []string{"catalog", "shared"}},
+		{"clients", true, false, []string{"clients", "shared"}},
+		{"both", true, true, []string{"catalog", "clients", "shared"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output := t.TempDir()
+			if err := copyTemplate(root, output, nil, "old", "new", true, true, tc.clients, tc.catalog); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join(output, "scripts/actioncheck/exceptions.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var exceptions []struct {
+				Path   string
+				Reason string
+			}
+			if err := json.Unmarshal(data, &exceptions); err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, exception := range exceptions {
+				got = append(got, exception.Reason)
+				if _, err := os.Stat(filepath.Join(output, exception.Path)); err != nil {
+					t.Errorf("exception references missing %s: %v", exception.Path, err)
+				}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("exception reasons = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGenerateCatalogProfile(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	exceptionData, err := os.ReadFile(filepath.Join(root, "scripts", "actioncheck", "exceptions.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sourceExceptions []map[string]json.RawMessage
+	if err := json.Unmarshal(exceptionData, &sourceExceptions); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		name     string
 		profiles string
@@ -46,6 +115,32 @@ func TestGenerateCatalogProfile(t *testing.T) {
 			err := run([]string{"-template-dir", root, "-output", output, "-name", "App", "-module", "example.com/acme/app", "-repository", "https://github.com/acme/app", "-security-url", "https://github.com/acme/app/security", "-maintainer", "@acme", "-profiles", tc.profiles, "-source", "https://example.com/template", "-commit", strings.Repeat("a", 40)}, time.Now)
 			if err != nil {
 				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join(output, "scripts", "actioncheck", "exceptions.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var actual []map[string]json.RawMessage
+			if err := json.Unmarshal(data, &actual); err != nil {
+				t.Fatal(err)
+			}
+			var expected []map[string]json.RawMessage
+			for _, exception := range sourceExceptions {
+				var path string
+				if err := json.Unmarshal(exception["Path"], &path); err != nil {
+					t.Fatal(err)
+				}
+				if path == "internal/web/catalog.templ" && !selected ||
+					path == "internal/web/engagement_list.templ" && !tc.clients {
+					continue
+				}
+				expected = append(expected, exception)
+				if _, err := os.Stat(filepath.Join(output, path)); err != nil {
+					t.Errorf("retained exception references missing %s: %v", path, err)
+				}
+			}
+			if !reflect.DeepEqual(actual, expected) {
+				t.Errorf("actioncheck exceptions differ from retained source records")
 			}
 			for _, path := range []string{"internal/catalog/service.go", "internal/httpapi/catalog.go", "internal/web/catalog.go", "internal/web/catalog.templ"} {
 				_, err := os.Stat(filepath.Join(output, path))

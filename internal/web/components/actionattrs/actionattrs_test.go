@@ -227,6 +227,29 @@ func TestScannedAcceptsAlreadySafeNestedButton(t *testing.T) {
 	}
 }
 
+func TestScannedListRowLink(t *testing.T) {
+	const valid = `<tr><td class="list-linked-cell"><a class="list-row-link" href="/items">Item</a></td></tr>`
+	got, _ := renderScanned(t, rawHTMLComponent(valid))
+	if got != valid {
+		t.Fatalf("got %q, want %q", got, valid)
+	}
+	for _, fragment := range []string{
+		`<a class="list-row-link btn-ghost">Item</a>`,
+		`<a class="list-row-link" style="display:none">Item</a>`,
+		`<a class="other" class="list-row-link">Item</a>`,
+		`<button class="list-row-link">Item</button>`,
+		`<svg><a class="list-row-link btn-ghost">Item</a></svg>`,
+	} {
+		t.Run(fragment, func(t *testing.T) {
+			got, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
+			assertPanicked()
+			if got != "" {
+				t.Fatalf("rejected output was written: %q", got)
+			}
+		})
+	}
+}
+
 func TestScannedPassesThroughNil(t *testing.T) {
 	if Scanned(nil) != nil {
 		t.Fatal("expected Scanned(nil) to return nil unchanged")

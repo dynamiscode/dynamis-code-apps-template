@@ -102,6 +102,19 @@ func TestEngagementClientSearchFragment(t *testing.T) {
 	if err != nil || len(items) != 1 || items[0].Notes != notes {
 		t.Fatalf("created notes: %+v %v", items, err)
 	}
+	if _, err := service.Archive(ctx, owner, env.workspaceID, other.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, headers := range []map[string]string{nil, {"HX-Request": "true"}} {
+		rejected := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "client": {other.ID.String()}, "stage": {stage.ID.String()}, "name": {"Rejected project"}}, env.cookies, headers)
+		if rejected.Code != http.StatusUnprocessableEntity || rejected.Header().Get("Location") != "" {
+			t.Fatalf("archived client create = %d, location %q", rejected.Code, rejected.Header().Get("Location"))
+		}
+	}
+	items, err = engagement.NewService(env.db, config.SQLite, env.auth).ListForClient(ctx, owner, env.workspaceID, other.ID)
+	if err != nil || len(items) != 0 {
+		t.Fatalf("archived client engagements = %+v, %v", items, err)
+	}
 }
 
 func TestEngagementClientPickerPaginationKeepsDraft(t *testing.T) {

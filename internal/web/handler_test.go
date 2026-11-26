@@ -1400,14 +1400,15 @@ func TestWebMCPBrowserSurfaceContract(t *testing.T) {
 	source := string(script)
 	// The WebMCP registration is one function in the shared component file;
 	// the no-auto-submit and schema rules scope to that block only.
-	webmcp := source
-	if start := strings.Index(webmcp, "const wireWebMCP"); start >= 0 {
-		end := strings.Index(webmcp[start:], "const pageBehaviors")
-		if end < 0 {
-			end = len(webmcp) - start
-		}
-		webmcp = webmcp[start : start+end]
+	start := strings.Index(source, "const wireWebMCP")
+	if start < 0 {
+		t.Fatal("WebMCP registration is missing")
 	}
+	end := strings.Index(source[start:], "\n\t};")
+	if end < 0 {
+		t.Fatal("WebMCP registration is unterminated")
+	}
+	webmcp := source[start : start+end]
 	for _, tool := range []string{
 		"workspace-create-v1",
 		"member-role-update-v1", "member-remove-v1", "ownership-transfer-v1",

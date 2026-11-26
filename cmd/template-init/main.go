@@ -314,6 +314,32 @@ func copyTemplate(
 		if !catalog {
 			raw = disableCatalogSource(filepath.ToSlash(relative), raw)
 		}
+		if filepath.ToSlash(relative) == "scripts/actioncheck/exceptions.json" && (!agent || !files || !clients || !catalog) {
+			var exceptions []json.RawMessage
+			if err := json.Unmarshal(raw, &exceptions); err != nil {
+				return fmt.Errorf("decode actioncheck exceptions: %w", err)
+			}
+			kept := exceptions[:0]
+			for _, exception := range exceptions {
+				var record struct {
+					Path string
+				}
+				if err := json.Unmarshal(exception, &record); err != nil {
+					return fmt.Errorf("decode actioncheck exception: %w", err)
+				}
+				if !agent && agentPath(record.Path) || !files && filesPath(record.Path) ||
+					!clients && clientsPath(record.Path) || !catalog && catalogPath(record.Path) ||
+					(!clients || !catalog) && reminderPath(record.Path) {
+					continue
+				}
+				kept = append(kept, exception)
+			}
+			raw, err = json.MarshalIndent(kept, "", "  ")
+			if err != nil {
+				return fmt.Errorf("encode actioncheck exceptions: %w", err)
+			}
+			raw = append(raw, '\n')
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -570,6 +596,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/clients_stream_test.go" ||
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/engagement_notes.go" || relative == "internal/web/engagement_notes_test.go" ||
+		relative == "internal/web/client_delete.go" || relative == "internal/web/client_delete.templ" || relative == "internal/web/client_delete_templ.go" || relative == "internal/web/client_inline_field_test.go" ||
 		relative == "internal/web/engagement_new.go" || relative == "internal/web/engagement_new.templ" || relative == "internal/web/engagement_new_templ.go" || relative == "internal/web/engagement_new_search_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
@@ -785,6 +812,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "engagement.Engagement")
 		value = removeLinesContaining(value, "engagement.DashboardPage")
 		value = removeLinesContaining(value, "engagement.ActionHistoryEntry")
+		value = removeLinesContaining(value, "engagement.ActivityEntry")
 		value = removeLinesContaining(value, "DashboardPrevious ")
 		value = removeLinesContaining(value, "DashboardNext ")
 		value = removeLinesContaining(value, "engagement.Stage")
@@ -837,6 +865,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/notes-preview")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/board")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
+		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/bulk-move")
 		value = removeLinesContaining(value, "h.changeQueuedAction")
 	case "internal/web/workspace.templ":
 		value = removeLinesContaining(value, `import "strconv"`)

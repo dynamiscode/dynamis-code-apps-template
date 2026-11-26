@@ -48,6 +48,42 @@
     "Reason": "Fully literal, unconditional class with no Attrs spread and no caller-supplied class fragment: there is nothing to override. It does not use daisyUI's btn/border boundary classes by design (it is an inline back-navigation link, not a button)."
   },
   {
+    "Path": "internal/web/components/molecules/list_column_heading.templ",
+    "OpenTag": "<a href={ column.SortHref } if data.ListLive {\n\t\thx-get={ listResultsHref(column.SortHref) }\n\t\thx-target=\"#list-results\"\n\t\thx-swap=\"outerHTML\"\n\t\thx-push-url=\"true\"\n\t\thx-sync=\"this:replace\"\n\t}>",
+    "Line": 17,
+    "Reason": "The fixed sort heading link has no caller-controlled class or attribute spread and is styled as a table heading."
+  },
+  {
+    "Path": "internal/web/components/organisms/list_table.templ",
+    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(href) }>",
+    "Line": 50,
+    "Reason": "The shared linked-cell anchor has a fixed class and no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/components/organisms/list_table.templ",
+    "OpenTag": "<a class=\"list-row-link\" href={ href }>",
+    "Line": 81,
+    "Reason": "The list card anchor has a fixed class and no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/catalog.templ",
+    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(href) }>",
+    "Line": 261,
+    "Reason": "The catalog card anchor has a fixed class and no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(clientsPath + \"/\" + item.ClientID.String() + \"/engagements/\" + item.ID.String()) }>",
+    "Line": 206,
+    "Reason": "The engagement link has a fixed class and no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(clientsPath + \"/\" + item.ClientID.String()) }>",
+    "Line": 210,
+    "Reason": "The client link has a fixed class and no caller-controlled styling or attribute spread."
+  },
+  {
     "Path": "internal/web/components/templates/workspace.templ",
     "OpenTag": "<button type=\"button\" class=\"drawer-overlay block\" tabindex=\"-1\" aria-hidden=\"true\" @click=\"toggleDrawer\">",
     "Line": 44,

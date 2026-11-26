@@ -198,11 +198,12 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	if emptyCard < 0 || createLink < 0 || createLink > emptyCard {
 		t.Fatalf("pristine list must link to the create page from its toolbar: %s", body)
 	}
-	if strings.Contains(body, `name="display_name"`) || strings.Contains(body, `aria-label="Filter"`) {
-		t.Fatalf("pristine list loads the create form or offers filters: %s", body)
+	if !strings.Contains(body, `data-client-dialog`) || !strings.Contains(body, `name="display_name"`) ||
+		!strings.Contains(body, `filter_field=archiveStatus`) {
+		t.Fatalf("pristine list lacks the create dialog or archive filter: %s", body)
 	}
 
-	// With a row present the toolbar regains both, before the results region.
+	// With a row present the toolbar retains both controls before the results region.
 	env.seedClient(t, "Ada")
 	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	results := strings.Index(body, `id="client-results"`)
@@ -215,7 +216,8 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 	}
 	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	body = viewer.Body.String()
-	if viewer.Code != http.StatusOK || strings.Contains(body, `href="`+env.listPath()+`/new"`) {
+	if viewer.Code != http.StatusOK || strings.Contains(body, `href="`+env.listPath()+`/new"`) ||
+		strings.Contains(body, `data-client-dialog`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
 	}
 }
@@ -457,9 +459,9 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		strings.Contains(body, ">Cy<") || !strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
-	// After a filter is applied the menu starts again at the field list, with the archive selector.
-	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `aria-label="Archived"`) {
-		t.Fatalf("list lacks the field choices: %s", body)
+	// After a filter is applied the menu starts again at the field list, including archive status.
+	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `filter_field=archiveStatus`) {
+		t.Fatalf("list lacks the field choices or archive filter: %s", body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
 	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {

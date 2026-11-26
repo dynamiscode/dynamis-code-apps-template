@@ -382,9 +382,10 @@ func LinkClass(value string) string {
 // ...) so that, at render time, its actual rendered HTML output is parsed
 // and every <a> or <button> element found is held to the same rule
 // safeComponentCall enforces statically: a boundary class ("btn" or
-// "border") present, and no forbidden override token (btn-ghost, btn-link,
-// border-0, in any Tailwind variant/important form). The render panics if
-// one fails. A slot that renders no action elements at all trivially
+// "border"), or the fixed list-row-link class on an anchor, and no forbidden
+// override token (btn-ghost, btn-link, border-0, in any Tailwind
+// variant/important form). The render panics if one fails. A slot that renders
+// no action elements at all trivially
 // passes; one that renders an already-safe atoms.Button/Anchor (a table
 // row's own action button, say) also passes, since that output already
 // carries a compliant class by construction. Only a tag that is missing
@@ -585,7 +586,7 @@ func checkContextElement(node *html.Node) error {
 }
 
 func checkRenderedActionClass(tag, class string) error {
-	if !HasBoundary(class) {
+	if !HasBoundary(class) && !(tag == "a" && class == "list-row-link") {
 		return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
 	}
 	if tok := forbiddenClassToken(class); tok != "" {

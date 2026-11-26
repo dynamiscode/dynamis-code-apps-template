@@ -261,6 +261,20 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Engagement", ClientID: foreign.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("foreign client: %v", err)
 	}
+	archived, err := clientService.Create(ctx, owner, boot.WorkspaceID, clients.Input{DisplayName: "Archived"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := clientService.Archive(ctx, owner, boot.WorkspaceID, archived.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, Input{Name: "Refused", ClientID: archived.ID, StageID: stage.ID}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("archived client: %v", err)
+	}
+	var archivedEngagements int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM engagements WHERE workspace_id = ? AND client_id = ?`, boot.WorkspaceID, archived.ID).Scan(&archivedEngagements); err != nil || archivedEngagements != 0 {
+		t.Fatalf("archived client engagements = %d, %v", archivedEngagements, err)
+	}
 	for _, kind := range []string{"won", "lost"} {
 		closed, err := svc.CreateStage(ctx, owner, boot.WorkspaceID, StageInput{Name: kind, Kind: kind}, identity.AuditContext{})
 		if err != nil {

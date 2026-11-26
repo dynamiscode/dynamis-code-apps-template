@@ -39,12 +39,13 @@ func TestWebRawEffectInventory(t *testing.T) {
 	}
 	// Fixed producers only. Files and client stream code are profile-prunable.
 	want := map[string]map[string]int{
-		"files.go:fileDownload":               {"io.Copy": 1},
-		"management.go:exportWorkspace":       {"writer.Write": 1},
-		"handler.go:serveChangeStream":        {"fmt.Fprint": 2, "encoding/json.NewEncoder": 1},
-		"notifications.go:notificationEvents": {"fmt.Fprint": 3},
-		"notifications.go:sendNotifications":  {"fmt.Fprint": 1, "fmt.Fprintf": 2},
-		"clients_events.go:sendClientChanges": {"fmt.Fprint": 1, "fmt.Fprintf": 2},
+		"files.go:fileDownload":                      {"io.Copy": 1},
+		"engagement_notes.go:previewEngagementNotes": {"writer.Write": 1}, // Goldmark renders HTML without raw HTML or unsafe links.
+		"management.go:exportWorkspace":              {"writer.Write": 1},
+		"handler.go:serveChangeStream":               {"fmt.Fprint": 2, "encoding/json.NewEncoder": 1},
+		"notifications.go:notificationEvents":        {"fmt.Fprint": 3},
+		"notifications.go:sendNotifications":         {"fmt.Fprint": 1, "fmt.Fprintf": 2},
+		"clients_events.go:sendClientChanges":        {"fmt.Fprint": 1, "fmt.Fprintf": 2},
 	}
 	const closeFrame = "event: close\ndata: {\"reason\":\"lifetime\"}\n\n"
 	const heartbeatFrame = ": heartbeat\n\n"

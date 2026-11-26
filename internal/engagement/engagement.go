@@ -216,13 +216,17 @@ func (s *Service) CreateIntakeInTx(ctx context.Context, tx *sql.Tx, token string
 
 func (s *Service) createInTx(ctx context.Context, tx *sql.Tx, actor identity.Principal, workspaceID identity.WorkspaceID, input Input, audit identity.AuditContext) (Engagement, error) {
 	clientService := clients.NewService(s.db, s.driver, s.auth, 0)
-	if _, err := clientService.GetInTx(ctx, tx, workspaceID, input.ClientID); errors.Is(err, clients.ErrNotFound) {
+	client, err := clientService.GetInTx(ctx, tx, workspaceID, input.ClientID)
+	if errors.Is(err, clients.ErrNotFound) {
 		return Engagement{}, ErrInvalidInput
 	} else if err != nil {
 		return Engagement{}, err
 	}
+	if client.ArchivedAt != nil {
+		return Engagement{}, ErrInvalidInput
+	}
 	var stageID StageID
-	err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
+	err = tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT id FROM engagement_stages WHERE workspace_id = ? AND id = ? AND kind = 'open' AND archived_at IS NULL`), workspaceID, input.StageID).Scan(&stageID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Engagement{}, ErrInvalidStage
 	}
