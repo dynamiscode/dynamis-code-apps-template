@@ -75,7 +75,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 			check("configure currencies", service.SetCurrencies(ctx, principal, owner.WorkspaceID, []Currency{{Code: "USD", Decimals: 2, Default: true}}))
 			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil, testPrices())
 			check("create", err)
-			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil))
+			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil, entry.Revision))
 			_, err = service.AddPrice(ctx, principal, owner.WorkspaceID, entry.ID.String(), PriceOption{Mode: "manual", Currency: "USD", Variant: "Other"})
 			check("add price", err)
 			check("edit price", service.UpdatePrice(ctx, principal, owner.WorkspaceID, entry.ID, row.ID, PriceOption{Mode: "manual", Currency: "USD", Variant: "Edited"}))
@@ -110,7 +110,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 		t.Fatalf("foreign list: %v %v", list, err)
 	}
 	for name, call := range map[string]func() error{
-		"entry edit":    func() error { return service.Update(ctx, otherActor, other, entry.ID, "stolen", nil) },
+		"entry edit":    func() error { return service.Update(ctx, otherActor, other, entry.ID, "stolen", nil, entry.Revision) },
 		"entry archive": func() error { return service.SetArchived(ctx, otherActor, other, entry.ID, true) },
 		"entry delete":  func() error { return service.Delete(ctx, otherActor, other, entry.ID) },
 		"price add": func() error {
