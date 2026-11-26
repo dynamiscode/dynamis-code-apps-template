@@ -34,6 +34,10 @@ smoke tests for import and URL validation.
 
 ## Pull request security review
 
+Dependabot pull requests may merge automatically after required CI checks pass;
+they are not subject to the manual inventory process below. Passing checks does
+not prove that a dependency update is safe.
+
 A successful workflow means that its jobs passed, not that they emitted no
 security findings. Before merging, a maintainer should inventory the open pull
 request after its checks complete:
