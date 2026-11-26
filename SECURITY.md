@@ -83,9 +83,11 @@ review record. Then run:
 node scripts/pr-security-inventory.mjs OWNER/REPO PR_NUMBER review.json
 ```
 
-Exit 0 means all currently observed findings have dispositions and all observed
-checks completed; it is not a clean-security certification. Exit 1 means
-findings lack dispositions, dispositions are stale, or checks are incomplete.
+Exit 0 means all currently observed findings have dispositions, all observed
+checks completed, and the latest `CodeQL (Go)` and `CodeQL (JavaScript)` checks
+on the merge commit succeeded. It is not a clean-security certification. Exit
+1 means findings lack dispositions, dispositions are stale, checks are incomplete,
+or either required CodeQL check is missing, incomplete, or unsuccessful.
 Exit 2 means the inventory or review is invalid or unavailable. A changed head
 or merge commit invalidates the review; rerun and reassess each finding. The
 command only reads GitHub data and never dismisses or modifies alerts.

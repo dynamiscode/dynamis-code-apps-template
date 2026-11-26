@@ -29,10 +29,14 @@ try {
     dispositions.set(entry.id, entry);
   }
   const runs = new Map();
+  const mergeRuns = [];
   for (const sha of new Set([head, merge])) {
     for (const page of api(`repos/${repo}/commits/${sha}/check-runs?per_page=100`, true)) {
       if (!Array.isArray(page.check_runs)) throw new Error("Invalid check runs response");
-      for (const run of page.check_runs) runs.set(run.id, run);
+      for (const run of page.check_runs) {
+        runs.set(run.id, run);
+        if (sha === merge) mergeRuns.push(run);
+      }
     }
   }
   if (!runs.size) throw new Error("No check runs found; security inventory is incomplete");
@@ -57,14 +61,19 @@ try {
   const stale = [...dispositions.keys()].filter((id) => !ids.has(id));
   const pending = findings.filter((finding) => !dispositions.has(finding.id)).length;
   const incomplete = [...runs.values()].filter((run) => run.status !== "completed").map((run) => ({ id: run.id, name: run.name, status: run.status }));
+  const requiredChecks = ["CodeQL (Go)", "CodeQL (JavaScript)"].map((name) => {
+    const latest = mergeRuns.filter((run) => run.name === name).sort((a, b) => b.id - a.id)[0];
+    return { name, id: latest?.id ?? null, status: latest?.status ?? "missing", conclusion: latest?.conclusion ?? null };
+  });
+  const securityChecksIncomplete = requiredChecks.some((run) => run.status !== "completed" || run.conclusion !== "success");
   const output = {
     repository: repo, pull_request: Number(number), head, merge,
     checks: [...runs.values()].map(({ id, name, status, conclusion, html_url }) => ({ id, name, status, conclusion, html_url })).sort((a, b) => a.id - b.id),
     findings: findings.map((finding) => ({ ...finding, review: dispositions.get(finding.id) || null })),
-    pending, stale_dispositions: stale, incomplete_checks: incomplete,
+    pending, stale_dispositions: stale, incomplete_checks: incomplete, required_security_checks: requiredChecks,
   };
   console.log(JSON.stringify(output, null, 2));
-  if (pending || stale.length || incomplete.length) process.exitCode = 1;
+  if (pending || stale.length || incomplete.length || securityChecksIncomplete) process.exitCode = 1;
 } catch (error) {
   console.error(`Security inventory failed: ${error.message}`);
   process.exitCode = 2;
