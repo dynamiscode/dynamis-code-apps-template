@@ -48,6 +48,7 @@ type Entry struct {
 	ID              EntryID       `json:"id"`
 	Name            string        `json:"name"`
 	DurationMinutes *int          `json:"durationMinutes"`
+	Revision        int64         `json:"revision"`
 	Archived        bool          `json:"archived"`
 	Prices          []PriceOption `json:"prices"`
 }
@@ -67,7 +68,7 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 	if _, err := s.auth.AuthorizePrincipal(ctx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, err
 	}
-	query := `SELECT e.id, e.name, e.duration_minutes, e.archived_at, p.id, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1`
+	query := `SELECT e.id, e.name, e.duration_minutes, e.revision, e.archived_at, p.id, p.mode, p.amount, p.currency, p.variant, p.eligibility FROM catalog_entries e LEFT JOIN catalog_prices p ON p.entry_id = e.id WHERE e.workspace_id = $1`
 	if !includeArchived {
 		query += ` AND e.archived_at IS NULL`
 	}
@@ -83,13 +84,14 @@ func (s *Service) List(ctx context.Context, actor identity.Principal, workspaceI
 		var key int64
 		var name string
 		var duration *int
+		var revision int64
 		var priceID sql.NullInt64
 		var archived, mode, amount, currency, variant, eligibility sql.NullString
-		if err := rows.Scan(&key, &name, &duration, &archived, &priceID, &mode, &amount, &currency, &variant, &eligibility); err != nil {
+		if err := rows.Scan(&key, &name, &duration, &revision, &archived, &priceID, &mode, &amount, &currency, &variant, &eligibility); err != nil {
 			return nil, err
 		}
 		if key != last {
-			entries = append(entries, Entry{ID: EntryID(key), Name: name, DurationMinutes: duration, Archived: archived.Valid, Prices: []PriceOption{}})
+			entries = append(entries, Entry{ID: EntryID(key), Name: name, DurationMinutes: duration, Revision: revision, Archived: archived.Valid, Prices: []PriceOption{}})
 			last = key
 		}
 		if mode.Valid {
@@ -134,6 +136,14 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if err != nil {
 		return Entry{}, err
 	}
+	var revision int64
+	err = tx.QueryRowContext(ctx, `INSERT INTO catalog_entry_revision_seeds (entry_id, revision) VALUES ($1, 1) ON CONFLICT (entry_id) DO UPDATE SET revision = catalog_entry_revision_seeds.revision + 1 RETURNING revision`, entryID).Scan(&revision)
+	if err != nil {
+		return Entry{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE catalog_entries SET revision = $1 WHERE workspace_id = $2 AND id = $3`, revision, workspaceID, entryID); err != nil {
+		return Entry{}, err
+	}
 	for i := range prices {
 		p := &prices[i]
 		if err := tx.QueryRowContext(ctx, `INSERT INTO catalog_prices (entry_id, mode, amount, currency, variant, eligibility) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`, entryID, p.Mode, p.Amount, p.Currency, p.Variant, p.Eligibility).Scan(&p.ID); err != nil {
@@ -143,7 +153,7 @@ func (s *Service) Create(ctx context.Context, actor identity.Principal, workspac
 	if err := tx.Commit(); err != nil {
 		return Entry{}, err
 	}
-	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Prices: prices}, nil
+	return Entry{ID: entryID, Name: name, DurationMinutes: duration, Revision: revision, Prices: prices}, nil
 }
 
 func validatePrice(option *PriceOption) error {
@@ -156,23 +166,51 @@ func validatePrice(option *PriceOption) error {
 	return nil
 }
 
-func (s *Service) Update(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, name string, duration *int) error {
-	return s.mutate(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+func (s *Service) Update(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, name string, duration *int, revision int64) error {
+	return s.updateRevision(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
 		name = strings.TrimSpace(name)
 		if name == "" || (duration != nil && *duration <= 0) {
 			return nil, ErrInvalidInput
 		}
-		return tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1, duration_minutes = $2 WHERE workspace_id = $3 AND id = $4`, name, duration, workspaceID, entryID)
+		return tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1, duration_minutes = $2, revision = revision + 1 WHERE workspace_id = $3 AND id = $4 AND revision = $5`, name, duration, workspaceID, entryID, revision)
 	})
 }
 
-func (s *Service) UpdateField(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, field, value, expected string) error {
+func (s *Service) UpdateField(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, field, value string, revision int64) error {
+	return s.updateRevision(ctx, actor, workspaceID, entryID, func(tx *sql.Tx) (sql.Result, error) {
+		var query string
+		var argument any
+		switch field {
+		case "name":
+			value = strings.TrimSpace(value)
+			if value == "" {
+				return nil, ErrInvalidInput
+			}
+			query = `UPDATE catalog_entries SET name = $1, revision = revision + 1 WHERE workspace_id = $2 AND id = $3 AND revision = $4`
+			argument = value
+		case "duration_minutes":
+			if value != "" {
+				n, err := strconv.Atoi(value)
+				if err != nil || n <= 0 {
+					return nil, ErrInvalidInput
+				}
+				argument = n
+			}
+			query = `UPDATE catalog_entries SET duration_minutes = $1, revision = revision + 1 WHERE workspace_id = $2 AND id = $3 AND revision = $4`
+		default:
+			return nil, ErrInvalidInput
+		}
+		return tx.ExecContext(ctx, query, argument, workspaceID, entryID, revision)
+	})
+}
+
+func (s *Service) updateRevision(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, operation func(*sql.Tx) (sql.Result, error)) error {
 	return retrySerialization(ctx, func() error {
-		return s.updateField(ctx, actor, workspaceID, entryID, field, value, expected)
+		return s.updateRevisionOnce(ctx, actor, workspaceID, entryID, operation)
 	})
 }
 
-func (s *Service) updateField(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, field, value, expected string) error {
+func (s *Service) updateRevisionOnce(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, entryID EntryID, operation func(*sql.Tx) (sql.Result, error)) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return err
@@ -185,34 +223,7 @@ func (s *Service) updateField(ctx context.Context, actor identity.Principal, wor
 	if !identity.CanWriteCatalog(principal) {
 		return identity.ErrForbidden
 	}
-	var result sql.Result
-	switch field {
-	case "name":
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return ErrInvalidInput
-		}
-		result, err = tx.ExecContext(ctx, `UPDATE catalog_entries SET name = $1 WHERE workspace_id = $2 AND id = $3 AND name = $4`, value, workspaceID, entryID, expected)
-	case "duration_minutes":
-		var duration, oldDuration *int
-		if value != "" {
-			n, parseErr := strconv.Atoi(value)
-			if parseErr != nil || n <= 0 {
-				return ErrInvalidInput
-			}
-			duration = &n
-		}
-		if expected != "" {
-			n, parseErr := strconv.Atoi(expected)
-			if parseErr != nil || n <= 0 {
-				return ErrInvalidInput
-			}
-			oldDuration = &n
-		}
-		result, err = tx.ExecContext(ctx, `UPDATE catalog_entries SET duration_minutes = $1 WHERE workspace_id = $2 AND id = $3 AND (duration_minutes = $4 OR (duration_minutes IS NULL AND $4 IS NULL))`, duration, workspaceID, entryID, oldDuration)
-	default:
-		return ErrInvalidInput
-	}
+	result, err := operation(tx)
 	if err != nil {
 		return err
 	}
@@ -229,6 +240,9 @@ func (s *Service) updateField(ctx context.Context, actor identity.Principal, wor
 			return ErrNotFound
 		}
 		return ErrConflict
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO catalog_entry_revision_seeds (entry_id, revision) SELECT id, revision FROM catalog_entries WHERE workspace_id = $1 AND id = $2 ON CONFLICT (entry_id) DO UPDATE SET revision = excluded.revision`, workspaceID, entryID); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

@@ -52,3 +52,31 @@ func TestCatalogLifecycleOperationsDocumentUnauthorized(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogRevisionContract(t *testing.T) {
+	var doc map[string]any
+	if err := json.Unmarshal(OpenAPI, &doc); err != nil {
+		t.Fatal(err)
+	}
+	paths := doc["paths"].(map[string]any)
+	update := paths["/api/v1/workspaces/{workspaceId}/catalog/{entryId}"].(map[string]any)["put"].(map[string]any)
+	found := false
+	for _, raw := range update["parameters"].([]any) {
+		p := raw.(map[string]any)
+		if p["name"] == "If-Match" && p["in"] == "header" && p["required"] == true {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("catalog update must require If-Match")
+	}
+	for _, status := range []string{"412", "428"} {
+		if _, ok := update["responses"].(map[string]any)[status]; !ok {
+			t.Errorf("missing %s response", status)
+		}
+	}
+	schema := doc["components"].(map[string]any)["schemas"].(map[string]any)["CatalogEntry"].(map[string]any)
+	if _, ok := schema["properties"].(map[string]any)["revision"]; !ok {
+		t.Fatal("catalog entries must expose revision")
+	}
+}

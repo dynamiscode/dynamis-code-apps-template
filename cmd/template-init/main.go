@@ -402,6 +402,7 @@ func catalogPath(relative string) bool {
 		relative == "internal/platform/database/migrations/000049_scheduling_engagement.sql" || relative == "internal/platform/database/migrations/000050_scheduling_booking_moves.sql" ||
 		relative == "internal/platform/database/migrations/000040_catalog.sql" ||
 		relative == "internal/platform/database/migrations/000041_catalog_prices.sql" ||
+		relative == "internal/platform/database/migrations/000056_catalog_entry_revision.sql" ||
 		relative == "internal/platform/database/migrations/000045_catalog_currencies.sql"
 }
 
@@ -511,12 +512,14 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLineStarting(value, "Catalog is optional")
 	case "docs/data-lifecycle.md":
 		value = removeLineStarting(value, "| catalog / `catalog_entries`")
+		value = removeLineStarting(value, "| catalog / `catalog_entry_revision_seeds`")
 		value = removeLineStarting(value, "| scheduling / `scheduling_bookings`")
 		value = removeLineStarting(value, "| catalog / `catalog_currencies`")
 	case "docs/api.md", "docs/web.md":
 		value = removeLineStarting(value, "Catalog profile:")
 	case "docs/operations.md":
 		value = removeLineStarting(value, "Catalog currency migration 000045")
+		value = removeLineStarting(value, "Catalog revision migration 000056")
 	case "internal/web/localization.go":
 		value = removeLinesContaining(value, "h.catalogService")
 	case "api/openapi.json":

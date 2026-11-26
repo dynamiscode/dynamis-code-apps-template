@@ -68,7 +68,7 @@
   {
     "Path": "internal/web/catalog.templ",
     "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(href) }>",
-    "Line": 261,
+    "Line": 272,
     "Reason": "The catalog card anchor has a fixed class and no caller-controlled styling or attribute spread."
   },
   {
