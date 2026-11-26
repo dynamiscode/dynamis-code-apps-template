@@ -60,6 +60,29 @@ func TestClientsOmissionPrunesEngagementDetailImports(t *testing.T) {
 	}
 }
 
+func TestClientsOmissionRetainsBookingWebTests(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	path := filepath.Join(filepath.Dir(file), "..", "..", "internal", "web", "scheduling_test.go")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := string(disableClientsSource("internal/web/scheduling_test.go", source))
+	for _, removed := range []string{"engagementPage", "engagementDetailPath", "engagementPath", "eng.ID.String()"} {
+		if strings.Contains(output, removed) {
+			t.Errorf("Clients-off scheduling test retains %q", removed)
+		}
+	}
+	for _, kept := range []string{"func TestSchedulingBookingWeb(", `"missing move form"`, `"DST gap move draft:`, `"outcome:`, `"terminal:`} {
+		if !strings.Contains(output, kept) {
+			t.Errorf("Clients-off scheduling test lost %q", kept)
+		}
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), path, output, 0); err != nil {
+		t.Fatalf("Clients-off scheduling test: %v", err)
+	}
+}
+
 func TestCatalogOmissionPrunesEngagementBookings(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))

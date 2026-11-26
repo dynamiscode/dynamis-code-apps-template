@@ -692,6 +692,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = strings.Replace(value, `, "engagement_id": {eng.ID.String()}`, "", 1)
 		value = strings.Replace(value, ` || !strings.Contains(page.Body.String(), eng.ID.String())`, "", 1)
 		value = removeText(value, "\tclientPage := request", "\tbookings, _, err := s.Schedule")
+		value = removeText(value, "\tengagementPath := path +", "\tinvalidMove := request")
+		value = removeText(value, "\tengagementPage = request", "\tinvalidMove = request")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 		value = removeLinesContaining(value, `/internal/listprefs"`)
