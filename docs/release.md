@@ -3,6 +3,13 @@
 Template versions use semantic versioning. `VERSION`, the annotated `vX.Y.Z`
 tag, and the changelog entry must match.
 
+Before creating a release tag, review every change since the previous reviewed
+manifest as described in [action review](action-review-658.md). Run
+`go run ./scripts/update-go-output-manifest --reviewed`, inspect the manifest
+diff, and commit it through normal review. Release verification rejects drift.
+CI creates an unreviewed, temporary snapshot for tests; it is not review evidence
+and must not be committed or used to generate released applications.
+
 ## Current workflow status
 
 Version-tag pushes currently run validation only: secret and vulnerability

@@ -52,6 +52,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Create unreviewed CI snapshot
+        run: go run ./scripts/update-go-output-manifest --unreviewed-ci
       - run: make lint
 
   go-test:
@@ -76,6 +78,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Create unreviewed CI snapshot
+        run: go run ./scripts/update-go-output-manifest --unreviewed-ci
       - run: make test
 
   go-build:
@@ -177,6 +181,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Create unreviewed CI snapshot
+        run: go run ./scripts/update-go-output-manifest --unreviewed-ci
       - run: make template-smoke
 
   go-race:
@@ -196,6 +202,8 @@ jobs:
           key: gobuild-${{ runner.os }}-go-race-${{ hashFiles('go.sum') }}
           restore-keys: |
             gobuild-${{ runner.os }}-go-race-
+      - name: Create unreviewed CI snapshot
+        run: go run ./scripts/update-go-output-manifest --unreviewed-ci
       - run: go test -race -timeout 30m ./...
 
   postgres:
@@ -232,6 +240,8 @@ jobs:
           restore-keys: |
             gobuild-${{ runner.os }}-postgres-
       - run: command -v pg_dump && command -v pg_restore
+      - name: Create unreviewed CI snapshot
+        run: go run ./scripts/update-go-output-manifest --unreviewed-ci
       - run: go test -race -timeout 30m ./...
 
   changes:
