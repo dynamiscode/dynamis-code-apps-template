@@ -6,7 +6,7 @@
   ".github/workflows/source-security.yml": "55af64fb203896276ea987007a2e8a5e478bb18acf2cfa1266eec02bbbfc19d5",
   "Dockerfile": "f8c93a788babf1da83f6c039d7bb17bd1e1c8d268aed067856ca0b0ccb66eb31",
   "Makefile": "44bd3d5b98eae192f7bc7dc067c3ffab9c68a3ee1677c098ca1b269272fa73cc",
-  "README.md": "a9ddaa44b05a782e1aa91f8a9a432f273e293a5b009c02d80279b2db6f17546b",
+  "README.md": "9efc3e1e93a523522f1a1d0db7a5e0acb16f2e19e2a8b9f56721f9825a81dc4c",
   "VERSION": "e9dd8507f4bf0c6f42458e41aea833ad0bd3f6127272335eee9bf4d58541ed67",
   "api/contract.gen.go": "a9b6990f09a9b582d13da35a0e352bdd39da66d921e06106f81d3cffb7c92535",
   "api/generate.go": "e22fc9234e81073745959d7468735ed891f35df7a71226d3e57963488a7c9b05",

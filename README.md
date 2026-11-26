@@ -15,13 +15,13 @@ docker compose up --build -d
 unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-Open <http://localhost:8080/login>. Data persists in the `app-data` volume.
-The container listens on `0.0.0.0`. Remote first-run setup works without
-`BOOTSTRAP_SETUP_TOKEN`, but anyone who reaches public `/setup` can claim the
-first administrator. Keep the token configured or use deployment-level access
-control until setup is complete; unattended bootstrap instead needs all three
-admin variables. See [deployment](docs/deployment.md) for PostgreSQL, TLS, and
-production boundaries.
+Data persists in the `app-data` volume. Compose publishes only on host
+loopback, but its container listens on all interfaces and uses Secure cookies.
+Configure a local HTTPS reverse proxy before opening the app; for direct local
+HTTP, use the source setup below instead. A public deployment also needs HTTPS.
+Anyone who reaches an uninitialized public `/setup` can claim the first
+administrator without a setup token; use deployment-level access control until
+setup is complete. See [deployment](docs/deployment.md).
 
 ## Deploy on Railway
 
@@ -56,8 +56,9 @@ go run ./cmd/server
 unset BOOTSTRAP_ADMIN_PASSWORD
 ```
 
-With the default loopback address, an empty database also redirects
-`/login` to `/setup`; no setup token is required for that local browser flow.
+The example `.env` explicitly selects local HTTP. Without it, set
+`HTTP_SECURE=false` for local HTTP only. An empty database redirects `/login`
+to `/setup`; no setup token is required for that local browser flow.
 
 The CLI fallback is documented in [authentication](docs/authentication.md).
 
