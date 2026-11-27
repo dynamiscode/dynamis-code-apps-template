@@ -3,6 +3,13 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const { wireStageOrder } = createRequire(import.meta.url)("./alpine-components.js");
+function keyEvent(key, target) {
+	return {
+		key, target, defaultPrevented: false, propagationStopped: false,
+		preventDefault() { this.defaultPrevented = true; },
+		stopPropagation() { this.propagationStopped = true; },
+	};
+}
 
 function fixture() {
 	class Element {
@@ -86,7 +93,11 @@ test("escape cancels and dropping before a card identifies that card", () => {
 	globalThis.requestAnimationFrame = (callback) => callback();
 	try {
 		const f = fixture();
-		f.fire("dragstart", f.b); f.fire("dragover", f.a); f.root.listeners.keydown({ key: "Escape", target: f.root.body });
+		f.fire("dragstart", f.b); f.fire("dragover", f.a);
+		const escape = keyEvent("Escape", f.root.body);
+		f.root.listeners.keydown(escape);
+		assert.equal(escape.defaultPrevented, true);
+		assert.equal(escape.propagationStopped, true);
 		assert.deepEqual(f.open.children, [f.a, f.b]);
 		f.fire("drop", f.a);
 		assert.deepEqual(f.submissions, []);
@@ -122,7 +133,11 @@ test("drag guidance follows the current group and clears on drop, cancel, and es
 		f.fire("dragstart", f.a); f.fire("dragover", f.won); f.fire("dragend", f.a);
 		assert.equal(active(), false);
 		assert.equal(target(f.won), false);
-		f.fire("dragstart", f.a); f.fire("dragover", f.open); f.root.listeners.keydown({ key: "Escape", target: f.root.body });
+		f.fire("dragstart", f.a); f.fire("dragover", f.open);
+		const escape = keyEvent("Escape", f.root.body);
+		f.root.listeners.keydown(escape);
+		assert.equal(escape.defaultPrevented, true);
+		assert.equal(escape.propagationStopped, true);
 		assert.equal(active(), false);
 		assert.equal(target(f.open), false);
 		f.fire("drop", f.open);

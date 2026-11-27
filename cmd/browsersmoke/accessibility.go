@@ -76,6 +76,24 @@ const settingsOverflowExpr = `(() => ({
 	document: document.documentElement.scrollWidth > document.documentElement.clientWidth,
 	navigation: Array.from(document.querySelectorAll(".workspace-settings-nav > *"))
 		.some((element) => element.scrollWidth > element.clientWidth + 1),
+	scrollWidth: document.documentElement.scrollWidth,
+	clientWidth: document.documentElement.clientWidth,
+	innerWidth,
+	overflowing: [...document.querySelectorAll("body *")].filter((element) => {
+		const rect = element.getBoundingClientRect();
+		return rect.width > 0 && (rect.left < 0 || rect.right > innerWidth);
+	}).slice(0, 10).map((element) => {
+		const rect = element.getBoundingClientRect();
+		return {
+			tag: element.tagName.toLowerCase(),
+			id: element.id,
+			className: typeof element.className === "string" ? element.className : "",
+			left: rect.left,
+			right: rect.right,
+			scrollWidth: element.scrollWidth,
+			clientWidth: element.clientWidth,
+		};
+	}),
 }))()`
 
 const deletionFormExpr = `(() => ({
@@ -239,8 +257,20 @@ func (s *a11yRun) flow() error {
 		return err
 	}
 	settingsOverflow, err := eval[struct {
-		Document   bool `json:"document"`
-		Navigation bool `json:"navigation"`
+		Document    bool `json:"document"`
+		Navigation  bool `json:"navigation"`
+		ScrollWidth int  `json:"scrollWidth"`
+		ClientWidth int  `json:"clientWidth"`
+		InnerWidth  int  `json:"innerWidth"`
+		Overflowing []struct {
+			Tag         string  `json:"tag"`
+			ID          string  `json:"id"`
+			ClassName   string  `json:"className"`
+			Left        float64 `json:"left"`
+			Right       float64 `json:"right"`
+			ScrollWidth int     `json:"scrollWidth"`
+			ClientWidth int     `json:"clientWidth"`
+		} `json:"overflowing"`
 	}](s.browser, settingsOverflowExpr)
 	if err != nil {
 		return err
