@@ -81,7 +81,7 @@ const settingsOverflowExpr = `(() => ({
 	innerWidth,
 	overflowing: [...document.querySelectorAll("body *")].filter((element) => {
 		const rect = element.getBoundingClientRect();
-		return rect.width > 0 && (rect.left < 0 || rect.right > innerWidth);
+		return rect.width > 0 && rect.right > document.documentElement.clientWidth;
 	}).slice(0, 10).map((element) => {
 		const rect = element.getBoundingClientRect();
 		return {
