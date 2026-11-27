@@ -325,7 +325,7 @@ func sharedHeader(data viewmodel.PageData, account bool) templ.Component {
 		}
 		ctx = templ.InitializeContext(ctx)
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<header class=\"navbar sticky top-0 z-30 flex-nowrap gap-2 border-b border-base-200 bg-base-100 px-4\"><div class=\"navbar-start min-w-0 flex-1 gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<header class=\"navbar sticky top-0 z-30 flex-nowrap gap-2 border-b border-base-200 bg-base-100 px-2 sm:px-4\"><div class=\"navbar-start min-w-0 flex-1 gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -45,7 +45,7 @@ templ ThemeMenu(data viewmodel.PageData) {
 }
 
 templ sharedHeader(data viewmodel.PageData, account bool) {
-	<header class="navbar sticky top-0 z-30 flex-nowrap gap-2 border-b border-base-200 bg-base-100 px-4">
+	<header class="navbar sticky top-0 z-30 flex-nowrap gap-2 border-b border-base-200 bg-base-100 px-2 sm:px-4">
 		<div class="navbar-start min-w-0 flex-1 gap-2">
 			if account {
 				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
