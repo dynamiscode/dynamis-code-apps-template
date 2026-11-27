@@ -75,6 +75,19 @@ func (h *Handler) listEngagements(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
+	empty := page.Total == 0
+	if empty && (input.Search != "" || input.StageID != 0 || input.AssigneeID != nil) {
+		all, err := h.engagement.List(r.Context(), actor, workspace, engagement.ListInput{Page: 1, Limit: 1})
+		if err != nil {
+			if errors.Is(err, identity.ErrForbidden) {
+				h.renderError(w, http.StatusForbidden)
+			} else {
+				h.renderError(w, http.StatusInternalServerError)
+			}
+			return
+		}
+		empty = all.Total == 0
+	}
 	stages, err := h.engagement.ListStages(r.Context(), actor, workspace)
 	if err != nil {
 		h.renderError(w, http.StatusInternalServerError)
@@ -145,7 +158,7 @@ func (h *Handler) listEngagements(w http.ResponseWriter, r *http.Request) {
 	prev, next := "", ""
 	link := func(n int) string {
 		values := url.Values{}
-		for _, key := range []string{"q", "stage", "assignee", "sort", "direction"} {
+		for _, key := range []string{"q", "stage", "assignee", "sort", "direction", "view"} {
 			if q.Get(key) != "" {
 				values.Set(key, q.Get(key))
 			}
@@ -162,17 +175,22 @@ func (h *Handler) listEngagements(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Header.Get("HX-Request") == "true" {
-		_ = engagementListView(data, page, stages, members, q.Get("q"), q.Get("stage"), q.Get("assignee"), prev, next, h.clientsPath(workspace), columns, view).Render(r.Context(), w)
+		_ = engagementListView(data, page, stages, members, q.Get("q"), q.Get("stage"), q.Get("assignee"), prev, next, h.clientsPath(workspace), columns, view, empty).Render(r.Context(), w)
 		return
 	}
-	_ = engagementListPage(data, page, stages, members, q.Get("q"), q.Get("stage"), q.Get("assignee"), prev, next, h.clientsPath(workspace), columns, view).Render(r.Context(), w)
+	_ = engagementListPage(data, page, stages, members, q.Get("q"), q.Get("stage"), q.Get("assignee"), prev, next, h.clientsPath(workspace), columns, view, empty).Render(r.Context(), w)
+}
+
+func engagementListItemURL(data viewmodel.PageData, item engagement.ListItem, clientsPath string) string {
+	values := url.Values{"engagement_return": {data.CurrentPath + data.ClientQuerySuffix}}
+	return clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String() + "?" + values.Encode()
 }
 
 func engagementListActions(data viewmodel.PageData, item engagement.ListItem, clientsPath string) []organisms.ListAction {
 	return []organisms.ListAction{{
 		Label: data.T("ui.open"),
 		Icon:  "open",
-		Href:  clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String(),
+		Href:  engagementListItemURL(data, item, clientsPath),
 	}}
 }
 

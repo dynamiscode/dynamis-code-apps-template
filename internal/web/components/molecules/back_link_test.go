@@ -14,7 +14,7 @@ func TestBackLinkRendersDestinationAndLabel(t *testing.T) {
 	got := output.String()
 	for _, want := range []string{
 		`<a class="detail-back" href="/workspaces/1/clients?q=Ada&amp;sort=name">`,
-		`<span aria-hidden="true">←</span> Back to clients</a>`,
+		`<span aria-hidden="true">←</span> <u>Back to clients</u></a>`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("back link missing %q: %s", want, got)

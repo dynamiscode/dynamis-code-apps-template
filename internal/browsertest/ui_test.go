@@ -111,6 +111,10 @@ func TestOIDCLoginAndCallbackFailure(t *testing.T) {
 					expectTheme(t, tab, theme)
 					eval[any](t, tab, `(() => { const style = document.createElement("style"); style.textContent = "html { font-size: 12px; }"; document.head.append(style); })()`)
 					expectMinimumTarget(t, tab, `a[href$="password-reset"]`)
+					gap := eval[float64](t, tab, `(() => { const submit = document.querySelector('form[action="/login"] button[type="submit"]').getBoundingClientRect(); const recovery = document.querySelector('a[href="/password-reset"]').getBoundingClientRect(); return recovery.top - submit.bottom; })()`)
+					if gap < 12 {
+						t.Fatalf("password recovery gap = %vpx, want at least 12px", gap)
+					}
 					providerName := "Sign in with Company SSO"
 					if locale == "es" {
 						providerName = "Iniciar sesión con Company SSO"

@@ -4,14 +4,28 @@ import molecules "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
-import atoms "example.com/dynamis-code/apps-template/internal/web/components/atoms"
+import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 
 import "example.com/dynamis-code/apps-template/internal/clients"
 templ clientFieldsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, templates.DashboardHome) {
-		@molecules.PageHeading(data.T("clients.fields_title"), data.T("clients.title")) {
-			<a class="btn btn-outline" href={ clientFieldsBackPath(data.FieldsPath) }>{ data.T("clients.back") }</a>
-		}
+		@molecules.BackLink(clientFieldsBackPath(data.FieldsPath), data.T("clients.back"))
+		<div class="feature-list-heading">
+			@molecules.PageHeading(data.T("clients.fields_title"), data.T("clients.title"))
+			if data.CanManageFields {
+				<div class="feature-list-heading-actions">
+					<div class="list-create">
+						<button type="button" class="btn btn-primary" data-client-field-create hidden>{ data.T("clients.new_field") }</button>
+						<noscript>
+							<details if data.ErrorKey != "" { open }>
+								<summary class="btn btn-primary">{ data.T("clients.new_field") }</summary>
+								@clientFieldCreateForm(data, false)
+							</details>
+						</noscript>
+					</div>
+				</div>
+			}
+		</div>
 		@clientFieldList(data)
 	}
 }
@@ -27,65 +41,101 @@ templ clientFieldList(data viewmodel.PageData) {
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
+		if len(data.ClientFields) == 0 {
+			<div class="text-center">
+				@molecules.EmptyState(data.T("clients.fields_none"))
+			</div>
+		}
 		if data.CanManageFields {
-			@atoms.CollapseDetails(atoms.CollapseDetailsProps{
-				Class: "client-controls client-create",
-				Open:  data.ErrorKey != "",
-				Title: data.T("clients.new_field"),
-			}) {
-				<form action={ data.FieldsPath } method="post">
-					<input type="hidden" name="csrf" value={ data.CSRF }/>
-					@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-label", Label: data.T("clients.field_label"), Value: data.FieldDraft.Label}) {
-						<input class="input w-full" id="client-field-label" name="label" type="text" value={ data.FieldDraft.Label } required maxlength="100" data-trim=""/>
+			<dialog class="modal" aria-labelledby="client-field-create-title" data-client-field-dialog data-client-field-discard-message={ data.T("ui.unsaved") } if data.ErrorKey == "clients.error_field_label" || data.ErrorKey == "clients.error_field_limit" { data-client-field-create-error }>
+				<div class="modal-box">
+					<h2 id="client-field-create-title">{ data.T("clients.new_field") }</h2>
+					if data.ErrorKey == "clients.error_field_label" || data.ErrorKey == "clients.error_field_limit" {
+						@molecules.ErrorAlert(data.T(data.ErrorKey))
 					}
-					@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-type", Label: data.T("clients.field_type"), SearchLabel: data.T("ui.search")}) {
-						<select class="select w-full" id="client-field-type" name="type" data-entry-picker>
-							<option value="text" if data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" { selected }>{ data.T("clients.field_type_text") }</option>
-							<option value="number" if data.FieldDraft.Type == "number" { selected }>{ data.T("clients.field_type_number") }</option>
-							<option value="date" if data.FieldDraft.Type == "date" { selected }>{ data.T("clients.field_type_date") }</option>
-							<option value="yes_no" if data.FieldDraft.Type == "yes_no" { selected }>{ data.T("clients.field_type_yes_no") }</option>
-							<option value="single_choice" if data.FieldDraft.Type == "single_choice" { selected }>{ data.T("clients.field_type_single_choice") }</option>
-						</select>
-					}
-					<div class="actions">@molecules.SubmitButton(data.T("clients.add_field"), nil)</div>
-				</form>
-			}
-		} else {
+					@clientFieldCreateForm(data, true)
+				</div>
+			</dialog>
+		}
+		if !data.CanManageFields {
 			<p class="status-line">{ data.T("clients.fields_read_only") }</p>
 		}
 		if len(data.ClientFields) > 0 {
-			<ul class="client-fields">
+			<table class="table w-full">
+				<caption class="sr-only">{ data.T("clients.fields_title") }</caption>
+				<thead><tr>
+					<th scope="col">{ data.T("catalog.name") }</th>
+					<th scope="col">{ data.T("clients.field_type") }</th>
+					if data.CanManageFields {
+						<th scope="col"><span class="sr-only">{ data.T("clients.actions") }</span></th>
+					}
+				</tr></thead>
+				<tbody>
 				for _, field := range data.ClientFields {
-					<li class="client-field-card card min-w-0 p-4">
-						<div class="client-field-heading">
-							<strong>{ field.Label }</strong>
-							<span>{ data.T("clients.field_type_" + field.Type) }</span>
-							<span class="status-line">{ data.T(clientFieldStatusKey(field.ArchivedAt != nil)) }</span>
-						</div>
+					<tr>
+						<th scope="row" class="whitespace-normal break-words">
+							{ field.Label }
+							if field.ArchivedAt != nil {
+								<span class="badge badge-ghost">{ data.T("clients.field_archived") }</span>
+							}
+						</th>
+						<td>{ data.T("clients.field_type_" + field.Type) }</td>
 						if data.CanManageFields {
-							<div class="client-field-actions">
-								if field.ArchivedAt != nil {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.restore_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
-									<div class="client-delete"><p class="warning alert alert-warning py-2">{ data.T("clients.delete_field_confirm") }</p><form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }><input type="hidden" name="csrf" value={ data.CSRF }/>@molecules.ConfirmButton(data.T("clients.delete_field"), data.T("clients.delete_field_confirm"), "", nil)</form></div>
-								} else {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }><input type="hidden" name="csrf" value={ data.CSRF }/>@atoms.Button(atoms.ButtonProps{Class: "btn-secondary", Label: data.T("clients.archive_field"), Attrs: templ.Attributes{"type": "submit"}})</form>
-								}
-							</div>
+							<td>
+								<details class="dropdown list-menu">
+									<summary class="btn m-1 btn-sm list-row-menu-button" aria-label={ data.T("common.more_actions") + ": " + field.Label }>@molecules.RowMenuGlyph(false)</summary>
+									<ul class="menu dropdown-content list-action-items bg-base-100 rounded-box shadow-lg">
+										if field.ArchivedAt != nil {
+											<li><form class="list-action-form" method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/restore" }>
+												<input type="hidden" name="csrf" value={ data.CSRF }/>
+												<button class="list-action-item border border-base-300 rounded-field" type="submit">@organisms.ListActionIcon("unarchive")<span>{ data.T("clients.restore_field") }</span></button>
+											</form></li>
+											<li class="my-1 border-t border-base-content/10"></li>
+											<li>
+												<details class="client-delete">
+													<summary class="list-action-item is-danger border border-error rounded-field">@organisms.ListActionIcon("delete")<span>{ data.T("clients.delete_field") }</span></summary>
+													<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/delete" }>
+														<input type="hidden" name="csrf" value={ data.CSRF }/>
+														<label class="flex items-start gap-2 my-2 rounded-box border border-warning bg-base-100 p-3 text-base-content"><input class="checkbox shrink-0" type="checkbox" name="confirm_delete" value="yes" required/> <span class="min-w-0 whitespace-normal break-words">{ data.T("clients.delete_field_confirm") }</span></label>
+														<button class="btn btn-error" type="submit">{ data.T("clients.delete_field") }</button>
+													</form>
+												</details>
+											</li>
+										} else {
+											<li><form class="list-action-form" method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/archive" }>
+												<input type="hidden" name="csrf" value={ data.CSRF }/>
+												<button class="list-action-item border border-base-300 rounded-field" type="submit">@organisms.ListActionIcon("archive")<span>{ data.T("clients.archive_field") }</span></button>
+											</form></li>
+										}
+									</ul>
+								</details>
+							</td>
 						}
-						if field.Type == clients.FieldTypeSingleChoice {
-							<div class="client-field-options">
-								<h3>{ data.T("clients.options_heading") }</h3>
+					</tr>
+					if field.OptionErrorKey != "" && field.Type != clients.FieldTypeSingleChoice {
+						<tr><td colspan="3">@molecules.ErrorAlert(data.T(field.OptionErrorKey))</td></tr>
+					}
+					if field.Type == clients.FieldTypeSingleChoice {
+						<tr><td colspan="3">
+							<details class="client-field-options" if field.OptionErrorKey != "" { open }>
+								<summary>{ data.T("clients.options_heading") }</summary>
+								if field.OptionErrorKey != "" {
+									<div id={ "option-error-" + field.ID.String() }>@molecules.ErrorAlert(data.T(field.OptionErrorKey))</div>
+								}
 								if len(field.Options) > 0 {
 									<ul class="client-field-option-list">
 						for _, option := range field.Options {
 							<li class="flex flex-wrap items-center justify-between gap-2 border border-base-200 rounded-box px-3 py-2">
 								<span>{ option.Label }</span>
 								if data.CanManageFields {
-									<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
-										<input type="hidden" name="csrf" value={ data.CSRF }/>
+									<details>
+										<summary class="btn btn-error btn-outline">{ data.T("clients.option_delete") }</summary>
 										<p class="warning alert alert-warning py-2">{ data.T("clients.option_delete_confirm") }</p>
-										@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), "", nil)
-									</form>
+										<form method="post" action={ data.FieldsPath + "/" + field.ID.String() + "/options/" + option.ID.String() + "/delete" }>
+											<input type="hidden" name="csrf" value={ data.CSRF }/>
+											@molecules.ConfirmButton(data.T("clients.option_delete"), data.T("clients.option_delete_confirm"), "", nil)
+										</form>
+									</details>
 								}
 							</li>
 										}
@@ -96,26 +146,46 @@ templ clientFieldList(data viewmodel.PageData) {
 								if data.CanManageFields && field.ArchivedAt == nil {
 									<form class="option-create" action={ data.FieldsPath + "/" + field.ID.String() + "/options" } method="post">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										@molecules.EntryField(molecules.EntryFieldProps{ID: "option-label-" + field.ID.String(), Label: data.T("clients.option_label")}) {
-											<input class="input w-full" id={ "option-label-" + field.ID.String() } name="label" type="text" required maxlength="100" data-trim=""/>
+										@molecules.EntryField(molecules.EntryFieldProps{ID: "option-label-" + field.ID.String(), Label: data.T("clients.option_label"), Value: field.OptionDraft}) {
+											if field.OptionErrorKey != "" {
+												<input class="input w-full" id={ "option-label-" + field.ID.String() } name="label" type="text" value={ field.OptionDraft } required maxlength="100" data-trim="" aria-invalid="true" aria-describedby={ "option-error-" + field.ID.String() }/>
+											} else {
+												<input class="input w-full" id={ "option-label-" + field.ID.String() } name="label" type="text" value={ field.OptionDraft } required maxlength="100" data-trim=""/>
+											}
 										}
 										@molecules.SubmitButton(data.T("clients.option_add"), nil)
 									</form>
 								}
-							</div>
-						}
-					</li>
+							</details>
+						</td></tr>
+					}
 				}
-			</ul>
-		} else {
-			<p class="status-line">{ data.T("clients.fields_none") }</p>
+				</tbody>
+			</table>
 		}
 	</section>
 }
 
-func clientFieldStatusKey(archived bool) string {
-	if archived {
-		return "clients.field_archived"
-	}
-	return "clients.field_active"
+templ clientFieldCreateForm(data viewmodel.PageData, modal bool) {
+	<form action={ data.FieldsPath } method="post" data-dirty-track data-unsaved-warning if data.ErrorKey == "clients.error_field_label" || data.ErrorKey == "clients.error_field_limit" { data-dirty-on-load }>
+		<input type="hidden" name="csrf" value={ data.CSRF }/>
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-label", Label: data.T("clients.field_label"), Value: data.FieldDraft.Label}) {
+			<input class="input w-full" id="client-field-label" name="label" type="text" value={ data.FieldDraft.Label } required maxlength="100" data-trim=""/>
+		}
+		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-type", Label: data.T("clients.field_type")}) {
+			<select class="select w-full" id="client-field-type" name="type">
+				<option value="text" if data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" { selected }>{ data.T("clients.field_type_text") }</option>
+				<option value="number" if data.FieldDraft.Type == "number" { selected }>{ data.T("clients.field_type_number") }</option>
+				<option value="date" if data.FieldDraft.Type == "date" { selected }>{ data.T("clients.field_type_date") }</option>
+				<option value="yes_no" if data.FieldDraft.Type == "yes_no" { selected }>{ data.T("clients.field_type_yes_no") }</option>
+				<option value="single_choice" if data.FieldDraft.Type == "single_choice" { selected }>{ data.T("clients.field_type_single_choice") }</option>
+			</select>
+		}
+		<div class="modal-action flex-wrap">
+			if modal {
+				<button type="button" class="btn btn-ghost" data-client-field-close>{ data.T("common.cancel") }</button>
+			}
+			@molecules.SubmitButton(data.T("clients.add_field"), nil)
+		</div>
+	</form>
 }

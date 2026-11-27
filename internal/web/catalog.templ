@@ -8,20 +8,30 @@ import organisms "example.com/dynamis-code/apps-template/internal/web/components
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
+templ catalogPage(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, emptyCatalog bool, hasArchived bool, entryID string, createPage bool, form catalogForm) {
  @templates.DashboardShell(data, templates.DashboardHome) {
   if entryID != "" && len(entries) > 0 {
    @molecules.BackLink(data.Filter.Path + data.ClientQuerySuffix, data.T("catalog.back"))
    @molecules.PageHeading(entries[0].Name, data.T("catalog.title"))
-  } else {
+  } else if entryID != "" {
    @molecules.PageHeading(data.T("catalog.title"), "")
   }
-  @catalogContent(data, entries, currencies, canWrite, invalid, inUse, includeArchived, entryID, createPage, form)
+  @catalogContent(data, entries, currencies, canWrite, invalid, inUse, includeArchived, emptyCatalog, hasArchived, entryID, createPage, form)
  }
 }
 
-templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, entryID string, createPage bool, form catalogForm) {
+templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencies []currency.Currency, canWrite bool, invalid bool, inUse bool, includeArchived bool, emptyCatalog bool, hasArchived bool, entryID string, createPage bool, form catalogForm) {
  <div id="catalog-view">
+  if entryID == "" {
+   <div class="feature-list-heading">
+    @molecules.PageHeading(data.T("catalog.title"), "")
+    if canWrite && (!emptyCatalog || includeArchived) {
+     <div class="feature-list-heading-actions">
+      <div class="list-create"><a class="btn btn-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?create=true") } data-catalog-create>{ data.T("catalog.create") }</a></div>
+     </div>
+    }
+   </div>
+  }
   if invalid && inUse {
    <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.last_price") }</div>
   } else if invalid {
@@ -29,8 +39,9 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
   } else if inUse {
    <div role="alert" tabindex="-1" class="alert alert-error">{ data.T("catalog.in_use") }</div>
   }
-  if entryID == "" {
+  if entryID == "" && (!emptyCatalog || includeArchived) {
    <div class="list-toolbar">
+    if hasArchived {
     @molecules.ListAddMenu(data.T("clients.add_filter"), false, true) {
      <form method="get" action={ templ.SafeURL(data.Filter.Path) } hx-get={ data.Filter.Path } hx-target="#catalog-view" hx-swap="outerHTML" hx-push-url="true">
       for _, field := range data.Filter.Preserved {
@@ -44,8 +55,6 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
       <button class="btn btn-primary" type="submit">{ data.T("clients.apply") }</button>
      </form>
     }
-    if canWrite {
-     <div class="list-create"><a class="btn btn-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?create=true") } data-catalog-create>{ data.T("catalog.create") }</a></div>
     }
    </div>
   }
@@ -100,7 +109,15 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
    <form method="dialog" class="modal-backdrop"><button aria-label={ data.T("common.cancel") }>{ data.T("common.cancel") }</button></form>
    </dialog>
   }
-  if len(entries) == 0 {
+  if entryID == "" && emptyCatalog && !includeArchived {
+   <section id="catalog-empty-state" class="flex min-h-64 flex-col items-center justify-center gap-4 px-4 text-center">
+    <h2 class="text-xl font-semibold">{ data.T("catalog.empty_title") }</h2>
+    <p>{ data.T("catalog.empty_description") }</p>
+    if canWrite {
+     <a class="btn btn-primary" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?create=true") } data-catalog-create>{ data.T("catalog.create") }</a>
+    }
+   </section>
+  } else if len(entries) == 0 {
    if includeArchived {
     @molecules.EmptyState(data.T("catalog.empty_archived"))
    } else {
@@ -156,9 +173,11 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
            @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-entry-duration", Label: data.T("catalog.duration"), Value: form.duration}) {
             <input id="catalog-entry-duration" class="input input-bordered w-full" type="number" name="duration_minutes" value={ form.duration } min="1" data-entry-number="integer" data-entry-number-positive/>
            }
-           <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
-           <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
-           <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+           <div class="modal-action flex-wrap">
+            <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
+            <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+            <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+           </div>
           </form>
          </div>
         </dialog>
@@ -207,9 +226,11 @@ templ catalogContent(data viewmodel.PageData, entries []catalog.Entry, currencie
             @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-edit-eligibility-" + price.ID.String(), Label: data.T("catalog.eligibility"), Value: editPrice.Eligibility}) {
              <input id={ "catalog-edit-eligibility-" + price.ID.String() } class="input input-bordered w-full" name="eligibility" value={ editPrice.Eligibility }/>
             }
-            <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
-            <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
-            <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+            <div class="modal-action flex-wrap">
+             <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
+             <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+             <button class="btn btn-primary" type="submit">{ data.T("common.save") }</button>
+            </div>
            </form>
            </div>
            </dialog>
@@ -391,9 +412,11 @@ templ catalogAddPrice(data viewmodel.PageData, entry catalog.Entry, currencies [
    @molecules.EntryField(molecules.EntryFieldProps{ID: "catalog-add-eligibility-" + entry.ID.String(), Label: data.T("catalog.eligibility"), Value: newPrice.Eligibility}) {
     <input id={ "catalog-add-eligibility-" + entry.ID.String() } class="input input-bordered w-full" name="eligibility" value={ newPrice.Eligibility }/>
    }
-   <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
-   <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
-   <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+   <div class="modal-action flex-wrap">
+    <button class="btn btn-outline" type="button" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
+    <a class="btn btn-outline" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/catalog?entry=" + entry.ID.String()) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+    <button class="btn btn-primary" type="submit">{ data.T("catalog.add_price") }</button>
+   </div>
   </form>
   </div>
   </dialog>

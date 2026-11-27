@@ -37,8 +37,12 @@ func TestTransactionsEntryJourney(t *testing.T) {
 	}
 	path := workspace + "/transactions"
 	navigate(t, tab, path)
-	eventually(t, tab, `(() => { const h = document.querySelector(".list-toolbar").getBoundingClientRect(); const a = document.querySelector("[data-transactions-actions]").getBoundingClientRect(); const s = document.querySelector("#list-search").getBoundingClientRect(); return Math.abs(h.right - a.right) < 2 && a.left > h.left + h.width / 2 && Math.abs(a.top - s.top) < 20; })()`, "transactions actions are not right aligned with the list toolbar")
-	eventually(t, tab, `(() => { const a = document.querySelector("[data-transactions-create]").getBoundingClientRect(); const b = document.querySelector("[data-transactions-actions] summary").getBoundingClientRect(); return b.left - a.right >= 8 && Math.abs(a.height - b.height) < 2; })()`, "transactions header buttons need a gap and matching heights")
+	if eval[bool](t, tab, `!!document.querySelector(".list-toolbar")`) {
+		eventually(t, tab, `(() => { const h = document.querySelector(".list-toolbar").getBoundingClientRect(); const a = document.querySelector("[data-transactions-actions]").getBoundingClientRect(); const s = document.querySelector("#list-search").getBoundingClientRect(); return Math.abs(h.right - a.right) < 2 && a.left > h.left + h.width / 2 && Math.abs(a.top - s.top) < 20; })()`, "transactions actions are not right aligned with the list toolbar")
+		eventually(t, tab, `(() => { const a = document.querySelector("[data-transactions-create]").getBoundingClientRect(); const b = document.querySelector("[data-transactions-actions] summary").getBoundingClientRect(); return b.left - a.right >= 8 && Math.abs(a.height - b.height) < 2; })()`, "transactions header buttons need a gap and matching heights")
+	} else {
+		eventually(t, tab, `document.querySelectorAll("[data-transactions-create]").length === 1 && !document.querySelector("#list-search")`, "empty transactions should offer one create action without search")
+	}
 	click(t, tab, `a[href*="view=record"]`)
 	waitVisible(t, tab, `#transactions-date`)
 	eventually(t, tab, `document.querySelector('[data-transactions-submit]').disabled`, "empty required fields must disable create")

@@ -28,8 +28,8 @@ func TestIntakeManagementThroughWeb(t *testing.T) {
 	if created.Code != http.StatusOK || !strings.Contains(created.Body.String(), "/intake/") || !strings.Contains(created.Body.String(), "public form is unavailable") || strings.Contains(created.Body.String(), "Link active") {
 		t.Fatalf("create: %d", created.Code)
 	}
-	if strings.Contains(created.Body.String(), "data-copy-target=\"intake-link\"") || !strings.Contains(created.Body.String(), "Existing links and QR codes will stop working") {
-		t.Fatal("unavailable link must not offer copying and must warn before replacement")
+	if strings.Contains(created.Body.String(), "data-copy-target=\"intake-link\"") {
+		t.Fatal("unavailable link must not offer copying")
 	}
 	owner, err := env.auth.Authorize(context.Background(), env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
 	if err != nil {
@@ -56,9 +56,78 @@ func TestIntakeManagementThroughWeb(t *testing.T) {
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("viewer disable: %d", denied.Code)
 	}
-	disabled := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"disable"}}, env.cookies, nil)
+	disabled := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"disable"}, "confirmed": {"1"}}, env.cookies, nil)
 	if disabled.Code != http.StatusSeeOther {
 		t.Fatalf("disable: %d", disabled.Code)
+	}
+}
+
+func TestIntakeDestructiveActionsRequireConfirmation(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	owner, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := intake.NewService(env.db, config.SQLite, env.auth)
+	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
+	token, err := svc.Create(ctx, owner, env.workspaceID, "Original consent", identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/intake"
+	for _, action := range []string{"rotate", "disable"} {
+		values := url.Values{"csrf": {env.csrf}, "action": {action}, "consent": {"Updated & consent"}}
+		page := request(env.routes, http.MethodPost, path, values, env.cookies, nil)
+		for _, want := range []string{"Existing links and QR codes will stop working immediately", `name="confirmed" value="1"`, `name="csrf"`, `name="action" value="` + action + `"`, `href="` + path + `"`, "Cancel"} {
+			if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
+				t.Fatalf("%s confirmation: status %d, missing %q", action, page.Code, want)
+			}
+		}
+		if action == "rotate" && !strings.Contains(page.Body.String(), `name="consent" value="Updated &amp; consent"`) {
+			t.Fatal("rotation confirmation must preserve consent")
+		}
+		if got, err := svc.GetToken(ctx, owner, env.workspaceID); err != nil || got != token {
+			t.Fatalf("%s before confirmation changed link: %v", action, err)
+		}
+		cancel := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+		if cancel.Code != http.StatusOK {
+			t.Fatalf("%s cancel: %d", action, cancel.Code)
+		}
+		spanish := append(append([]*http.Cookie(nil), env.cookies...), &http.Cookie{Name: "locale", Value: "es"})
+		page = request(env.routes, http.MethodPost, path, values, spanish, nil)
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "dejarán de funcionar de inmediato") || !strings.Contains(page.Body.String(), "Cancelar") {
+			t.Fatalf("%s Spanish confirmation: %d", action, page.Code)
+		}
+		values.Set("confirmed", "1")
+		values.Del("csrf")
+		if got := request(env.routes, http.MethodPost, path, values, env.cookies, nil); got.Code != http.StatusForbidden {
+			t.Fatalf("%s without CSRF: %d", action, got.Code)
+		}
+		values.Set("csrf", env.viewerCSRF)
+		if got := request(env.routes, http.MethodPost, path, values, env.viewerCookies, nil); got.Code != http.StatusForbidden {
+			t.Fatalf("%s as viewer: %d", action, got.Code)
+		}
+	}
+	rotated := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"rotate"}, "confirmed": {"1"}, "consent": {"Updated & consent"}}, env.cookies, nil)
+	if rotated.Code != http.StatusOK {
+		t.Fatalf("confirmed rotation: %d", rotated.Code)
+	}
+	newToken, err := svc.GetToken(ctx, owner, env.workspaceID)
+	if err != nil || newToken == token {
+		t.Fatalf("confirmed rotation did not replace link: %v", err)
+	}
+	settings, err := svc.GetSettings(ctx, owner, env.workspaceID)
+	if err != nil || settings.ConsentText != "Updated & consent" {
+		t.Fatalf("rotation did not preserve consent: %+v, %v", settings, err)
+	}
+	disabled := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"disable"}, "confirmed": {"1"}}, env.cookies, nil)
+	if disabled.Code != http.StatusSeeOther {
+		t.Fatalf("confirmed disable: %d", disabled.Code)
+	}
+	settings, err = svc.GetSettings(ctx, owner, env.workspaceID)
+	if err != nil || settings.Active {
+		t.Fatalf("confirmed disable did not disable link: %+v, %v", settings, err)
 	}
 }
 
@@ -84,7 +153,7 @@ func TestIntakeMissingPrimaryKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/intake"
-	response := request(handler.Routes(), http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"rotate"}, "consent": {"Unsaved consent"}}, env.cookies, map[string]string{"Accept-Language": "es"})
+	response := request(handler.Routes(), http.MethodPost, path, url.Values{"csrf": {env.csrf}, "action": {"rotate"}, "confirmed": {"1"}, "consent": {"Unsaved consent"}}, env.cookies, map[string]string{"Accept-Language": "es"})
 	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), "ENCRYPTION_KEY") || !strings.Contains(response.Body.String(), "Unsaved consent") || !strings.Contains(response.Body.String(), "reinicia el servidor") {
 		t.Fatalf("missing key: status %d, localized message or input missing", response.Code)
 	}
@@ -189,6 +258,47 @@ func TestPublicIntakeForm(t *testing.T) {
 	missingContact := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "consent": {"on"}}, nil, nil)
 	if missingContact.Code != http.StatusUnprocessableEntity || !strings.Contains(missingContact.Body.String(), "Enter a phone number or email address to continue.") {
 		t.Fatalf("missing contact: %d", missingContact.Code)
+	}
+	for _, tc := range []struct {
+		name   string
+		values url.Values
+		lang   string
+		want   []string
+	}{
+		{
+			name:   "missing name contact and consent",
+			values: url.Values{"name": {" "}, "notes": {"Private <notes>"}},
+			want:   []string{`role="alert"`, `tabindex="-1"`, `aria-describedby="name-error"`, `aria-describedby="intake-contact-help phone-error"`, `aria-describedby="intake-contact-help email-error"`, `aria-describedby="consent-error"`, `Private &lt;notes&gt;`},
+		},
+		{
+			name:   "invalid fields preserve consent and values",
+			values: url.Values{"name": {strings.Repeat("a", 201)}, "phone": {strings.Repeat("1", 51)}, "email": {"bad email"}, "notes": {strings.Repeat("n", 2001)}, "consent": {"on"}},
+			want:   []string{`aria-describedby="name-error"`, `aria-describedby="intake-contact-help phone-error"`, `aria-describedby="intake-contact-help email-error"`, `aria-describedby="notes-error"`, `name="consent" required checked`, `value="bad email"`},
+		},
+		{
+			name:   "Spanish consent error",
+			values: url.Values{"name": {"Visitante"}, "email": {"visitor@example.com"}},
+			lang:   "es",
+			want:   []string{`aria-describedby="consent-error"`, `Debes dar tu consentimiento antes de enviar.`, `value="Visitante"`, `value="visitor@example.com"`},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := request(env.routes, http.MethodPost, "/intake/"+token, tc.values, nil, map[string]string{"Accept-Language": tc.lang})
+			if response.Code != http.StatusUnprocessableEntity {
+				t.Fatalf("status = %d, want 422", response.Code)
+			}
+			for _, marker := range tc.want {
+				if !strings.Contains(response.Body.String(), marker) {
+					t.Errorf("response missing %q", marker)
+				}
+			}
+			if !strings.Contains(response.Body.String(), `aria-invalid="true"`) {
+				t.Error("invalid fields must expose aria-invalid")
+			}
+			if response.Header().Get("Cache-Control") != "no-store" || response.Header().Get("Referrer-Policy") != "no-referrer" {
+				t.Error("validation response must retain privacy headers")
+			}
+		})
 	}
 	result := request(env.routes, http.MethodPost, "/intake/"+token, url.Values{"name": {"Visitor"}, "email": {"visitor@example.com"}, "consent": {"on"}}, nil, nil)
 	if result.Code != http.StatusOK || !strings.Contains(result.Body.String(), "Thank you") || strings.Contains(result.Body.String(), "Visitor") || strings.Contains(result.Body.String(), "/workspaces/") {

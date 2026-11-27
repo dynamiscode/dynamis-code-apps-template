@@ -111,7 +111,7 @@ func (s *Service) AddTimelineEntry(ctx context.Context, actor identity.Principal
 }
 
 func (s *Service) ListTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID) ([]TimelineEntry, error) {
-	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, 0, 0, false)
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, 0, 0, false, "")
 }
 
 // ListTimelineEntriesPage returns a bounded, 1-based page in timeline order.
@@ -119,7 +119,7 @@ func (s *Service) ListTimelineEntriesPage(ctx context.Context, actor identity.Pr
 	if limit < 1 || limit > 100 || page < 1 || page > 1000000 {
 		return nil, ErrInvalidInput
 	}
-	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, false)
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, false, "")
 }
 
 // ListTimelineEntriesNewestPage returns a bounded, 1-based page in newest-first order.
@@ -127,10 +127,64 @@ func (s *Service) ListTimelineEntriesNewestPage(ctx context.Context, actor ident
 	if limit < 1 || limit > 100 || page < 1 || page > 1000000 {
 		return nil, ErrInvalidInput
 	}
-	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, true)
+	return s.listTimelineEntries(ctx, actor, workspaceID, clientID, limit, (page-1)*limit, true, "")
 }
 
-func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, offset int, newestFirst bool) ([]TimelineEntry, error) {
+// SearchTimelineEntries returns up to 50 newest matches and whether another page exists.
+func (s *Service) SearchTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, text string, page int) ([]TimelineEntry, bool, error) {
+	text = strings.TrimSpace(text)
+	if page < 1 || page > 1000000 || !utf8.ValidString(text) || utf8.RuneCountInString(text) > 2000 {
+		return nil, false, ErrInvalidInput
+	}
+	entries, err := s.listTimelineEntries(ctx, actor, workspaceID, clientID, 51, (page-1)*50, true, text)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(entries) > 50 {
+		return entries[:50], page < 1000000, nil
+	}
+	return entries, false, nil
+}
+
+// TimelineEntryNewestPage finds the page containing an entry in newest-first order.
+func (s *Service) TimelineEntryNewestPage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, entryID TimelineEntryID, limit int) (int, error) {
+	if limit < 1 || limit > 100 {
+		return 0, ErrInvalidInput
+	}
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if _, err = s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
+		return 0, ErrNotFound
+	}
+	if _, err = s.get(ctx, tx, workspaceID, clientID); err != nil {
+		return 0, err
+	}
+	var created string
+	err = s.queryRow(ctx, tx, `SELECT created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ? AND id = ?`, workspaceID, clientID, entryID).Scan(&created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	var newer int
+	err = s.queryRow(ctx, tx, `SELECT COUNT(*) FROM (SELECT 1 FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ? AND (created_at > ? OR (created_at = ? AND id > ?)) LIMIT ?) AS newer_entries`, workspaceID, clientID, created, created, entryID, 1000000*limit).Scan(&newer)
+	if err != nil {
+		return 0, err
+	}
+	if newer == 1000000*limit {
+		return 0, ErrInvalidInput
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return newer/limit + 1, nil
+}
+
+func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, clientID ClientID, limit, offset int, newestFirst bool, search string) ([]TimelineEntry, error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: true})
 	if err != nil {
 		return nil, err
@@ -144,6 +198,11 @@ func (s *Service) listTimelineEntries(ctx context.Context, actor identity.Princi
 	}
 	query := `SELECT id, author_id, entry_type, channel, text, corrects_id, created_at FROM client_timeline_entries WHERE workspace_id = ? AND client_id = ?`
 	args := []any{workspaceID, clientID}
+	if search != "" {
+		query += ` AND LOWER(text) LIKE LOWER(?) ESCAPE '!'`
+		search = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(search)
+		args = append(args, "%"+search+"%")
+	}
 	if newestFirst {
 		query += ` ORDER BY created_at DESC, id DESC`
 	} else {

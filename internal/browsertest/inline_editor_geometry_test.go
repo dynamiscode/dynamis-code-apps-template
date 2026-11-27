@@ -43,3 +43,21 @@ func TestInlineHeadingEditorKeepsValueGeometry(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyDateEntryLabelDoesNotOverlapNativePlaceholder(t *testing.T) {
+	var styles strings.Builder
+	for _, name := range []string{"tokens.css", "components.css", "app.css"} {
+		css, err := os.ReadFile(filepath.Join(repoRoot, "internal/web/assets", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		styles.Write(css)
+	}
+	page := `<style>` + styles.String() + `</style><div class="entry-field" data-entry-field data-entry-bound><label class="entry-field-label" for="due">Due date</label><input id="due" type="date"></div>`
+	tab := newTab(t, 1280, 900, "")
+	run(t, tab, chromedp.Navigate("data:text/html,"+url.PathEscape(page)))
+	geometry := eval[[]float64](t, tab, `(() => { const label = document.querySelector('label').getBoundingClientRect(), input = document.querySelector('input'), rect = input.getBoundingClientRect(), style = getComputedStyle(input); return [label.bottom, rect.top + parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop)]; })()`)
+	if geometry[0] > geometry[1]+1 {
+		t.Fatalf("date label overlaps native date content: label bottom %v, content top %v", geometry[0], geometry[1])
+	}
+}

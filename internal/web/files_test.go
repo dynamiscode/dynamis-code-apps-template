@@ -141,12 +141,21 @@ func TestFilesPageHidesUploadForReadOnlyViewer(t *testing.T) {
 	if upload.Code != http.StatusSeeOther {
 		t.Fatalf("owner upload = %d: %s", upload.Code, upload.Body.String())
 	}
+	owner := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.cookies, nil)
+	ownerBody := owner.Body.String()
+	heading := strings.Index(ownerBody, `class="feature-list-heading"`)
+	toolbar := strings.Index(ownerBody, `class="list-toolbar"`)
+	uploadAction := strings.Index(ownerBody, `class="list-create"`)
+	if owner.Code != http.StatusOK || heading < 0 || uploadAction < heading || toolbar < uploadAction ||
+		!strings.Contains(ownerBody[uploadAction:toolbar], `href="#file-upload-heading"`) {
+		t.Fatalf("owner Files page missing heading upload action: %d %s", owner.Code, ownerBody)
+	}
 	page := request(env.routes, http.MethodGet, env.filesPath()+"?all=1", nil, env.viewerCookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, "read-only.txt") || !strings.Contains(body, "/content") {
 		t.Fatalf("viewer Files list = %d: %s", page.Code, body)
 	}
-	if strings.Contains(body, "data-file-upload") || strings.Contains(body, `type="file"`) {
+	if strings.Contains(body, "data-file-upload") || strings.Contains(body, `type="file"`) || strings.Contains(body, `href="#file-upload-heading"`) {
 		t.Fatalf("read-only viewer sees file upload controls: %s", body)
 	}
 }
@@ -170,6 +179,9 @@ func TestFilesPageRendersTemplShellAndAccessibleEmptyState(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("Files page missing %q: %s", want, body)
 		}
+	}
+	if strings.Count(body, `href="#file-upload-heading"`) != 1 || strings.Contains(body, `class="list-create"`) {
+		t.Errorf("empty Files page must show only the empty-state upload link: %s", body)
 	}
 	if page.Header().Get("Cache-Control") != "no-store" || page.Header().Get("Content-Language") != "en" {
 		t.Errorf("Files response headers = cache %q, language %q", page.Header().Get("Cache-Control"), page.Header().Get("Content-Language"))

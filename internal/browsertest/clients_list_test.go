@@ -60,6 +60,43 @@ func ensureClient(t *testing.T, tab context.Context) {
 	waitVisible(t, tab, ".list-view-table tbody tr")
 }
 
+func TestListFilterFieldSelectionStaysLocalAndReloadCloses(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	ensureClient(t, tab)
+	start := eval[string](t, tab, `location.href`)
+	eval[bool](t, tab, `window.__filterPageMarker = true`)
+	click(t, tab, "#list-filter-add summary")
+	run(t, tab, chromedp.Focus(`#list-filter-add [data-filter-field]`), chromedp.KeyEvent("\r"))
+	waitVisible(t, tab, "#list-filter-add .client-add-step")
+	if got := eval[string](t, tab, `location.href`); got != start {
+		t.Fatalf("field selection navigated: %q -> %q", start, got)
+	}
+	eventually(t, tab, `window.__filterPageMarker === true && document.activeElement.closest(".client-add-step") !== null`, "field selection reloaded the page or failed to move focus")
+	click(t, tab, "#list-filter-add [data-filter-back]")
+	waitVisible(t, tab, "#list-filter-add [data-filter-field]")
+	eventually(t, tab, `document.querySelector("#list-filter-add details").open && document.activeElement.matches("#list-filter-add [data-filter-field]")`, "back must keep the menu open and restore field focus")
+	run(t, tab, chromedp.Reload())
+	waitVisible(t, tab, "#list-filter-add summary")
+	eventually(t, tab, `!document.querySelector("#list-filter-add details").open`, "filter menu reopened on reload")
+	longValue := strings.Repeat("longfiltervalue", 40)
+	navigate(t, tab, eval[string](t, tab, "location.pathname")+"?"+url.Values{"filter": {"displayName:contains:" + longValue}}.Encode())
+	waitVisible(t, tab, ".list-filter-chip-remove")
+	if !eval[bool](t, tab, `(() => {
+		const chip = document.querySelector(".list-filter-chip");
+		const label = chip.querySelector(".list-filter-chip-label");
+		const remove = chip.querySelector(".list-filter-chip-remove");
+		const strip = chip.closest(".list-filter-chips");
+		return label.tagName === "SPAN" && label.querySelectorAll("strong").length === 2 &&
+			!label.querySelector("a, button") && remove.getAttribute("aria-label") &&
+			remove.getBoundingClientRect().width >= 44 && remove.getBoundingClientRect().height >= 44 &&
+			chip.getBoundingClientRect().right <= strip.getBoundingClientRect().right + 1 &&
+			chip.scrollWidth <= chip.clientWidth + 1;
+	})()`) {
+		t.Fatal("filter pill is interactive, inaccessible, or overflows")
+	}
+}
+
 // clickByText clicks the first visible button, link, summary or submit whose text contains name.
 func clickByText(t *testing.T, tab context.Context, name string) {
 	t.Helper()
@@ -162,10 +199,10 @@ func TestDropdownActionsUseUnboxedTiles(t *testing.T) {
 		t.Fatal("view options must be unboxed touch-sized tiles")
 	}
 	click(t, tab, `a[href$="/engagements"]`)
-	waitVisible(t, tab, `#engagement-view .list-create details > summary`)
-	click(t, tab, `#engagement-view .list-create details > summary`)
+	waitVisible(t, tab, `#engagement-view .feature-list-heading-actions details > summary`)
+	click(t, tab, `#engagement-view .feature-list-heading-actions details > summary`)
 	if !eval[bool](t, tab, `(() => {
-		const items = [...document.querySelectorAll('#engagement-view .list-create .dropdown-content .menu > li > a')];
+		const items = [...document.querySelectorAll('#engagement-view .feature-list-heading-actions .dropdown-content .menu > li > a')];
 		return items.length >= 2 && items.every(item => {
 			const style = getComputedStyle(item);
 			return parseFloat(style.borderWidth) === 0 && item.getBoundingClientRect().height >= 44;
@@ -299,6 +336,18 @@ func TestClientsSortableHeaderCoversCell(t *testing.T) {
 	eventually(t, tab, `document.querySelector('.list-view-table th[data-column="displayName"]').getAttribute('aria-sort') === 'descending'`, "keyboard sorting did not activate descending order")
 }
 
+func TestClientCreateDialogFocus(t *testing.T) {
+	tab := newTab(t, 1280, 900, "")
+	openClients(t, tab)
+	click(t, tab, "[data-client-create]")
+	eventually(t, tab, `document.querySelector('[data-client-dialog]').matches(':modal') && document.activeElement.matches('[data-client-close]')`, "client dialog did not focus its close button")
+	if !eval[bool](t, tab, `document.querySelector('#client-display-name').required && document.querySelector('form.create button[type=submit]').disabled`) {
+		t.Fatal("empty display name must prevent client creation")
+	}
+	fill(t, tab, "#client-display-name", "Focus regression client")
+	eventually(t, tab, `!document.querySelector('form.create button[type=submit]').disabled`, "valid display name did not enable client creation")
+}
+
 func TestClientTimelineDialog(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
@@ -350,12 +399,13 @@ func TestClientDetailLifecycle(t *testing.T) {
 	click(t, tab, `#inline-display_name ~ div button[aria-label="Save value"]`)
 	eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll("h1, h2")].some((h) => h.textContent.trim() === %s)`, jsString(name+" updated")), "updated heading not shown")
 
-	click(t, tab, `summary[aria-label="Row actions"]`)
+	click(t, tab, `#detail-main details.list-menu > summary`)
 	clickByText(t, tab, "Manage custom fields")
-	waitVisible(t, tab, ".client-create > summary")
-	click(t, tab, ".client-create > summary")
+	click(t, tab, "[data-client-field-create]")
+	waitVisible(t, tab, "[data-client-field-dialog]:modal")
 	fillByLabel(t, tab, "Field label", "Lifecycle note")
 	clickByText(t, tab, "Add field")
+	eventually(t, tab, `document.querySelector('#client-field-list')?.textContent.includes("Lifecycle note")`, "custom field was not created")
 	navigate(t, tab, detailPath)
 	eval[any](t, tab, `(() => { const label = [...document.querySelectorAll("#client-values dt")].find(el => el.textContent.trim() === "Lifecycle note"); label.nextElementSibling.querySelector("details > summary").click(); })()`)
 	fillByLabel(t, tab, "Lifecycle note (optional)", "Follow up")
@@ -365,14 +415,16 @@ func TestClientDetailLifecycle(t *testing.T) {
 	click(t, tab, `#client-values details[open] button[aria-label="Clear value"]`)
 	eventually(t, tab, fmt.Sprintf(`!%s.closest("form").querySelector('button[aria-label="Clear value"]')`, labelledControl("Lifecycle note (optional)")), "cleared value control still shown")
 
-	click(t, tab, `summary[aria-label="Row actions"]`)
+	click(t, tab, `#detail-main details.list-menu > summary`)
 	clickByText(t, tab, "Archive")
+	waitVisible(t, tab, "[data-client-archive-dialog]:modal")
+	click(t, tab, "[data-client-archive-confirm]")
 	eventually(t, tab, `document.body.textContent.includes("This client is archived. It is hidden from the default list.")`, "archived notice not shown")
-	click(t, tab, `summary[aria-label="Row actions"]`)
+	click(t, tab, `#detail-main details.list-menu > summary`)
 	clickByText(t, tab, "Restore")
-	eventually(t, tab, `document.querySelector('summary[aria-label="Row actions"]') !== null && document.body.textContent.includes("Archive")`, "archive control not restored")
+	eventually(t, tab, `document.querySelector('#detail-main details.list-menu > summary') !== null && document.body.textContent.includes("Archive")`, "archive control not restored")
 
-	click(t, tab, `summary[aria-label="Row actions"]`)
+	click(t, tab, `#detail-main details.list-menu > summary`)
 	clickByText(t, tab, "Delete permanently")
 	waitVisible(t, tab, "[data-client-delete-dialog]:modal")
 	click(t, tab, "[data-client-delete-confirm]")
@@ -541,6 +593,10 @@ func TestClientsListQueryOpenDoesNotBlockRealtime(t *testing.T) {
 	tab := newTab(t, 1280, 900, "")
 	openClients(t, tab)
 	here := eval[string](t, tab, "location.pathname")
+	click(t, tab, `a[href$="/clients/new"]`)
+	fillByLabel(t, tab, "Display name", "Query disclosure fixture")
+	clickByText(t, tab, "Create client")
+	eventually(t, tab, `/\/clients\/[^/?]+$/.test(location.pathname)`, "fixture create did not open the client detail")
 	navigate(t, tab, here+"?filter_field=displayName")
 	eventually(t, tab, `Boolean(document.querySelector(".list-menu[open]"))`, "add-filter disclosure is not open for a query")
 	expectRealtime(t, tab, "connected|connecting")

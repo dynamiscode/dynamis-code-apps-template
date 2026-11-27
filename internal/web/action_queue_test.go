@@ -361,3 +361,18 @@ func TestActionQueueWeb(t *testing.T) {
 		t.Fatal("Spanish queue")
 	}
 }
+
+func TestActionQueueEmptyGuidance(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagements/due"
+	page := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
+	for _, want := range []string{"No urgent actions", "filter=upcoming", "filter=undated"} {
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("empty queue missing %q: status %d", want, page.Code)
+		}
+	}
+	filtered := request(env.routes, http.MethodGet, path+"?filter=completed", nil, env.viewerCookies, nil)
+	if !strings.Contains(filtered.Body.String(), "No actions match these filters.") || !strings.Contains(filtered.Body.String(), "Clear filters") {
+		t.Fatal("filtered empty queue must offer filter recovery")
+	}
+}

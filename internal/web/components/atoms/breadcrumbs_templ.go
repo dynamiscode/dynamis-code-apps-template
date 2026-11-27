@@ -60,14 +60,14 @@ func Breadcrumbs(props BreadcrumbsProps) templ.Component {
 					templ_7745c5c3_ElementWriter := templ_7745c5c3_Buffer
 					templ_7745c5c3_Buffer := templ.GetBuffer()
 					var templ_7745c5c3_ElementScripts []templ.ComponentScript
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<a class=\"link link-hover inline-flex min-h-11 max-w-full items-center whitespace-normal break-words border border-base-300 bg-transparent! focus-visible:outline-2 focus-visible:outline-offset-2\" href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<a class=\"link inline-flex min-h-11 max-w-full items-center whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2\" href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var2 string
 					templ_7745c5c3_Var2, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(prop.Href)).ResolveURL(ctx)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/breadcrumbs.templ`, Line: 27, Col: 233}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/breadcrumbs.templ`, Line: 27, Col: 183}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 					if templ_7745c5c3_Err != nil {
@@ -98,7 +98,7 @@ func Breadcrumbs(props BreadcrumbsProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(prop.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/breadcrumbs.templ`, Line: 27, Col: 284}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/atoms/breadcrumbs.templ`, Line: 27, Col: 234}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
