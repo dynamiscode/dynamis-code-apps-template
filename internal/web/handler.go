@@ -39,6 +39,7 @@ import (
 //go:embed assets/app.css assets/clients.css assets/components.css assets/tokens.css
 //go:embed assets/alpine-components.js assets/htmx.min.js assets/js/alpine.min.js
 //go:embed assets/notes-editor.js assets/notes-editor.css
+//go:embed assets/favicon.ico assets/favicon.svg
 var files embed.FS
 
 type Handler struct {
@@ -177,6 +178,16 @@ func (h *Handler) Routes() http.Handler {
 	// Last-Modified or ETag; without an explicit policy browsers fall back to
 	// heuristic caching and keep serving stale CSS between deploys.
 	assetsHandler := http.StripPrefix("/assets/", http.FileServerFS(assets))
+	mux.HandleFunc("GET /favicon.ico", func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Cache-Control", "no-cache")
+		writer.Header().Set("Content-Type", "image/x-icon")
+		content, err := files.ReadFile("assets/favicon.ico")
+		if err != nil {
+			http.Error(writer, "favicon unavailable", http.StatusInternalServerError)
+			return
+		}
+		_, _ = writer.Write(content)
+	})
 	mux.Handle("GET /assets/", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Cache-Control", "no-cache")
 		assetsHandler.ServeHTTP(writer, request)

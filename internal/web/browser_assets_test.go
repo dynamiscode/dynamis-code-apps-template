@@ -17,7 +17,7 @@ func TestBrowserAssetsExcludeUnreviewedContentTypes(t *testing.T) {
 			want := map[string]bool{
 				"app.css": true, "clients.css": true, "components.css": true, "tokens.css": true,
 				"alpine-components.js": true, "htmx.min.js": true, "js/alpine.min.js": true,
-				"notes-editor.js": true, "notes-editor.css": true,
+				"notes-editor.js": true, "notes-editor.css": true, "favicon.ico": true, "favicon.svg": true,
 			}
 			err := fs.WalkDir(filesystem, ".", func(name string, entry fs.DirEntry, err error) error {
 				if err == nil && !entry.IsDir() {
