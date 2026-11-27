@@ -68,19 +68,19 @@
   {
     "Path": "internal/web/catalog.templ",
     "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(href) }>",
-    "Line": 298,
+    "Line": 319,
     "Reason": "The catalog card anchor has a fixed class and no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/engagement_list.templ",
-    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(clientsPath + \"/\" + item.ClientID.String() + \"/engagements/\" + item.ID.String()) }>",
-    "Line": 206,
+    "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(engagementListItemURL(data, item, clientsPath)) }>",
+    "Line": 259,
     "Reason": "The engagement link has a fixed class and no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/engagement_list.templ",
     "OpenTag": "<a class=\"list-row-link\" href={ templ.SafeURL(clientsPath + \"/\" + item.ClientID.String()) }>",
-    "Line": 210,
+    "Line": 263,
     "Reason": "The client link has a fixed class and no caller-controlled styling or attribute spread."
   },
   {
@@ -92,55 +92,43 @@
   {
     "Path": "internal/web/catalog.templ",
     "OpenTag": "<button aria-label={ data.T(\"common.cancel\") }>",
-    "Line": 100,
+    "Line": 109,
     "Reason": "Native dialog backdrop closes the modal; it is not a visible action control."
   },
   {
     "Path": "internal/web/clients.templ",
     "OpenTag": "<a class=\"link lg:hidden\" href=\"#client-timeline-heading\">",
-    "Line": 62,
+    "Line": 74,
     "Reason": "Fixed in-page timeline navigation link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/clients.templ",
-    "OpenTag": "<a class=\"card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200\" href={ templ.SafeURL(data.CurrentPath + \"/\" + data.Client.ID.String() + \"/engagements/\" + item.ID.String()) }>",
-    "Line": 131,
+    "OpenTag": "<a class=\"card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200\" href={ templ.SafeURL(clientContextURL(data.CurrentPath + \"/\" + data.Client.ID.String() + \"/engagements/\" + item.ID.String(), data.ClientReturnQuery)) }>",
+    "Line": 143,
     "Reason": "Whole-card engagement navigation link uses a fixed class and no attribute spread."
   },
   {
     "Path": "internal/web/engagement.templ",
     "OpenTag": "<a class=\"link lg:hidden\" href=\"#action-history\">",
-    "Line": 29,
+    "Line": 37,
     "Reason": "Fixed in-page activity navigation link has no caller-controlled styling or attribute spread."
-  },
-  {
-    "Path": "internal/web/engagement_new.templ",
-    "OpenTag": "<button id=\"engagement-notes-write-tab\" type=\"button\" role=\"tab\" class=\"tab tab-active\" aria-selected=\"true\" aria-controls=\"engagement-notes-write-panel\" data-notes-write>",
-    "Line": 151,
-    "Reason": "Fixed write tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
-  },
-  {
-    "Path": "internal/web/engagement_new.templ",
-    "OpenTag": "<button id=\"engagement-notes-preview-tab\" type=\"button\" role=\"tab\" class=\"tab\" aria-selected=\"false\" aria-controls=\"engagement-notes-preview-panel\" tabindex=\"-1\" data-notes-preview>",
-    "Line": 152,
-    "Reason": "Fixed preview tab in the notes tablist; its tab styling and selected state identify the control without button chrome."
   },
   {
     "Path": "internal/web/engagement_list.templ",
     "OpenTag": "<a href={ templ.SafeURL(\"/workspaces/\" + data.Workspace.ID.String() + \"/engagement-stages#stages\") }>",
-    "Line": 112,
+    "Line": 68,
     "Reason": "Fixed navigation link in the settings dropdown has no caller-controlled class or attribute spread; menu styling intentionally remains unboxed."
   },
   {
     "Path": "internal/web/engagement_list.templ",
     "OpenTag": "<a href={ templ.SafeURL(\"/workspaces/\" + data.Workspace.ID.String() + \"/engagement-stages#engagement-label\") }>",
-    "Line": 113,
+    "Line": 69,
     "Reason": "Fixed navigation link in the settings dropdown has no caller-controlled class or attribute spread; menu styling intentionally remains unboxed."
   },
   {
     "Path": "internal/web/components/organisms/list_actions.templ",
-    "OpenTag": "<button class=\"list-action-item is-danger\" type=\"submit\" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>",
-    "Line": 76,
+    "OpenTag": "<button class={ listActionItemClass(action) } type=\"submit\" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>",
+    "Line": 84,
     "Reason": "The client deletion menu item has a fixed class and no attribute spread; the unboxed menu styling is intentional, and its confirmation attributes are retained."
   },
   {
@@ -157,50 +145,50 @@
   },
   {
     "Path": "internal/web/clients.templ",
-    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(\"/workspaces/\"+data.Workspace.ID.String()+\"/transactions?client_id=\"+data.Client.ID.String()+\"#transactions-entries-heading\") }>",
-    "Line": 67,
+    "OpenTag": "<a class=\"link border-0\" href={ templ.SafeURL(\"/workspaces/\"+data.Workspace.ID.String()+\"/transactions?client_id=\"+data.Client.ID.String()+\"#transactions-entries-heading\") }>",
+    "Line": 79,
     "Reason": "The client transaction history link has fixed inline-link styling and no attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a href={ templ.SafeURL(settings) }>",
-    "Line": 119,
+    "Line": 30,
     "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a href={ templ.SafeURL(settings+\"/methods\") }>",
-    "Line": 121,
+    "Line": 32,
     "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a href={ templ.SafeURL(base+\"/totals?period=this_month\") }>",
-    "Line": 122,
+    "Line": 33,
     "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a href={ templ.SafeURL(settings+\"/categories\") }>",
-    "Line": 125,
+    "Line": 36,
     "Reason": "The settings menu link has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a class=\"link\" href={ templ.SafeURL(transactionsDetailsURL(query, page, row.entry.ID)) }>",
-    "Line": 200,
+    "Line": 221,
     "Reason": "The transaction card link has fixed inline-link styling and no attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a href={ templ.SafeURL(\"?refund_of_entry_id=\"+entry.ID.String()+\"#transactions-entries-heading\") } aria-label={ data.T(\"transactions.linked_refunds\")+\" \"+entry.ID.String() }>",
-    "Line": 359,
+    "Line": 380,
     "Reason": "The linked refunds navigation has no caller-controlled styling or attribute spread."
   },
   {
     "Path": "internal/web/transactions.templ",
     "OpenTag": "<a class=\"link\" href={ templ.SafeURL(\"/workspaces/\"+data.Workspace.ID.String()+\"/transactions?entry_id=\"+url.QueryEscape(source.ID.String())+\"#transactions-entries-heading\") }>",
-    "Line": 425,
+    "Line": 446,
     "Reason": "The source transaction link has fixed inline-link styling and no attribute spread."
   },
   {
@@ -208,5 +196,119 @@
     "OpenTag": "<a class=\"link\" href=\"#transactions-totals-period-heading\">",
     "Line": 19,
     "Reason": "The fixed in-page navigation link has no caller-controlled styling or attribute spread."
+  },
+  {
+    "Path": "internal/web/client_fields.templ",
+    "OpenTag": "<button type=\"button\" class=\"btn btn-ghost\" data-client-field-close>",
+    "Line": 186,
+    "Reason": "Fixed ghost close control dismisses the client-field dialog; its class is literal and has no attribute spread."
+  },
+  {
+    "Path": "internal/web/clients_list.templ",
+    "OpenTag": "<button class=\"btn btn-ghost btn-sm btn-circle shrink-0\" type=\"button\" data-client-close aria-label={ data.T(\"ui.close\") }>",
+    "Line": 42,
+    "Reason": "Fixed ghost close control dismisses the client dialog; its class is literal and has no attribute spread."
+  },
+  {
+    "Path": "internal/web/components/atoms/breadcrumbs.templ",
+    "OpenTag": "<a class=\"link inline-flex min-h-11 max-w-full items-center whitespace-normal break-words focus-visible:outline-2 focus-visible:outline-offset-2\" href={ templ.SafeURL(prop.Href) } { actionattrs.From(prop.Attrs)... }>",
+    "Line": 27,
+    "Reason": "Breadcrumb uses fixed inline-link styling and revalidates its attributes through actionattrs.From."
+  },
+  {
+    "Path": "internal/web/components/molecules/inline_editor.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square\" href={ props.CancelURL } data-inline-cancel aria-label={ props.CancelLabel }>",
+    "Line": 70,
+    "Reason": "Fixed ghost icon link cancels inline editing; destination and accessible label come from the editor props."
+  },
+  {
+    "Path": "internal/web/components/molecules/notes_editor.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square\" href={ props.CancelURL } data-notes-cancel aria-label={ props.CancelLabel }>",
+    "Line": 79,
+    "Reason": "Fixed ghost icon link cancels notes editing; destination and accessible label come from the editor props."
+  },
+  {
+    "Path": "internal/web/components/organisms/list_filters.templ",
+    "OpenTag": "<a class=\"list-filter-chip-remove\" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T(\"clients.filter_remove\") + \": \" + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>",
+    "Line": 56,
+    "Reason": "Fixed filter-chip remove link is visually integrated with its labeled chip and exposes only the validated remove URL."
+  },
+  {
+    "Path": "internal/web/components/organisms/navigation.templ",
+    "OpenTag": "<a class=\"btn btn-ghost max-w-full justify-start truncate text-lg font-bold\" href={ \"/workspaces/\" + data.Workspace.ID.String() }>",
+    "Line": 23,
+    "Reason": "Workspace name is the ghost-styled workspace navigation link; class is fixed and destination uses the workspace ID."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(data.CurrentPath) }>",
+    "Line": 509,
+    "Reason": "Inline link clears the queue filters and uses the current route as its destination."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(data.CurrentPath + \"?filter=upcoming\") }>",
+    "Line": 512,
+    "Reason": "Inline link selects the upcoming queue filter; destination is a fixed query on the current route."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(data.CurrentPath + \"?filter=undated\") }>",
+    "Line": 513,
+    "Reason": "Inline link selects the undated queue filter; destination is a fixed query on the current route."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square shrink-0\" data-detail-cancel href={ templ.SafeURL(data.CurrentPath + stageFilterQuery(data.EngagementStage == \"archived\") + \"#stages\") } aria-label={ data.T(\"ui.close\") }>",
+    "Line": 622,
+    "Reason": "Fixed ghost icon link closes the stage dialog; its destination returns to the stage list."
+  },
+  {
+    "Path": "internal/web/engagement.templ",
+    "OpenTag": "<button class=\"btn btn-ghost btn-sm\" type=\"submit\" name=\"kind\" value={ target }>",
+    "Line": 729,
+    "Reason": "Fixed ghost menu action moves a stage to another kind; its submit value is constrained to the fixed open, won, and lost choices."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a class=\"list-filter-chip-remove\" href={ templ.SafeURL(removeStageURL) } aria-label={ data.T(\"clients.filter_remove\") + \": \" + data.T(\"engagement.stage\") }>",
+    "Line": 142,
+    "Reason": "Fixed filter-chip remove link is visually integrated with its labeled stage chip and uses the derived filter-removal URL."
+  },
+  {
+    "Path": "internal/web/engagement_list.templ",
+    "OpenTag": "<a class=\"list-filter-chip-remove\" href={ templ.SafeURL(removeAssigneeURL) } aria-label={ data.T(\"clients.filter_remove\") + \": \" + data.T(\"engagement.assignee\") }>",
+    "Line": 145,
+    "Reason": "Fixed filter-chip remove link is visually integrated with its labeled assignee chip and uses the derived filter-removal URL."
+  },
+  {
+    "Path": "internal/web/engagement_new.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square shrink-0\" href={ templ.SafeURL(clientContextURL(\"/workspaces/\" + data.Workspace.ID.String() + \"/clients/\" + data.Client.ID.String(), data.ClientReturnQuery)) } data-engagement-cancel aria-label={ data.T(\"ui.close\") }>",
+    "Line": 27,
+    "Reason": "Fixed ghost icon link closes the engagement dialog and returns to the selected client."
+  },
+  {
+    "Path": "internal/web/engagement_new.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square shrink-0\" href={ templ.SafeURL(engagementNewReturn(data)) } data-engagement-cancel aria-label={ data.T(\"ui.close\") }>",
+    "Line": 29,
+    "Reason": "Fixed ghost icon link closes the engagement dialog and returns to its originating page."
+  },
+  {
+    "Path": "internal/web/transactions_inline.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square\" href={ templ.SafeURL(cancel) } data-transaction-choice-cancel aria-label={ data.T(\"common.cancel\") }>",
+    "Line": 117,
+    "Reason": "Fixed ghost icon link cancels the transaction-choice editor; destination is the editor's cancel URL."
+  },
+  {
+    "Path": "internal/web/clients.templ",
+    "OpenTag": "<a class=\"link\" href={ templ.SafeURL(clientTimelineURL(data, page) + \"#timeline-\" + entry.CorrectsID.String()) }>",
+    "Line": 304,
+    "Reason": "Fixed inline link navigates to a correction event on its timeline page; the complete destination is passed through templ.SafeURL."
+  },
+  {
+    "Path": "internal/web/transactions.templ",
+    "OpenTag": "<a class=\"btn btn-ghost btn-square shrink-0\" href={ templ.SafeURL(transactionsPageURL(query, page)+\"#transactions-entries-heading\") } data-transactions-details-close aria-label={ data.T(\"ui.close\") }>",
+    "Line": 241,
+    "Reason": "Fixed ghost icon link closes transaction details and returns to the current entries page."
   }
 ]

@@ -102,6 +102,7 @@ func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 
 func TestSavedViewCannotBeUsedThroughAnotherList(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Acme")
 	base := "/workspaces/" + env.workspaceID.String() + "/lists/"
 	created := request(env.routes, http.MethodPost, base+"clients/views", url.Values{
 		"csrf": {env.csrf}, "name": {"Original"}, "query": {"sort=displayName"},

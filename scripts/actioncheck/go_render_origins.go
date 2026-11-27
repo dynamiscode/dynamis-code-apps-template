@@ -66,7 +66,7 @@ func indexRenderOrigins(loaded []*packages.Package, known map[string]map[string]
 					}
 				case *ast.CallExpr:
 					if name := callIdentifier(n.Fun); name != nil {
-						if function, ok := info.Uses[name].(*types.Func); ok {
+						if function := calledFunction(n, info); function != nil {
 							directUses[name] = true
 							index.calls[function] = append(index.calls[function], renderOriginExpr{n, info})
 						}
@@ -163,6 +163,45 @@ func (index renderOriginIndex) safeGoRenderReceiver(expr ast.Expr, info *types.I
 	call, ok := ast.Unparen(expr).(*ast.CallExpr)
 	return ok && (directRenderProducer(call, info, index.known) || index.safeFactory(call.Fun, info, make(map[*types.Var]bool)))
 }
+func (index renderOriginIndex) containerInputs(expr ast.Expr, info *types.Info) ([]renderOriginExpr, bool) {
+	ident, ok := ast.Unparen(expr).(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	variable, ok := info.Uses[ident].(*types.Var)
+	if !ok || variable.Pkg() == nil || variable.Parent() == variable.Pkg().Scope() || index.escaped[variable] {
+		return nil, false
+	}
+	values := index.writes[variable]
+	if len(values) == 0 {
+		return nil, false
+	}
+	resolved := make([]renderOriginExpr, 0, len(values))
+	for _, value := range values {
+		if call, ok := ast.Unparen(value.expr).(*ast.CallExpr); ok {
+			name := callIdentifier(call.Fun)
+			if name == nil || value.info.Uses[name] != types.Universe.Lookup("append") || len(call.Args) < 2 || call.Ellipsis.IsValid() {
+				return nil, false
+			}
+			first, ok := ast.Unparen(call.Args[0]).(*ast.Ident)
+			if !ok || value.info.Uses[first] != variable {
+				return nil, false
+			}
+			for _, argument := range call.Args[1:] {
+				if _, ok := ast.Unparen(argument).(*ast.CompositeLit); !ok {
+					return nil, false
+				}
+				resolved = append(resolved, renderOriginExpr{argument, value.info})
+			}
+			continue
+		}
+		if _, ok := ast.Unparen(value.expr).(*ast.CompositeLit); !ok {
+			return nil, false
+		}
+		resolved = append(resolved, value)
+	}
+	return resolved, len(resolved) != 0
+}
 
 func (index renderOriginIndex) forwardedTemplateInput(expr ast.Expr, info *types.Info, owner *types.Func) bool {
 	switch node := ast.Unparen(expr).(type) {
@@ -235,7 +274,7 @@ func (index renderOriginIndex) safeFactory(expr ast.Expr, info *types.Info, seen
 			call := ast.Unparen(result.Results[0]).(*ast.CallExpr)
 			if index.closed != nil && !index.closed(calledFunction(call, info)) {
 				for _, argument := range call.Args {
-					if !typedComponentArgumentSafe(argument, info, index.component, index.known, true, index.closed, nil) {
+					if !typedComponentArgumentSafe(argument, info, index.component, index.known, true, index.closed, nil, index.containerInputs) {
 						safe = false
 						break
 					}

@@ -49,7 +49,7 @@ const (
 // it via a bare `@value` reference cannot skip the check that bare
 // references otherwise extend (see safeComponent).
 var dangerousKinds = map[string]bool{
-	"Anchor": true, "Link": true, "Button": true,
+	"Anchor": true, "Link": true, "Button": true, "Dropdown": true,
 	"ConfirmButton": true, "SubmitButton": true, "SubmitButtonStyled": true,
 }
 
@@ -271,6 +271,13 @@ func CheckGoFile(source, path string) ([]Violation, error) {
 	if err != nil {
 		return nil, err
 	}
+	packageASTs := make([]*ast.File, 0, len(files))
+	for _, source := range files {
+		packageASTs = append(packageASTs, source.file)
+	}
+	if line, ok := dynamicTemplateRenderViolation(file, packageASTs, imports, templates, fset); ok {
+		violations = append(violations, Violation{line, "unverified dynamic component renderer"})
+	}
 	for _, declaration := range file.Decls {
 		function, ok := declaration.(*ast.FuncDecl)
 		if !ok || function.Type.Results == nil || function.Body == nil {
@@ -340,6 +347,273 @@ func CheckGoFile(source, path string) ([]Violation, error) {
 		return true
 	})
 	return violations, nil
+}
+
+// dynamicTemplateRenderViolation verifies function-valued template renderers
+// from every same-package callsite. It trusts only callbacks that resolve to
+// local templ declarations, so a callback cannot hide a raw component behind
+// a function parameter.
+func dynamicTemplateRenderViolation(current *ast.File, files []*ast.File, imports map[string]string, templates map[string]bool, fset *token.FileSet) (uint32, bool) {
+	for _, declaration := range current.Decls {
+		renderer, ok := declaration.(*ast.FuncDecl)
+		if !ok || renderer.Body == nil {
+			continue
+		}
+		paramName, paramIndex, dataName, matches, malformed := templateRendererParam(renderer, imports)
+		if !matches {
+			continue
+		}
+		if malformed || !callsTemplateRenderer(renderer.Body, paramName, dataName) {
+			return uint32(fset.Position(renderer.Pos()).Line), true
+		}
+		callCount := 0
+		safe := true
+		for _, file := range files {
+			for _, declaration := range file.Decls {
+				caller, ok := declaration.(*ast.FuncDecl)
+				if !ok || caller.Body == nil {
+					continue
+				}
+				ast.Inspect(caller.Body, func(node ast.Node) bool {
+					call, ok := node.(*ast.CallExpr)
+					if !ok || !callsNamedFunction(call, renderer) {
+						return true
+					}
+					callCount++
+					if paramIndex >= len(call.Args) || !trustedTemplateValue(call.Args[paramIndex], caller.Body, templates, make(map[string]bool)) {
+						safe = false
+					}
+					return true
+				})
+			}
+		}
+		if callCount == 0 || !safe {
+			return uint32(fset.Position(renderer.Pos()).Line), true
+		}
+	}
+	return 0, false
+}
+
+func templateRendererParam(function *ast.FuncDecl, imports map[string]string) (string, int, string, bool, bool) {
+	if function.Type.Params == nil {
+		return "", 0, "", false, false
+	}
+	var callbackName, dataName string
+	callbackIndex := 0
+	index := 0
+	for _, field := range function.Type.Params.List {
+		if callbackName == "" && isTemplateCallbackType(field.Type, imports) && len(field.Names) == 1 {
+			callbackName = field.Names[0].Name
+			callbackIndex = index
+		}
+		if dataName == "" && isViewmodelPageData(field.Type, imports) && len(field.Names) == 1 {
+			dataName = field.Names[0].Name
+		}
+		count := len(field.Names)
+		if count == 0 {
+			count = 1
+		}
+		index += count
+	}
+	if callbackName == "" {
+		return "", 0, "", false, false
+	}
+	return callbackName, callbackIndex, dataName, true, dataName == ""
+}
+
+func isTemplateCallbackType(expr ast.Expr, imports map[string]string) bool {
+	function, ok := expr.(*ast.FuncType)
+	if !ok || function.Results == nil || len(function.Results.List) != 1 || function.Params == nil || len(function.Params.List) != 1 {
+		return false
+	}
+	return isViewmodelPageData(function.Params.List[0].Type, imports) && isTemplComponentType(function.Results.List[0].Type, imports)
+}
+
+func isTemplComponentType(expr ast.Expr, imports map[string]string) bool {
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "Component" {
+		return false
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	return ok && imports[pkg.Name] == "github.com/a-h/templ"
+}
+
+func isViewmodelPageData(expr ast.Expr, imports map[string]string) bool {
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "PageData" {
+		return false
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	return ok && imports[pkg.Name] == "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+}
+
+func callsTemplateRenderer(body *ast.BlockStmt, component, data string) bool {
+	found := false
+	ast.Inspect(body, func(node ast.Node) bool {
+		selector, ok := node.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Render" {
+			return true
+		}
+		rendered, ok := selector.X.(*ast.CallExpr)
+		if !ok || len(rendered.Args) != 1 {
+			return true
+		}
+		fn, ok := rendered.Fun.(*ast.Ident)
+		arg, argOK := rendered.Args[0].(*ast.Ident)
+		if ok && fn.Name == component && argOK && arg.Name == data {
+			found = true
+		}
+		return true
+	})
+	return found
+}
+
+func callsNamedFunction(call *ast.CallExpr, function *ast.FuncDecl) bool {
+	switch callee := call.Fun.(type) {
+	case *ast.Ident:
+		return function.Recv == nil && callee.Name == function.Name.Name
+	case *ast.SelectorExpr:
+		return function.Recv != nil && callee.Sel.Name == function.Name.Name
+	}
+	return false
+}
+
+func trustedTemplateValue(expr ast.Expr, body *ast.BlockStmt, templates map[string]bool, visiting map[string]bool) bool {
+	switch value := expr.(type) {
+	case *ast.Ident:
+		if templates[value.Name] && !declaresLocalName(body, value.Name) {
+			return true
+		}
+		if visiting[value.Name] {
+			return false
+		}
+		visiting[value.Name] = true
+		defer delete(visiting, value.Name)
+		return trustedTemplateVariable(value.Name, body, templates, visiting)
+	case *ast.FuncLit:
+		return trustedTemplateReturns(value.Body, value.Type.Params, templates)
+	}
+	return false
+}
+
+func trustedTemplateVariable(name string, body *ast.BlockStmt, templates map[string]bool, visiting map[string]bool) bool {
+	found, safe := false, true
+	ast.Inspect(body, func(node ast.Node) bool {
+		switch statement := node.(type) {
+		case *ast.AssignStmt:
+			for i, lhs := range statement.Lhs {
+				id, ok := lhs.(*ast.Ident)
+				if !ok || id.Name != name {
+					continue
+				}
+				found = true
+				if i >= len(statement.Rhs) || !trustedTemplateValue(statement.Rhs[i], body, templates, visiting) {
+					safe = false
+				}
+			}
+		case *ast.ValueSpec:
+			for i, id := range statement.Names {
+				if id.Name != name {
+					continue
+				}
+				found = true
+				if i >= len(statement.Values) || !trustedTemplateValue(statement.Values[i], body, templates, visiting) {
+					safe = false
+				}
+			}
+		}
+		return true
+	})
+	return found && safe
+}
+
+func trustedTemplateReturns(body *ast.BlockStmt, params *ast.FieldList, templates map[string]bool) bool {
+	if body == nil {
+		return false
+	}
+	for _, param := range params.List {
+		for _, name := range param.Names {
+			if declaresLocalName(body, name.Name) {
+				return false
+			}
+		}
+	}
+	found, safe := false, true
+	ast.Inspect(body, func(node ast.Node) bool {
+		statement, ok := node.(*ast.ReturnStmt)
+		if !ok {
+			return true
+		}
+		found = true
+		if len(statement.Results) != 1 || !trustedTemplateCall(statement.Results[0], templates, body) {
+			safe = false
+		}
+		return true
+	})
+	return found && safe
+}
+
+func trustedTemplateCall(expr ast.Expr, templates map[string]bool, body *ast.BlockStmt) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	name, ok := call.Fun.(*ast.Ident)
+	if !ok || !templates[name.Name] || declaresLocalName(body, name.Name) {
+		return false
+	}
+	safe := true
+	for _, arg := range call.Args {
+		ast.Inspect(arg, func(node ast.Node) bool {
+			nested, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := callKindName(nested)
+			switch name {
+			case "Raw", "ComponentFunc", "FromGoHTML", "WithChildren":
+				safe = false
+			default:
+				if templates[name] {
+					safe = false
+				}
+			}
+			return safe
+		})
+	}
+	return safe
+}
+
+func declaresLocalName(body *ast.BlockStmt, want string) bool {
+	found := false
+	ast.Inspect(body, func(node ast.Node) bool {
+		switch declaration := node.(type) {
+		case *ast.ValueSpec:
+			for _, name := range declaration.Names {
+				found = found || name.Name == want
+			}
+		case *ast.TypeSpec:
+			found = found || declaration.Name.Name == want
+		case *ast.AssignStmt:
+			if declaration.Tok == token.DEFINE {
+				for _, lhs := range declaration.Lhs {
+					if name, ok := lhs.(*ast.Ident); ok {
+						found = found || name.Name == want
+					}
+				}
+			}
+		case *ast.RangeStmt:
+			if declaration.Tok == token.DEFINE {
+				for _, expr := range []ast.Expr{declaration.Key, declaration.Value} {
+					if name, ok := expr.(*ast.Ident); ok {
+						found = found || name.Name == want
+					}
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func localGoFunctions(dir string) (map[string]bool, error) {
@@ -1307,7 +1581,7 @@ func safeComponent(expr ast.Expr, imports map[string]string, pkgName string) boo
 		if path == "github.com/a-h/templ" && (selector.Sel.Name == "SafeURL" || selector.Sel.Name == "KV") ||
 			path == "fmt" && selector.Sel.Name == "Sprintf" ||
 			path == "strings" && selector.Sel.Name == "TrimSpace" ||
-			path == "strconv" && selector.Sel.Name == "Itoa" ||
+			path == "strconv" && (selector.Sel.Name == "Itoa" || selector.Sel.Name == "FormatInt") ||
 			path == "example.com/dynamis-code/apps-template/internal/transactions" && selector.Sel.Name == "FormatAmount" {
 			return true
 		}
@@ -1422,6 +1696,55 @@ func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
 			return false
 		}
 		return safeClassExpr(call.Args[classIndex], false, imports) && safeAttrs(call.Args[attrsIndex], imports)
+	}
+	if kind == "Dropdown" {
+		if len(call.Args) != 1 {
+			return false
+		}
+		props, ok := call.Args[0].(*ast.CompositeLit)
+		if !ok {
+			return false
+		}
+		propsType, ok := props.Type.(*ast.SelectorExpr)
+		if !ok || propsType.Sel.Name != "DropdownProps" {
+			return false
+		}
+		componentPackage, componentOK := selector.X.(*ast.Ident)
+		propsPackage, propsOK := propsType.X.(*ast.Ident)
+		if !componentOK || !propsOK || !trustedPackage(imports, componentPackage.Name, atomsImportPath) || !trustedPackage(imports, propsPackage.Name, atomsImportPath) {
+			return false
+		}
+		for _, field := range props.Elts {
+			kv, ok := field.(*ast.KeyValueExpr)
+			if !ok {
+				return false
+			}
+			key, ok := kv.Key.(*ast.Ident)
+			if !ok {
+				return false
+			}
+			switch key.Name {
+			case "Class", "ListClass", "PanelClass", "SummaryClass":
+				if !safeClassExpr(kv.Value, false, imports) {
+					return false
+				}
+			case "SummaryAttrs", "PanelAttrs":
+				if !safeAttrs(kv.Value, imports) {
+					return false
+				}
+			case "Label", "Items", "Summary", "Panel", "Open":
+				// Dropdown's template escapes Label and runtime-validates
+				// Items, Summary, and Panel in its reviewed Scanned/From slots.
+			case "PanelChildren":
+				value, ok := kv.Value.(*ast.Ident)
+				if !ok || value.Name != "false" {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+		return true
 	}
 	if kind != "Anchor" && kind != "Link" && kind != "Button" {
 		return true

@@ -2175,8 +2175,8 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	}
 	for _, path := range []string{workspaceRoot, workspaceRoot + "/settings/members"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<span class="truncate font-bold">`) {
-			t.Errorf("%s lacks plain-text workspace name in single mode", path)
+		if !strings.Contains(body, `href="`+workspaceRoot+`"`) {
+			t.Errorf("%s lacks accessible workspace home link in single mode", path)
 		}
 	}
 	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {

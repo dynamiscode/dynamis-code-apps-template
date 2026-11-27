@@ -1031,3 +1031,141 @@ templ Demo(evil struct{ Templ func() templ.Attributes }) {
 		t.Fatal("an anonymous struct templ-function parameter with a field literally named Templ must be rejected")
 	}
 }
+
+func TestSafeComponentAllowsFormatIntProps(t *testing.T) {
+	imports := map[string]string{
+		"atoms": atomsImportPath, "strconv": "strconv", "other": "example.com/external",
+	}
+	for _, tc := range []struct {
+		expr string
+		want bool
+	}{
+		{`atoms.PlainInput(atoms.InputProps{ID: "list-" + strconv.FormatInt(view.ID, 10)})`, true},
+		{`atoms.PlainInput(atoms.InputProps{ID: other.FormatInt(view.ID)})`, false},
+	} {
+		expr, err := parser.ParseExpr(tc.expr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := safeComponent(expr, imports, "organisms"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.expr, got, tc.want)
+		}
+	}
+}
+
+func TestCheckGoFileResolvesClientRendererProvenanceAcrossFiles(t *testing.T) {
+	const renderer = `package web
+import (
+	t "github.com/a-h/templ"
+	vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
+type Handler struct{}
+func (h *Handler) renderClientPage(component func(vm.PageData) t.Component, data vm.PageData) {
+	component(data).Render(nil, nil)
+}
+`
+	const templSource = "package web\ntempl ClientsPage(data int) { <div>safe</div> }\ntempl NestedComponent() { <span>nested</span> }\n"
+	for _, tc := range []struct {
+		name, routes string
+		wantSafe     bool
+	}{
+		{
+			name: "known template through cross-file aliases",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	page := ClientsPage
+	alias := page
+	h.renderClientPage(alias, data)
+}
+`,
+			wantSafe: true,
+		},
+		{
+			name: "untrusted callback reassignment",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	page := ClientsPage
+	page = externalFactory
+	h.renderClientPage(page, data)
+}
+`,
+		},
+		{
+			name: "untrusted closure",
+			routes: `package web
+import (
+	t "github.com/a-h/templ"
+	vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return t.ComponentFunc(nil) }, data)
+}
+`,
+		},
+		{
+			name: "scalar helper in known template args",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func scalar() int { return 1 }
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return ClientsPage(scalar()) }, data)
+}
+`,
+			wantSafe: true,
+		},
+		{
+			name: "nested component in known template args",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return ClientsPage(NestedComponent()) }, data)
+}
+`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(dir+"/client.templ", []byte(templSource), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dir+"/renderer.go", []byte(renderer), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dir+"/routes.go", []byte(tc.routes), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := CheckGoFile(renderer, dir+"/renderer.go")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (len(got) == 0) != tc.wantSafe {
+				t.Fatalf("got %v, wantSafe %v", got, tc.wantSafe)
+			}
+		})
+	}
+}
+
+func TestDropdownComponentChecksPropsAndRuntimeSlots(t *testing.T) {
+	imports := resolveImports(testImports)
+	for _, tc := range []struct {
+		expr string
+		want bool
+	}{
+		{`atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", SummaryClass: "btn-outline btn-square", SummaryAttrs: templ.Attributes{"aria-label": "Manage"}, Summary: molecules.RowMenuGlyph(true), Items: items})`, true},
+		{`atoms.Dropdown(atoms.DropdownProps{Summary: templ.Raw("<button class=\"btn\">unsafe</button>")})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{SummaryAttrs: templ.Attributes{"style": "display:none"}})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{PanelChildren: true})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{SummaryClass: dynamicClass})`, false},
+		{`other.Dropdown(atoms.DropdownProps{})`, false},
+	} {
+		expr, err := parser.ParseExpr(tc.expr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := safeComponent(expr, imports, "web"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.expr, got, tc.want)
+		}
+	}
+}
