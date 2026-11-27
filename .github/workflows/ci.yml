@@ -141,9 +141,9 @@ jobs:
           test "$(make -n race)" = 'go test -race ./...'
           verify=$(make -n verify)
           # template-smoke runs in its own path-filtered job.
-          remaining=$(make -n lint test deps-check workflow-check generate-check templ-check css-check build; make -n template-smoke)
+          remaining=$(make -n lint test deps-check workflow-check generate-check templ-check css-check notes-check build; make -n template-smoke)
           diff -u <(printf '%s\n' "$verify" | sed '/^go test -race \.\/\.\.\.$/d') <(printf '%s\n' "$remaining")
-      - run: make deps-check workflow-check generate-check templ-check css-check
+      - run: make deps-check workflow-check generate-check templ-check css-check notes-check
 
   template-changes:
     runs-on: ubuntu-24.04

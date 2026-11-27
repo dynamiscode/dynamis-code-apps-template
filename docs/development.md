@@ -10,7 +10,7 @@ go run ./cmd/server
 
 Running `make setup` configures `.githooks` (checking Go formatting and conflict markers on commit) and installs dependencies. Refresh only the hook path with `make setup-hooks`. The `commit-msg` hook rejects AI attribution trailers (`Co-Authored-By: Claude` and `Generated with Claude Code`), and `make lint` tests that hook via `scripts/test-commit-msg-hook.sh`.
 
-Run `make ci-local` optionally to check locally before pushing. It runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `templ-check`, `css-check`, `build`, `secret-check`). CI-only targets are listed in the Makefile comment above `ci-local`.
+Run `make ci-local` optionally to check locally before pushing. It runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `templ-check`, `css-check`, `notes-check`, `build`, `secret-check`). CI-only targets are listed in the Makefile comment above `ci-local`.
 `make setup` also enables git rerere for this repo (`rerere.enabled`), which records conflict resolutions and replays them when the same conflict recurs, such as when rebasing stacked branches.
 
 Use Go 1.26 or newer; the module records the development toolchain. Use an
@@ -193,7 +193,7 @@ make docker-smoke
 ```
 
 `make verify` checks formatting, tests, vet, race behavior, module checks,
-workflow syntax and action pins, generated OpenAPI, templ, and CSS drift,
+workflow syntax and action pins, generated OpenAPI, templ, CSS, and notes bundle drift,
 command builds, and generation of a clean application. During active iteration, run package-focused
 tests (such as `go test ./internal/web/...`) to avoid the integration and
 template-smoke overhead; run full `go test ./...` and `make verify` once the change
