@@ -17,6 +17,19 @@ templ clientDeleteDialog(data viewmodel.PageData) {
 		</div>
 	</dialog>
 }
+templ clientArchiveDialog(data viewmodel.PageData) {
+	<dialog id="client-archive-dialog" class="modal" aria-labelledby="client-archive-title" aria-describedby="client-archive-description" data-client-archive-dialog>
+		<div class="modal-box w-full max-w-lg">
+			<h2 id="client-archive-title" class="text-xl font-bold">{ data.T("clients.archive") }</h2>
+			<p id="client-archive-description" class="my-4">{ data.T("clients.archive_confirm") } <strong data-client-archive-name></strong></p>
+			<div class="modal-action">
+				<button class="btn btn-outline" type="button" data-client-archive-cancel>{ data.T("common.cancel") }</button>
+				<button class="btn btn-primary" type="button" data-client-archive-confirm>{ data.T("clients.archive") }</button>
+			</div>
+		</div>
+	</dialog>
+}
+
 
 templ clientDeletePage(data viewmodel.PageData, action, back string, selected []clients.Client, bulk bool) {
 	@templates.DashboardShell(data, templates.DashboardHome) {

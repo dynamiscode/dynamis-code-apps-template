@@ -18,7 +18,8 @@ templ engagementBoardPage(data viewmodel.PageData, columns []engagementBoardColu
  }
 }
 
-templ engagementBoardView(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, clientsPath string, search string, selectedStage string, selectedAssignee string) {
+templ engagementBoardView(data viewmodel.PageData, columns []engagementBoardColumn, stages []engagement.Stage, clientsPath string, search string, selectedStage string, selectedAssignee string, listURL string) {
+ <a class="btn btn-outline btn-sm" href={ templ.SafeURL(listURL) }>{ data.T("engagement.list_view_compact") }</a>
  @engagementBoardColumns(data, columns, stages, clientsPath, data.CurrentPath, false, "", search, selectedStage, selectedAssignee)
 }
 
@@ -29,7 +30,7 @@ templ engagementBoardColumns(data viewmodel.PageData, columns []engagementBoardC
   <div class="flex flex-wrap gap-4 my-4">
    for _, column := range columns {
     <section class="card bg-base-100 p-4 flex-1 min-w-64" aria-labelledby={ "stage-" + column.Stage.ID.String() }>
-     <h2 id={ "stage-" + column.Stage.ID.String() } class="text-lg font-bold">{ column.Stage.Name }
+     <h2 id={ "stage-" + column.Stage.ID.String() } class="text-lg font-bold break-words">{ column.Stage.Name }
       if column.Stage.Archived {
        <span> ({ data.T("engagement.archived") })</span>
       }
@@ -39,13 +40,19 @@ templ engagementBoardColumns(data viewmodel.PageData, columns []engagementBoardC
      }
      <ul>
       for _, item := range column.Page.Engagements {
-       <li class="py-2">
-        <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+       <li class="py-2 break-words">
+        if legacy {
+         <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+        } else {
+         <a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(engagementListItemURL(data, item, clientsPath)) }>{ item.Name }</a>
+        }
         <span> — </span><a class="link rounded-field border border-base-300 px-1" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String()) }>{ item.ClientName }</a>
         if data.CanEditClients && !boardHasMoveTarget(stages, item.StageID) {
          <p>{ data.T("engagement.no_move_target") }</p>
         }
         if data.CanEditClients && boardHasMoveTarget(stages, item.StageID) {
+         <details>
+          <summary class="btn btn-outline btn-sm">{ data.T("engagement.move") } — { item.Name }</summary>
          <form action={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String() + "/stage") } method="post">
           <input type="hidden" name="csrf" value={ data.CSRF }/>
           if legacy {
@@ -78,6 +85,7 @@ templ engagementBoardColumns(data viewmodel.PageData, columns []engagementBoardC
           </select>
           <button class="btn btn-secondary" type="submit">{ data.T("engagement.move") }</button>
          </form>
+         </details>
         }
        </li>
       }

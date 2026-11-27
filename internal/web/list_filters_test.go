@@ -79,3 +79,26 @@ func TestListFilterRange(t *testing.T) {
 		t.Fatalf("range chip = %+v", view.Chips)
 	}
 }
+
+func TestListFilterFieldStepsPreserveOptions(t *testing.T) {
+	fields := []listFilterField{
+		{Key: "amount", Label: "Amount", InputType: "number", Ops: []listFilterOp{{Key: "equals"}, {Key: viewmodel.ListOpBetween}}},
+		{Key: "custom", Label: "Custom field", Ops: []listFilterOp{{Key: "equals"}}, Choices: []listFilterChoice{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Beta"}}},
+	}
+	query := url.Values{"search": {"example"}, "filter": {"amount:equals:3"}}
+	input, ok := parseListFilters(query, fields)
+	if !ok {
+		t.Fatal("valid query rejected")
+	}
+	view := buildListFilterView("/list", query, fields, input)
+	amount, custom := view.Fields[0], view.Fields[1]
+	if !amount.Step.Range || amount.Step.InputType != "number" || len(amount.Step.Ops) != 2 || !amount.Step.Ops[0].Checked {
+		t.Fatalf("amount step = %+v", amount.Step)
+	}
+	if !custom.Step.IsChoice || len(custom.Step.Choices) != 2 || custom.Step.Choices[1].Label != "Beta" {
+		t.Fatalf("custom step = %+v", custom.Step)
+	}
+	if !strings.Contains(custom.Href, "filter_field=custom") || !strings.Contains(custom.Href, "search=example") || !strings.Contains(custom.Href, "filter=amount") {
+		t.Fatalf("fallback link lost query: %q", custom.Href)
+	}
+}

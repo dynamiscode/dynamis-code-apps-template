@@ -381,7 +381,7 @@
         "security": [{"bearerAuth": []}],
         "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}],
         "responses": {
-          "200": {"description": "Stages in workspace order", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/EngagementStage"}}}}},
+          "200": {"description": "Stages ordered by kind (open, won, lost), then workspace order", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/EngagementStage"}}}}},
           "401": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}
         }
       },
@@ -397,7 +397,10 @@
       }
     },
     "/api/v1/workspaces/{workspaceId}/engagement-stages/reorder": {
-      "post": {"operationId": "reorderEngagementStages", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["ids"], "properties": {"ids": {"type": "array", "items": {"type": "string"}}}}}}}, "responses": {"204": {"description": "Stages reordered"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
+      "post": {"operationId": "reorderEngagementStages", "description": "Move one active stage using the complete snapshot returned by listEngagementStages. A kind change requires explicit confirmation and the current engagement count.", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}], "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "additionalProperties": false, "required": ["ids", "snapshot", "movedId", "newKind", "expectedCount", "confirmed"], "properties": {"ids": {"type": "array", "items": {"type": "string"}}, "snapshot": {"type": "array", "items": {"$ref": "#/components/schemas/EngagementStage"}}, "movedId": {"type": "string"}, "newKind": {"type": "string", "enum": ["open", "won", "lost"]}, "expectedCount": {"type": "integer", "minimum": 0}, "confirmed": {"type": "boolean"}}}}}}, "responses": {"204": {"description": "Stage moved"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}, "409": {"description": "Snapshot or count is stale, or kind change requires confirmation", "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}}}
+    },
+    "/api/v1/workspaces/{workspaceId}/engagement-stages/{stageId}/engagement-count": {
+      "get": {"operationId": "stageEngagementCount", "description": "Returns the number of engagements currently in an active stage for kind-change confirmation.", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "stageId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"200": {"description": "Current engagement count", "content": {"application/json": {"schema": {"type": "object", "required": ["count"], "properties": {"count": {"type": "integer", "minimum": 0}}}}}}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}
     },
     "/api/v1/workspaces/{workspaceId}/engagement-stages/{stageId}/archive": {
       "post": {"operationId": "archiveEngagementStage", "security": [{"bearerAuth": []}], "parameters": [{"$ref": "#/components/parameters/WorkspaceId"}, {"name": "stageId", "in": "path", "required": true, "schema": {"type": "string"}}], "responses": {"204": {"description": "Stage archived"}, "400": {"$ref": "#/components/responses/Problem"}, "403": {"$ref": "#/components/responses/Problem"}}}

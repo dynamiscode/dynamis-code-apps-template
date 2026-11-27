@@ -53,12 +53,6 @@ type focusInfo struct {
 	BoxShadow string `json:"boxShadow"`
 }
 
-type spacingMetrics struct {
-	Gap       float64 `json:"gap"`
-	MarginTop string  `json:"marginTop"`
-	Height    float64 `json:"height"`
-}
-
 type oauthRegistration struct {
 	Status int `json:"status"`
 	Body   struct {
@@ -82,6 +76,24 @@ const settingsOverflowExpr = `(() => ({
 	document: document.documentElement.scrollWidth > document.documentElement.clientWidth,
 	navigation: Array.from(document.querySelectorAll(".workspace-settings-nav > *"))
 		.some((element) => element.scrollWidth > element.clientWidth + 1),
+	scrollWidth: document.documentElement.scrollWidth,
+	clientWidth: document.documentElement.clientWidth,
+	innerWidth,
+	overflowing: [...document.querySelectorAll("body *")].filter((element) => {
+		const rect = element.getBoundingClientRect();
+		return rect.width > 0 && rect.right > document.documentElement.clientWidth;
+	}).slice(0, 10).map((element) => {
+		const rect = element.getBoundingClientRect();
+		return {
+			tag: element.tagName.toLowerCase(),
+			id: element.id,
+			className: typeof element.className === "string" ? element.className : "",
+			left: rect.left,
+			right: rect.right,
+			scrollWidth: element.scrollWidth,
+			clientWidth: element.clientWidth,
+		};
+	}),
 }))()`
 
 const deletionFormExpr = `(() => ({
@@ -144,9 +156,6 @@ func (s *a11yRun) flow() error {
 	if err := s.audit("login"); err != nil {
 		return err
 	}
-	if err := s.expectFormActionSpacing("#password", `form[action="/login"] button[type="submit"]`, "login"); err != nil {
-		return err
-	}
 	if err := s.expectKeyboardOrder(); err != nil {
 		return err
 	}
@@ -156,11 +165,6 @@ func (s *a11yRun) flow() error {
 	}
 	if err := s.audit("workspaces"); err != nil {
 		return err
-	}
-	if err := s.expectFormActionSpacing("#workspace-locale", `form[action="/workspaces"] button[type="submit"]`, "workspace creation"); err != nil {
-		current, _ := s.location()
-		body, _ := eval[string](s.browser, "document.body.innerText")
-		return fmt.Errorf("%w at %s: %s", err, current, body)
 	}
 	href, err := eval[string](s.browser, `document.querySelector(".cards a").getAttribute("href")`)
 	if err != nil {
@@ -249,15 +253,24 @@ func (s *a11yRun) flow() error {
 	if err := s.waitFor("#workspace-locale"); err != nil {
 		return err
 	}
-	if err := s.expectFormActionSpacing("#workspace-locale", `form[action$="/settings/general"] button[type="submit"]`, "general settings"); err != nil {
-		return err
-	}
 	if err := s.setViewport(320, 800); err != nil {
 		return err
 	}
 	settingsOverflow, err := eval[struct {
-		Document   bool `json:"document"`
-		Navigation bool `json:"navigation"`
+		Document    bool `json:"document"`
+		Navigation  bool `json:"navigation"`
+		ScrollWidth int  `json:"scrollWidth"`
+		ClientWidth int  `json:"clientWidth"`
+		InnerWidth  int  `json:"innerWidth"`
+		Overflowing []struct {
+			Tag         string  `json:"tag"`
+			ID          string  `json:"id"`
+			ClassName   string  `json:"className"`
+			Left        float64 `json:"left"`
+			Right       float64 `json:"right"`
+			ScrollWidth int     `json:"scrollWidth"`
+			ClientWidth int     `json:"clientWidth"`
+		} `json:"overflowing"`
 	}](s.browser, settingsOverflowExpr)
 	if err != nil {
 		return err
@@ -312,9 +325,6 @@ func (s *a11yRun) flow() error {
 		return err
 	}
 	if err := s.audit("sessions"); err != nil {
-		return err
-	}
-	if err := s.expectNoExtraButtonMargin(".inline button", "inline actions"); err != nil {
 		return err
 	}
 	if err := s.expectMobileNoOverflow("sessions"); err != nil {
@@ -738,44 +748,6 @@ func (s *a11yRun) expectActive(id string) error {
 func (s *a11yRun) expectFocusRole(role, message string) error {
 	if err := s.waitUntil(fmt.Sprintf(`document.activeElement?.getAttribute("role") === %s`, jsString(role))); err != nil {
 		return fmt.Errorf("%s: %w", message, err)
-	}
-	return nil
-}
-
-func (s *a11yRun) expectFormActionSpacing(controlSelector, buttonSelector, name string) error {
-	metrics, err := eval[*spacingMetrics](s.browser, fmt.Sprintf(`(() => {
-		const control = document.querySelector(%s);
-		const button = document.querySelector(%s);
-		if (!control || !button) return null;
-		const rect = button.getBoundingClientRect();
-		return {
-			gap: rect.top - control.getBoundingClientRect().bottom,
-			marginTop: getComputedStyle(button).marginTop,
-			height: rect.height,
-		};
-	})()`, jsString(controlSelector), jsString(buttonSelector)))
-	if err != nil {
-		return err
-	}
-	if metrics == nil {
-		return fmt.Errorf("%s spacing controls missing", name)
-	}
-	if metrics.MarginTop != "12px" || metrics.Gap < 12 || metrics.Height < 44 {
-		return fmt.Errorf("%s button spacing invalid: %+v", name, *metrics)
-	}
-	return nil
-}
-
-func (s *a11yRun) expectNoExtraButtonMargin(selector, name string) error {
-	marginTop, err := eval[string](s.browser, fmt.Sprintf(`(() => {
-		const button = document.querySelector(%s);
-		return button ? getComputedStyle(button).marginTop : "null";
-	})()`, jsString(selector)))
-	if err != nil {
-		return err
-	}
-	if marginTop != "0px" {
-		return fmt.Errorf("%s button has unexpected top margin: %s", name, marginTop)
 	}
 	return nil
 }

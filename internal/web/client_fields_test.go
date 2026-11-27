@@ -23,11 +23,19 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), `name="label"`) ||
 		!strings.Contains(page.Body.String(), `id="client-field-label"`) ||
 		!strings.Contains(page.Body.String(), `class="input w-full"`) ||
-		!strings.Contains(page.Body.String(), `class="btn btn-outline" href="`+env.listPath()+`"`) ||
+		!strings.Contains(page.Body.String(), `class="detail-back" href="`+env.listPath()+`"`) ||
 		!strings.Contains(page.Body.String(), `class="btn btn-primary" type="submit"`) {
 		t.Fatalf("owner fields page rendering is incorrect (%d): %s", page.Code, page.Body.String())
 	}
-	for _, marker := range []string{`data-entry-field`, `for="client-field-label"`, `for="client-field-type"`, `data-entry-picker`, `name="csrf"`, `data-trim=""`} {
+	if !strings.Contains(page.Body.String(), `<div class="text-center"><p>No custom fields yet.`) {
+		t.Fatalf("empty state is not centered: %s", page.Body.String())
+	}
+	if !strings.Contains(page.Body.String(), `data-client-field-create hidden`) ||
+		!strings.Contains(page.Body.String(), `data-client-field-dialog`) ||
+		!strings.Contains(page.Body.String(), `<noscript><details`) {
+		t.Fatalf("empty state should offer a create dialog and no-JavaScript form: %s", page.Body.String())
+	}
+	for _, marker := range []string{`data-entry-field`, `for="client-field-label"`, `for="client-field-type"`, `name="csrf"`, `data-trim=""`} {
 		if !strings.Contains(page.Body.String(), marker) {
 			t.Errorf("field creation form missing %s", marker)
 		}
@@ -43,19 +51,40 @@ func TestClientFieldsDefineArchiveAndRestoreThroughForms(t *testing.T) {
 	if !strings.Contains(list.Body.String(), "&lt;b&gt;Referral&lt;/b&gt; source") || strings.Contains(list.Body.String(), "<b>Referral") {
 		t.Fatalf("label is not rendered exactly as typed: %s", list.Body.String())
 	}
+	if !strings.Contains(list.Body.String(), `<table class="table w-full">`) ||
+		!strings.Contains(list.Body.String(), `scope="col">Name`) ||
+		!strings.Contains(list.Body.String(), `scope="col">Type`) ||
+		!strings.Contains(list.Body.String(), `aria-label="More actions: &lt;b&gt;Referral&lt;/b&gt; source"`) ||
+		strings.Contains(list.Body.String(), `client-field-card`) {
+		t.Fatalf("field list does not expose a table and row actions: %s", list.Body.String())
+	}
 
 	var fieldKey int64
 	if err := env.db.QueryRow("SELECT id FROM client_fields").Scan(&fieldKey); err != nil {
 		t.Fatal(err)
 	}
 	shortID := clients.FieldID(fieldKey).String()
+	if !strings.Contains(list.Body.String(), env.fieldsPath()+"/"+shortID+"/archive") ||
+		strings.Contains(list.Body.String(), env.fieldsPath()+"/"+shortID+"/delete") ||
+		strings.Contains(list.Body.String(), `>Archived</span>`) {
+		t.Fatalf("active field exposes incorrect actions or status: %s", list.Body.String())
+	}
+	viewer := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.viewerCookies, nil)
+	if strings.Contains(viewer.Body.String(), env.fieldsPath()+"/"+shortID+"/archive") ||
+		strings.Contains(viewer.Body.String(), `More actions:`) {
+		t.Fatalf("viewer sees management actions: %s", viewer.Body.String())
+	}
 	archive := request(env.routes, http.MethodPost, env.fieldsPath()+"/"+shortID+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
 	if archive.Code != http.StatusSeeOther {
 		t.Fatalf("archive = %d: %s", archive.Code, archive.Body.String())
 	}
 	archived := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
-	if !strings.Contains(archived.Body.String(), env.fieldsPath()+"/"+shortID+"/restore") {
-		t.Fatalf("archived field does not offer restore: %s", archived.Body.String())
+	if !strings.Contains(archived.Body.String(), env.fieldsPath()+"/"+shortID+"/restore") ||
+		!strings.Contains(archived.Body.String(), env.fieldsPath()+"/"+shortID+"/delete") ||
+		!strings.Contains(archived.Body.String(), `>Archived</span>`) ||
+		!strings.Contains(archived.Body.String(), `name="confirm_delete"`) ||
+		strings.Contains(archived.Body.String(), env.fieldsPath()+"/"+shortID+"/archive") {
+		t.Fatalf("archived field does not expose its status and permitted actions: %s", archived.Body.String())
 	}
 	restore := request(env.routes, http.MethodPost, env.fieldsPath()+"/"+shortID+"/restore", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
 	if restore.Code != http.StatusSeeOther {
@@ -129,6 +158,10 @@ func TestClientFieldRefusalKeepsTheChosenType(t *testing.T) {
 	}, env.cookies, nil)
 	if refused.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("blank label = %d: %s", refused.Code, refused.Body.String())
+	}
+	if !strings.Contains(refused.Body.String(), `data-client-field-create-error`) ||
+		!strings.Contains(refused.Body.String(), `<noscript><details open>`) {
+		t.Fatalf("rejected create form is not accessible in dialog and no-JavaScript fallback: %s", refused.Body.String())
 	}
 	tokens := html.NewTokenizer(strings.NewReader(refused.Body.String()))
 	inTypeSelect := false

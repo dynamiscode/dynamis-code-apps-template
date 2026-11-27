@@ -83,6 +83,8 @@ func TestSettingsReflowAt320Pixels(t *testing.T) {
 	signInAs(t, tab, fixtureOwnerEmail, fixturePassword)
 	workspacePath := openWorkspaceSettings(t, tab, "/settings/general")
 	run(t, tab, chromedp.EmulateViewport(320, 800))
+	navigate(t, tab, workspacePath+"/settings/general")
+	expectNoOverflow(t, tab, 320)
 	for _, section := range []string{"tokens", "provisioning"} {
 		navigate(t, tab, workspacePath+"/settings/"+section)
 		waitVisible(t, tab, "main h2")

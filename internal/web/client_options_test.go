@@ -75,6 +75,42 @@ func TestClientChoiceOptionsManagedThroughForms(t *testing.T) {
 	}
 }
 
+func TestClientOptionRejectedDraftStaysWithItsField(t *testing.T) {
+	env := newClientsTestEnv(t)
+	for _, label := range []string{"First", "Second"} {
+		response := request(env.routes, http.MethodPost, env.fieldsPath(), url.Values{
+			"csrf": {env.csrf}, "label": {label}, "type": {"single_choice"},
+		}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("define %s = %d: %s", label, response.Code, response.Body.String())
+		}
+	}
+	var fieldKey int64
+	if err := env.db.QueryRow("SELECT id FROM client_fields WHERE label = 'Second'").Scan(&fieldKey); err != nil {
+		t.Fatal(err)
+	}
+	fieldID := clients.FieldID(fieldKey).String()
+	draft := "<draft>" + strings.Repeat("x", 101)
+	response := request(env.routes, http.MethodPost, env.fieldsPath()+"/"+fieldID+"/options", url.Values{
+		"csrf": {env.csrf}, "label": {draft},
+	}, env.cookies, nil)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("rejected option = %d: %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	fieldStart := strings.Index(body, `>Second </th>`)
+	input := `id="option-label-` + fieldID + `" name="label" type="text" value="&lt;draft&gt;` + strings.Repeat("x", 101) + `"`
+	inputPos := strings.Index(body, input)
+	errorPos := strings.Index(body, "Enter an option label of up to 100 characters.")
+	if fieldStart < 0 || errorPos < fieldStart || inputPos < errorPos ||
+		!strings.Contains(body[fieldStart:errorPos], `<details class="client-field-options" open>`) ||
+		!strings.Contains(body[inputPos:], `aria-describedby="option-error-`+fieldID+`"`) ||
+		strings.Contains(body[:fieldStart], "Enter an option label of up to 100 characters.") ||
+		strings.Count(body, "Enter an option label of up to 100 characters.") != 1 {
+		t.Fatalf("draft or contextual error missing from second field: %s", body)
+	}
+}
+
 // TestClientChoiceValuesUseASelectAndViewersReadLabels covers the client page: an
 // owner picks an option from a select, a typed label is refused, and a viewer
 // reads the option's label with no form.
@@ -187,5 +223,11 @@ func TestClientOptionDeleteAsksBeforeClearingValues(t *testing.T) {
 	}
 	if !strings.Contains(page, `<p class="warning alert alert-warning py-2">Delete this option? Clients that chose it lose that value. This cannot be undone.</p>`) {
 		t.Fatalf("option delete does not explain the effect without JavaScript: %s", page)
+	}
+	detailsPos := strings.Index(page, `<details><summary class="btn btn-error btn-outline">`)
+	warningPos := strings.Index(page, `<p class="warning alert alert-warning py-2">Delete this option?`)
+	formPos := strings.Index(page, `action="`+env.fieldsPath()+"/"+fieldShort+`/options/`)
+	if detailsPos < 0 || warningPos < detailsPos || formPos < warningPos {
+		t.Fatalf("option confirmation is not available through a no-JavaScript disclosure: %s", page)
 	}
 }

@@ -8,7 +8,9 @@ import (
 // for single-choice fields.
 type ClientFieldRow struct {
 	clients.Field
-	Options []clients.Option
+	Options        []clients.Option
+	OptionDraft    string
+	OptionErrorKey string
 }
 
 // clientValueRow is a field's value with the choices a form offers. ValueLabel is

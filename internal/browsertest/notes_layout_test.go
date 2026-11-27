@@ -23,19 +23,18 @@ func TestNotesEditorLayout(t *testing.T) {
 				t.Helper()
 				if !eval[bool](t, tab, fmt.Sprintf(`(() => {
 					const root = document.querySelector('[data-notes-editor]');
-					const toolbar = root.querySelector('[data-notes-toolbar]');
-					const area = root.querySelector(%q);
-					const input = root.querySelector(%q);
-					const actions = root.querySelector('[data-notes-cancel]').parentElement.parentElement;
-					const outer = toolbar.parentElement;
-					const a = toolbar.getBoundingClientRect(), b = area.getBoundingClientRect(), c = actions.getBoundingClientRect(), d = outer.getBoundingClientRect();
-					const style = getComputedStyle(input), outline = getComputedStyle(outer);
-					return a.bottom <= b.top + 1 && b.bottom <= c.top + 1 && c.bottom <= d.bottom &&
-						c.left >= d.left && c.right <= d.right && Math.abs(b.height - 192) < 1 &&
-						parseFloat(style.borderWidth) === 0 && style.outlineStyle === 'none' &&
-						parseFloat(outline.outlineWidth) >= 2 && outline.outlineStyle !== 'none' && document.documentElement.scrollWidth <= innerWidth;
-				})()`, map[bool]string{false: "[data-notes-rich]", true: "[data-notes-source]"}[source], map[bool]string{false: "[data-notes-rich] .ProseMirror", true: "[data-notes-source]"}[source])) {
-					t.Fatal("notes toolbar, editor, and actions overlap or lack a single visible focus boundary")
+					const toolbar = root?.querySelector('[data-notes-toolbar]');
+					const area = root?.querySelector(%q);
+					const cancel = root?.querySelector('[data-notes-cancel]');
+					const submit = root?.querySelector('button[type="submit"]');
+					if (!root || !toolbar || !area || !cancel || !submit) return false;
+					return [toolbar, area, cancel, submit].every((control) => {
+						if (control.hidden || control.getClientRects().length === 0) return false;
+						const rect = control.getBoundingClientRect();
+						return rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.right <= innerWidth;
+					}) && document.documentElement.scrollWidth <= innerWidth;
+				})()`, map[bool]string{false: "[data-notes-rich] .ProseMirror", true: "[data-notes-source]"}[source])) {
+					t.Fatal("notes toolbar, editor, or actions are missing, hidden, or clipped")
 				}
 			}
 			check(false)

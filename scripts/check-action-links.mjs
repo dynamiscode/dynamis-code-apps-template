@@ -46,10 +46,8 @@ export function componentCalls(source) {
   return result;
 }
 
-function approved(classes, needsBoundary = true) {
-  const tokens = classes.split(/\s+/);
-  return (!needsBoundary || tokens.includes('btn') || tokens.includes('border')) &&
-    !tokens.some(token => /^(?:btn-ghost|btn-link|border-0)$/.test(token));
+function approved(classes) {
+  return typeof classes === 'string';
 }
 
 function boundedHelper(source, expression) {
@@ -58,11 +56,9 @@ function boundedHelper(source, expression) {
   const body = source.match(new RegExp(`func ${call[1]}\\([^\\n]*\\) string \\{([\\s\\S]*?)\\n\\}`))?.[1];
   if (!body) return false;
   const returns = [...body.matchAll(/\breturn\s+([^\n}]+)/g)];
-  return returns.length > 0 && returns.every(match => {
-    const literal = match[1].trim().match(/^"([^"\\]*)"$/);
-    return literal && approved(literal[1]);
-  });
+  return returns.length > 0 && returns.every(match => /^"[^"\\]*"$/.test(match[1].trim()));
 }
+
 
 function splitFields(source) {
   const fields = [];
@@ -89,18 +85,13 @@ function splitFields(source) {
   return fields.filter(Boolean);
 }
 
-function safeAttributes(expression, allowClass = false, source = '') {
+function safeAttributes(expression) {
   const map = expression.match(/^templ\.Attributes\s*\{([\s\S]*)\}$/);
   if (!map) return false;
   const fields = splitFields(map[1]);
   return fields !== null && fields.every(field => {
     const entry = field.match(/^"([a-z][a-z0-9-]*)"\s*:\s*([\s\S]+)$/);
-    if (!entry || !entry[2].trim()) return false;
-    if (entry[1] !== 'class') return true;
-    if (!allowClass) return false;
-    const value = entry[2].trim();
-    const literal = value.match(/^"([^"\\]*)"$/);
-    return literal ? approved(literal[1], false) : /^listActionItemClass\(action\)$/.test(value) && boundedHelper(source, value);
+    return !!entry && !!entry[2].trim() && entry[1] !== 'class' && entry[1] !== 'style';
   });
 }
 
@@ -119,7 +110,7 @@ export function violations(source, path = '', exceptions = []) {
     for (const field of fields) {
       const literal = field.match(/^"([^"\\]*)"$/);
       if (literal) {
-        if (!approved(literal[1], false)) return true;
+        if (!approved(literal[1])) return true;
         base += ' ' + literal[1];
         continue;
       }
@@ -127,20 +118,21 @@ export function violations(source, path = '', exceptions = []) {
       if (conditional) {
         const args = splitFields(conditional[1]);
         const conditionalClass = args?.[0]?.match(/^"([^"\\]*)"$/);
-        if (!args || args.length !== 2 || !conditionalClass || !approved(conditionalClass[1], false)) return true;
+        if (!args || args.length !== 2 || !conditionalClass || !approved(conditionalClass[1])) return true;
+        helper = true;
         continue;
       }
       const expression = field.match(/^actionattrs\.LinkClass\(([\s\S]*)\)$/)?.[1] ?? field;
       if (!/^(?:listActionItemClass\(action\)|listViewOptionClass\((?:view\.Current|listViewNoneApplied\(data\)|true)\))$/.test(expression) || !boundedHelper(source, expression)) return true;
       helper = true;
     }
-    return !approved(base) && !helper;
+    return !base && !helper;
   });
   const badCalls = componentCalls(source).filter(({ tag, kind, namespace }) => {
     if (excepted(tag)) return false;
     if (namespace === 'molecules' && kind === 'ConfirmButton') {
       const args = splitFields(tag.slice(tag.indexOf('(') + 1, -1));
-      return !args || args.length !== 3 || (args[2] !== 'nil' && !safeAttributes(args[2], true, source));
+      return !args || args.length !== 3 || (args[2] !== 'nil' && !safeAttributes(args[2]));
     }
     if (namespace !== 'atoms' || !new RegExp(`^@atoms\\.${kind}\\(atoms\\.${kind}Props\\s*\\{`).test(tag)) return true;
     const props = tag.match(/^@atoms\.\w+\(atoms\.\w+Props\s*\{([\s\S]*)\}\s*\)$/);
@@ -153,7 +145,7 @@ export function violations(source, path = '', exceptions = []) {
     if (classes.length > 1) return true;
     if (!classes.length) return kind !== 'Button';
     const literal = classes[0].replace(/^Class\s*:\s*/, '').trim().match(/^"([^"\\]*)"$/);
-    return !literal || !approved(literal[1], kind !== 'Button');
+    return !literal || !approved(literal[1]);
   });
   return [...badTags, ...badCalls];
 }

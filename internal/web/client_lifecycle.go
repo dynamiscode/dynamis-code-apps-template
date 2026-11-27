@@ -27,6 +27,13 @@ func (h *Handler) changeClientArchive(writer http.ResponseWriter, request *http.
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	clientID := clients.ParseClientIDOrZero(request.PathValue("clientId"))
+	if archive && request.FormValue("confirm_archive") != "yes" {
+		if _, _, _, ok := h.workspaceSession(writer, request, workspaceID, identity.ResourcesWrite); !ok {
+			return
+		}
+		h.renderClientDetail(writer, request, http.StatusOK, "clients.archive_confirm", nil)
+		return
+	}
 	var err error
 	if archive {
 		_, err = h.clients.Archive(request.Context(), principal, workspaceID, clientID, auditContext(request))
@@ -37,7 +44,7 @@ func (h *Handler) changeClientArchive(writer http.ResponseWriter, request *http.
 		h.clientError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+	h.redirect(writer, request, clientContextURL(h.clientsPath(workspaceID)+"/"+clientID.String(), request.URL.Query().Get("return")))
 }
 
 // deleteClient permanently removes a client. Owners and admins only. The page

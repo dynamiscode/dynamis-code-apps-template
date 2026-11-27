@@ -348,7 +348,7 @@ var clientAuthorizationMatrix = []clientAuthorizationRow{
 		},
 		restOK: http.StatusOK,
 		web: func(ws matrixWorkspace) matrixRequest {
-			return matrixRequest{method: http.MethodPost, path: webBase(ws) + "/clients/" + ws.client.String() + "/archive"}
+			return matrixRequest{method: http.MethodPost, path: webBase(ws) + "/clients/" + ws.client.String() + "/archive", form: url.Values{"confirm_archive": {"yes"}}}
 		},
 		webOK: http.StatusSeeOther,
 	},

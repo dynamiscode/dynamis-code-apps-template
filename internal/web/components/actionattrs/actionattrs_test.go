@@ -17,13 +17,17 @@ import (
 	"github.com/a-h/templ"
 )
 
-func TestWithRejectsUnlistedKey(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected panic for disallowed key")
-		}
-	}()
-	New().With("class", "btn-ghost")
+func TestWithRejectsClassAndStyleOverrides(t *testing.T) {
+	for _, key := range []string{"class", "style"} {
+		t.Run(key, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("expected panic for disallowed key")
+				}
+			}()
+			New().With(key, "value")
+		})
+	}
 }
 
 func TestWithAllowsListedKey(t *testing.T) {
@@ -143,9 +147,11 @@ func renderScanned(t *testing.T, c templ.Component) (string, func()) {
 	}
 }
 
-func TestScannedRejectsUnboundedAnchor(t *testing.T) {
-	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<a class="link" onclick="evil()">click</a>`))
-	assertPanicked()
+func TestScannedRejectsExecutableAttributes(t *testing.T) {
+	for _, fragment := range []string{`<a class="link" onclick="evil()">click</a>`, `<img src="x" onerror="evil()">`} {
+		_, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
+		assertPanicked()
+	}
 }
 
 func TestScannedRejectsSplitActionTag(t *testing.T) {
@@ -160,9 +166,15 @@ func TestScannedRejectsSplitActionTag(t *testing.T) {
 	}
 }
 
-func TestScannedRejectsGhostButton(t *testing.T) {
-	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button class="btn btn-ghost">click</button>`))
-	assertPanicked()
+func TestScannedAllowsVisualClassVariants(t *testing.T) {
+	for _, fragment := range []string{`<button class="btn-ghost">click</button>`, `<a class="link">click</a>`, `<button class="arbitrary">click</button>`} {
+		t.Run(fragment, func(t *testing.T) {
+			got, _ := renderScanned(t, rawHTMLComponent(fragment))
+			if got != fragment {
+				t.Fatalf("got %q, want %q", got, fragment)
+			}
+		})
+	}
 }
 
 func TestScannedRejectsDanglingCommentBeforeEmission(t *testing.T) {
@@ -175,21 +187,25 @@ func TestScannedRejectsDanglingCommentBeforeEmission(t *testing.T) {
 	}
 }
 
-func TestScannedUsesBrowserEffectiveClass(t *testing.T) {
-	for _, class := range []string{`class="btn-ghost" CLASS="btn"`, `class="text&nbsp;btn"`, `class="md:btn"`, `class="btn" style="border:0"`, `class="border border-transparent"`, `class="border border-none"`} {
-		t.Run(class, func(t *testing.T) {
-			_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button `+class+`>click</button>`))
+func TestScannedRejectsInlineStyle(t *testing.T) {
+	_, assertPanicked := renderScanned(t, rawHTMLComponent(`<button class="btn" style="border:0">click</button>`))
+	assertPanicked()
+}
+
+func TestScannedRejectsActionInContextSensitiveTextElement(t *testing.T) {
+	for _, fragment := range []string{`<svg><title><a>Link</a></title></svg>`, `<svg><textarea><a href="#example">Link</a></textarea></svg>`} {
+		t.Run(fragment, func(t *testing.T) {
+			_, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
 			assertPanicked()
 		})
 	}
 }
 
-func TestScannedRejectsActionInContextSensitiveTextElement(t *testing.T) {
-	for _, fragment := range []string{`<svg><title><a>Link</a></title></svg>`, `<svg><textarea><a href="#example">Link</a></textarea></svg>`, `<noscript><button>Continue</button></noscript>`} {
-		t.Run(fragment, func(t *testing.T) {
-			_, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
-			assertPanicked()
-		})
+func TestScannedAllowsNoScriptFallbackAction(t *testing.T) {
+	const fragment = `<noscript><button class="fallback">Continue</button></noscript>`
+	got, _ := renderScanned(t, rawHTMLComponent(fragment))
+	if got != fragment {
+		t.Fatalf("got %q, want %q", got, fragment)
 	}
 }
 
@@ -215,11 +231,9 @@ func TestScannedAcceptsPlainIcon(t *testing.T) {
 	}
 }
 
-// TestScannedAcceptsAlreadySafeNestedButton proves Scanned does not break
-// content slots (a table row, a page section, ...) that legitimately
-// contain an already-vetted action control: one built the same way
-// scripts/actioncheck requires everywhere else (a "btn" boundary class, no
-// forbidden override) passes untouched.
+// TestScannedAcceptsAlreadySafeNestedButton proves Scanned preserves
+// content slots that legitimately contain an already-vetted action control.
+// Its visual class tokens are unrestricted.
 func TestScannedAcceptsAlreadySafeNestedButton(t *testing.T) {
 	got, _ := renderScanned(t, rawHTMLComponent(`<tr><td>Row</td><td><button class="btn btn-sm btn-outline">Archive</button></td></tr>`))
 	if !strings.Contains(got, "btn-outline") {
@@ -232,21 +246,6 @@ func TestScannedListRowLink(t *testing.T) {
 	got, _ := renderScanned(t, rawHTMLComponent(valid))
 	if got != valid {
 		t.Fatalf("got %q, want %q", got, valid)
-	}
-	for _, fragment := range []string{
-		`<a class="list-row-link btn-ghost">Item</a>`,
-		`<a class="list-row-link" style="display:none">Item</a>`,
-		`<a class="other" class="list-row-link">Item</a>`,
-		`<button class="list-row-link">Item</button>`,
-		`<svg><a class="list-row-link btn-ghost">Item</a></svg>`,
-	} {
-		t.Run(fragment, func(t *testing.T) {
-			got, assertPanicked := renderScanned(t, rawHTMLComponent(fragment))
-			assertPanicked()
-			if got != "" {
-				t.Fatalf("rejected output was written: %q", got)
-			}
-		})
 	}
 }
 
@@ -405,10 +404,10 @@ func TestScannedNestingStillValidates(t *testing.T) {
 	}
 }
 
-func TestScannedRejectsSplitUnsafeTagBeforeEmission(t *testing.T) {
+func TestScannedRejectsSplitExecutableAttributeBeforeEmission(t *testing.T) {
 	var output bytes.Buffer
 	component := templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		for _, part := range []string{`<button`, ` class="btn-`, `ghost">bad</button>`} {
+		for _, part := range []string{`<button`, ` onclick="evil`, `()">bad</button>`} {
 			if _, err := io.WriteString(w, part); err != nil {
 				return err
 			}

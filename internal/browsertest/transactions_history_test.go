@@ -61,7 +61,28 @@ func TestTransactionsFiltersClientHistoryViewerSpanishKeyboard(t *testing.T) {
 	click(t, owner, `[data-transactions-submit]`)
 	eventually(t, owner, `document.querySelector('#transactions-entries-heading')?.parentElement.textContent.includes('Other browser payment')`, "second payment missing")
 
-	navigate(t, owner, transactionsPath+"?filter_field=client_id")
+	navigate(t, owner, transactionsPath)
+	eventually(t, owner, `window.__listScreenWired === true`, "list behavior did not initialize")
+	run(t, owner, chromedp.Focus("#list-filter-add summary"), chromedp.KeyEvent("\r"))
+	eventually(t, owner, `document.querySelector('#list-filter-add details').open`, "keyboard did not open filter")
+	eval[any](t, owner, `window.transactionFilterDocument = document`)
+	run(t, owner, chromedp.Reload())
+	eventually(t, owner, `window.transactionFilterDocument !== document && window.__listScreenWired === true && document.querySelector('#list-filter-add details') && !document.querySelector('#list-filter-add details').open`, "filter remained open after reload")
+	run(t, owner, chromedp.Focus("#list-filter-add summary"), chromedp.KeyEvent("\r"))
+	eventually(t, owner, `document.querySelector('#list-filter-add details').open`, "keyboard did not reopen filter")
+	eval[any](t, owner, `window.transactionFilterDocument = document`)
+	run(t, owner, chromedp.Focus(`#list-filter-add a[href*="filter_field=client_id"]`), chromedp.KeyEvent("\r"))
+	waitVisible(t, owner, "#transactions-filter-search")
+	if !eval[bool](t, owner, `window.transactionFilterDocument === document && !new URLSearchParams(location.search).has('filter_field')`) {
+		t.Fatalf("choosing client filter navigated: %s", eval[string](t, owner, `location.href`))
+	}
+	run(t, owner, chromedp.Focus(`#list-filter-add [data-filter-step] [data-filter-back]`))
+	if !eval[bool](t, owner, `document.activeElement?.matches('#list-filter-add [data-filter-step] [data-filter-back]')`) {
+		t.Fatal("client filter back link did not receive focus")
+	}
+	run(t, owner, chromedp.KeyEvent("\r"))
+	waitVisible(t, owner, `#list-filter-add a[href*="filter_field=client_id"]`)
+	run(t, owner, chromedp.Focus(`#list-filter-add a[href*="filter_field=client_id"]`), chromedp.KeyEvent("\r"))
 	waitVisible(t, owner, "#transactions-filter-search")
 	run(t, owner, chromedp.Focus("#transactions-filter-search"))
 	assertTabFocus(t, owner, `form:has(#transactions-filter-search) button[type="submit"]`)

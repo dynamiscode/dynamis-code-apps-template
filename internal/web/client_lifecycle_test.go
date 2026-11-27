@@ -78,7 +78,11 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	if refused := request(env.routes, http.MethodPost, archivePath, url.Values{"csrf": {env.viewerCSRF}}, env.viewerCookies, nil); refused.Code != http.StatusForbidden {
 		t.Fatalf("viewer archive = %d, want 403", refused.Code)
 	}
-	archived := request(env.routes, http.MethodPost, archivePath, url.Values{"csrf": {memberCSRF}}, memberCookies, nil)
+	unconfirmed := request(env.routes, http.MethodPost, archivePath, url.Values{"csrf": {memberCSRF}}, memberCookies, nil)
+	if unconfirmed.Code != http.StatusOK || !strings.Contains(unconfirmed.Body.String(), `name="confirm_archive"`) {
+		t.Fatalf("unconfirmed archive = %d: %s", unconfirmed.Code, unconfirmed.Body.String())
+	}
+	archived := request(env.routes, http.MethodPost, archivePath, url.Values{"csrf": {memberCSRF}, "confirm_archive": {"yes"}}, memberCookies, nil)
 	if archived.Code != http.StatusSeeOther || archived.Header().Get("Location") != detailPath {
 		t.Fatalf("member archive = %d location %q: %s", archived.Code, archived.Header().Get("Location"), archived.Body.String())
 	}
@@ -114,9 +118,9 @@ func TestClientArchiveUnarchiveAndDeleteThroughForms(t *testing.T) {
 	if refused := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {memberCSRF}}, memberCookies, nil); refused.Code != http.StatusForbidden {
 		t.Fatalf("member delete = %d, want 403", refused.Code)
 	}
-	unconfirmed := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil)
-	if unconfirmed.Code != http.StatusOK || !strings.Contains(unconfirmed.Body.String(), "Ada") || !strings.Contains(unconfirmed.Body.String(), `name="confirm_delete"`) {
-		t.Fatalf("unconfirmed deletion should display a confirmation: %d %s", unconfirmed.Code, unconfirmed.Body.String())
+	unconfirmedDelete := request(env.routes, http.MethodPost, deletePath, url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if unconfirmedDelete.Code != http.StatusOK || !strings.Contains(unconfirmedDelete.Body.String(), "Ada") || !strings.Contains(unconfirmedDelete.Body.String(), `name="confirm_delete"`) {
+		t.Fatalf("unconfirmed deletion should display a confirmation: %d %s", unconfirmedDelete.Code, unconfirmedDelete.Body.String())
 	}
 	if present := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil); present.Code != http.StatusOK {
 		t.Fatalf("unconfirmed deletion changed client: %d", present.Code)

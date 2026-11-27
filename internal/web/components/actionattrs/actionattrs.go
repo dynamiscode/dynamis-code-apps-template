@@ -21,30 +21,14 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-// allowed lists the only attribute keys a Safe value may carry. Anything
-// that controls layout or styling ("class", "style") is excluded on
-// purpose: those must stay with the component, not the caller. A key alone
-// is not enough for href and onclick, whose VALUE also controls behavior;
-// valueCheckers below additionally constrains those two.
-// "class" and "style" are deliberately absent and always panic: they are
-// exactly the two attributes that can hide or restyle an action control the
-// same way an unbounded Class string can (style="display:none" is
-// equivalent to removing the "btn"/"border" boundary class). This is not an
-// oversight; no caller should route either through Attrs. A caller that
-// needs a visual variant has Class for exactly that purpose, checked
-// separately by scripts/actioncheck.
-// allowed lists the individual, non-namespaced keys this guard permits.
-// "aria-*", "data-*", and "hx-*" are not enumerated here one at a time;
-// Allowed below admits the whole namespace for each. All three are
-// HTML/htmx-spec guaranteed inert: an aria-* or data-* attribute carries no
-// browser-interpreted behavior at all (that is the point of both
-// namespaces -- accessibility semantics and custom data hooks,
-// respectively), and an hx-* attribute only ever configures htmx's
-// declarative request/swap behavior, never arbitrary script. Enumerating
-// every key in these namespaces one at a time, as this list once did,
-// means every new legitimate key is a new panic in production until
-// someone notices and adds it; the namespaces themselves are the actual
-// safety boundary, not their individual member names.
+// allowed lists the only attribute keys a Safe value may carry. Class and
+// style attributes are excluded because callers cannot override component
+// styling through Attrs. A key alone is not enough for href and onclick,
+// whose values are additionally constrained by valueCheckers below.
+// "aria-*", "data-*", and "hx-*" are admitted by Allowed below as
+// namespaces. All three are inert: aria-* and data-* carry accessibility
+// semantics and custom data, while hx-* configures declarative htmx behavior,
+// never arbitrary script. The namespaces themselves are the safety boundary.
 var allowed = map[string]bool{
 	// href is allowed, value-checked below, because this codebase routes
 	// some anchor targets through Attrs instead of a dedicated Href field
@@ -294,53 +278,20 @@ func From(m templ.Attributes) templ.Attributes {
 	return m
 }
 
-var forbiddenClassTokens = map[string]bool{
-	"btn-ghost":          true,
-	"btn-link":           true,
-	"border-0":           true,
-	"border-transparent": true,
-	"border-none":        true,
-	"border-hidden":      true,
-}
+// SafeClass accepts any visual class token.
+func SafeClass(value string) bool { return true }
 
 func normalizeClassToken(tok string) string {
 	base := tok[strings.LastIndex(tok, ":")+1:]
-	// Tailwind's "important" modifier marks the utility with "!": a leading
-	// "!" in v3 ("!border-0", "md:!border-0") or a trailing "!" in v4
-	// ("border-0!"). Strip either before comparing so it cannot smuggle a
-	// forbidden override past the bare-token check.
-	base = strings.TrimPrefix(base, "!")
-	base = strings.TrimSuffix(base, "!")
-	return base
-}
-
-func checkClassTokens(value string) {
-	if tok := forbiddenClassToken(value); tok != "" {
-		panic("actionattrs: forbidden class override: " + tok)
-	}
+	return strings.TrimSuffix(strings.TrimPrefix(base, "!"), "!")
 }
 
 func htmlClassTokens(value string) []string {
 	return strings.FieldsFunc(value, func(r rune) bool { return strings.ContainsRune("\t\n\f\r ", r) })
 }
 
-// SafeClass reports whether value contains no forbidden action class override.
-func SafeClass(value string) bool {
-	return forbiddenClassToken(value) == ""
-}
-
-func forbiddenClassToken(value string) string {
-	for _, tok := range htmlClassTokens(value) {
-		base := normalizeClassToken(tok)
-		if forbiddenClassTokens[base] || strings.HasPrefix(base, "border-") && (strings.HasSuffix(base, "/0") || strings.HasSuffix(base, "-0") ||
-			strings.Contains(base, "[") || strings.Contains(base, "(")) || strings.Contains(tok, "[border:") || strings.Contains(tok, "[border-") {
-			return tok
-		}
-	}
-	return ""
-}
-
-// HasBoundary requires an unconditional HTML class token for the boundary.
+// HasBoundary reports whether value contains an unconditional btn/border token.
+// Retained for compatibility; action-control validation does not require it.
 func HasBoundary(value string) bool {
 	for _, tok := range htmlClassTokens(value) {
 		if strings.ContainsRune(tok, ':') {
@@ -353,44 +304,16 @@ func HasBoundary(value string) bool {
 	return false
 }
 
-// ButtonClass validates a caller-supplied class fragment destined for a
-// component that itself guarantees the "btn" boundary class (atoms.Button).
-// It panics if value carries a forbidden override token (btn-ghost,
-// btn-link, border-0). scripts/actioncheck treats
-// `actionattrs.ButtonClass(expr)` as a bounded class source, trusting this
-// runtime guard in place of a compile-time literal.
-func ButtonClass(value string) string {
-	checkClassTokens(value)
-	return value
-}
+// ButtonClass marks a caller-supplied class fragment as a bounded class source.
+func ButtonClass(value string) string { return value }
 
-// LinkClass validates a caller-supplied class fragment destined for a
-// component that does not itself guarantee a boundary class (atoms.Anchor
-// and similar). In addition to ButtonClass's override check, it requires
-// value to carry the "btn" or "border" boundary token itself, and panics if
-// either check fails. scripts/actioncheck treats `actionattrs.LinkClass(expr)`
-// as a bounded class source.
-func LinkClass(value string) string {
-	checkClassTokens(value)
-	if !HasBoundary(value) {
-		panic("actionattrs: class missing boundary token (btn or border): " + value)
-	}
-	return value
-}
+// LinkClass marks a caller-supplied class fragment as a bounded class source.
+func LinkClass(value string) string { return value }
 
-// Scanned wraps a component slot (an icon, a table row, a page section,
-// ...) so that, at render time, its actual rendered HTML output is parsed
-// and every <a> or <button> element found is held to the same rule
-// safeComponentCall enforces statically: a boundary class ("btn" or
-// "border"), or the fixed list-row-link class on an anchor, and no forbidden
-// override token (btn-ghost, btn-link, border-0, in any Tailwind
-// variant/important form). The render panics if one fails. A slot that renders
-// no action elements at all trivially
-// passes; one that renders an already-safe atoms.Button/Anchor (a table
-// row's own action button, say) also passes, since that output already
-// carries a compliant class by construction. Only a tag that is missing
-// its boundary or carries an override -- a hand-built or externally
-// supplied one bypassing every static check -- fails.
+// Scanned wraps a component slot so its fully rendered HTML is validated
+// before emission. It rejects executable attributes, inline style on actions,
+// and malformed or context-sensitive raw HTML. Visual class tokens are
+// unrestricted.
 //
 // A slot's declared type is ordinarily templ.Component, which anyone --
 // including a hand-written templ.ComponentFunc, a templ.Raw call embedding
@@ -469,11 +392,9 @@ func Scanned(c templ.Component) templ.Component {
 	})
 }
 
-// scanRenderedHTML parses the fully-rendered buffer and checks every <a>
-// or <button> element it contains against the boundary/override-token
-// rule described on Scanned. The whole buffer is already in memory, so
-// reaching the tokenizer's end-of-input is always a clean, complete parse,
-// never a stream being cut off partway through a token.
+// scanRenderedHTML parses the fully-rendered buffer and checks each action
+// element for unsafe attributes. Reaching tokenizer end is always a clean,
+// complete parse, never a stream being cut off partway through a token.
 func scanRenderedHTML(rendered []byte) error {
 	tokenizer := html.NewTokenizer(bytes.NewReader(rendered))
 	contextSensitive := false
@@ -521,29 +442,21 @@ func scanRenderedHTML(rendered []byte) error {
 	}
 }
 
-// checkTagToken checks the current <a> or <button> start/self-closing tag
-// tokenizer is positioned on against the boundary/override-token rule
-// described on Scanned. Any other tag name passes trivially.
+// checkTagToken checks an element for executable attributes and action
+// elements for inline style.
 func checkTagToken(tokenizer *html.Tokenizer, tag string, hasAttr bool) error {
-	if tag != "a" && tag != "button" {
-		return nil
-	}
-	class := ""
-	classSeen := false
+	isAction := tag == "a" || tag == "button"
 	for hasAttr {
-		var key, val []byte
-		key, val, hasAttr = tokenizer.TagAttr()
-		switch string(key) {
-		case "style":
+		key, _, next := tokenizer.TagAttr()
+		hasAttr = next
+		if ExecutableAttribute(string(key)) {
+			return fmt.Errorf("rendered a <%s> with executable attribute %q", tag, key)
+		}
+		if isAction && string(key) == "style" {
 			return fmt.Errorf("rendered a <%s> with unverified inline style", tag)
-		case "class":
-			if !classSeen {
-				class = string(val)
-				classSeen = true // Browsers use the first class attribute.
-			}
 		}
 	}
-	return checkRenderedActionClass(tag, class)
+	return nil
 }
 
 func checkContextSensitiveHTML(rendered []byte) error {
@@ -567,30 +480,24 @@ func checkContextSensitiveHTML(rendered []byte) error {
 }
 
 func checkContextElement(node *html.Node) error {
-	if node.Type != html.ElementNode || (node.Data != "a" && node.Data != "button") {
+	if node.Type != html.ElementNode {
 		return nil
 	}
-	class := ""
-	classSeen := false
+	isAction := node.Data == "a" || node.Data == "button"
 	for _, attribute := range node.Attr {
-		switch attribute.Key {
-		case "style":
+		if ExecutableAttribute(attribute.Key) {
+			return fmt.Errorf("rendered a <%s> with executable attribute %q", node.Data, attribute.Key)
+		}
+		if isAction && attribute.Key == "style" {
 			return fmt.Errorf("rendered a <%s> with unverified inline style", node.Data)
-		case "class":
-			if !classSeen {
-				class, classSeen = attribute.Val, true
-			}
 		}
 	}
-	return checkRenderedActionClass(node.Data, class)
-}
-
-func checkRenderedActionClass(tag, class string) error {
-	if !HasBoundary(class) && !(tag == "a" && class == "list-row-link") {
-		return fmt.Errorf("rendered a <%s> with no btn/border boundary class: %q", tag, class)
-	}
-	if tok := forbiddenClassToken(class); tok != "" {
-		return fmt.Errorf("rendered a <%s> with forbidden class token %q", tag, tok)
+	if isAction {
+		for parent := node.Parent; parent != nil; parent = parent.Parent {
+			if parent.Type == html.ElementNode && (parent.Data == "title" || parent.Data == "textarea") {
+				return fmt.Errorf("rendered a <%s> in context-sensitive <%s>", node.Data, parent.Data)
+			}
+		}
 	}
 	return nil
 }

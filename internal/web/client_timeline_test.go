@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"html"
 	"net/http"
 	"net/url"
 
@@ -31,7 +32,7 @@ func TestClientTimelineForms(t *testing.T) {
 	if unicode.Code != http.StatusSeeOther {
 		t.Fatalf("valid Unicode entry = %d", unicode.Code)
 	}
-	if !strings.Contains(page, "First contact") || !strings.Contains(page, "Phone") || !strings.Contains(page, env.ownerID.String()) {
+	if !strings.Contains(page, "First contact") || !strings.Contains(page, "Phone") || !strings.Contains(page, "owner@example.com") {
 		t.Fatalf("missing entry details: %s", page)
 	}
 	var key int64
@@ -103,5 +104,39 @@ func TestClientTimelinePagination(t *testing.T) {
 	}
 	if !strings.Contains(second, "entry-00") || strings.Contains(second, "entry-50") || !strings.Contains(second, "timeline_page=1") {
 		t.Fatal("second page or previous link incorrect")
+	}
+}
+
+func TestClientTimelineCorrectionAcrossPagesAndReturn(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Paged"}}, env.cookies, nil)
+	detail := created.Header().Get("Location")
+	path := detail + "/timeline"
+	for i := range 50 {
+		response := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {fmt.Sprintf("entry-%02d", i)}}, env.cookies, nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("entry %d: %d", i, response.Code)
+		}
+	}
+	var key int64
+	if err := env.db.QueryRow("SELECT MIN(id) FROM client_timeline_entries").Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	target := clients.TimelineEntryID(key).String()
+	context := "q=Paged&sort=displayName"
+	response := request(env.routes, http.MethodPost, path+"?return="+url.QueryEscape(context), url.Values{"csrf": {env.csrf}, "type": {"note"}, "text": {"Correction"}, "corrects": {target}}, env.cookies, nil)
+	if response.Code != http.StatusSeeOther || !strings.Contains(response.Header().Get("Location"), "return=") {
+		t.Fatalf("correction redirect: %d %q", response.Code, response.Header().Get("Location"))
+	}
+	browse := request(env.routes, http.MethodPost, path+"?return="+url.QueryEscape(context), url.Values{"csrf": {env.csrf}, "type": {"call"}, "channel": {"phone"}, "text": {"unsaved draft"}, "timeline_search": {"entry-00"}, "timeline_browse": {"1"}}, env.cookies, nil)
+	if browse.Code != http.StatusOK || !strings.Contains(browse.Body.String(), "unsaved draft") || !strings.Contains(browse.Body.String(), `value="`+target+`"`) || !strings.Contains(browse.Body.String(), "data-timeline-invalid") {
+		t.Fatalf("search did not preserve draft or find older entry: %d %s", browse.Code, browse.Body.String())
+	}
+	page := request(env.routes, http.MethodGet, response.Header().Get("Location"), nil, env.cookies, nil).Body.String()
+	if !strings.Contains(html.UnescapeString(page), "#timeline-"+target) || !strings.Contains(page, "timeline_page=2") {
+		t.Fatalf("cross-page correction link missing: %s", page)
+	}
+	if !strings.Contains(page, "owner@example.com") || !strings.Contains(page, `id="timeline-type" name="type" class="select w-full"`) {
+		t.Fatal("recognizable author or native timeline select missing")
 	}
 }

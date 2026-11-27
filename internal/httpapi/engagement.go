@@ -337,21 +337,63 @@ func (h *handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var input struct {
-		IDs []string `json:"ids"`
+		IDs      []string `json:"ids"`
+		Snapshot []struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Kind     string `json:"kind"`
+			Archived *bool  `json:"archived"`
+		} `json:"snapshot"`
+		MovedID       string `json:"movedId"`
+		NewKind       string `json:"newKind"`
+		ExpectedCount *int   `json:"expectedCount"`
+		Confirmed     *bool  `json:"confirmed"`
 	}
 	if err := decodeJSON(r, &input); err != nil {
 		h.badJSON(w, r, err)
 		return
 	}
+	if input.IDs == nil || input.Snapshot == nil || input.MovedID == "" || input.NewKind == "" || input.ExpectedCount == nil || input.Confirmed == nil {
+		h.invalidRequest(w, r, "The stage move requires a snapshot and confirmation details.")
+		return
+	}
+	snapshot := make([]engagement.Stage, len(input.Snapshot))
+	for i, stage := range input.Snapshot {
+		if stage.ID == "" || stage.Name == "" || stage.Kind == "" || stage.Archived == nil {
+			h.invalidRequest(w, r, "The stage snapshot is invalid.")
+			return
+		}
+		snapshot[i] = engagement.Stage{ID: engagement.ParseStageID(stage.ID), Name: stage.Name, Kind: stage.Kind, Archived: *stage.Archived}
+	}
 	ids := make([]engagement.StageID, len(input.IDs))
 	for i, value := range input.IDs {
 		ids[i] = engagement.ParseStageID(value)
 	}
-	if err := h.engagement.ReorderStages(r.Context(), actor, workspace, ids, h.auditContext(r)); err != nil {
+	if err := h.engagement.MoveStages(r.Context(), actor, workspace, snapshot, ids, engagement.ParseStageID(input.MovedID), input.NewKind, *input.ExpectedCount, *input.Confirmed, h.auditContext(r)); err != nil {
 		h.engagementError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) stageEngagementCount(w http.ResponseWriter, r *http.Request) {
+	if h.engagement == nil {
+		notFoundProblem(w, r)
+		return
+	}
+	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
+	actor, ok := h.workspaceBearer(w, r, workspace, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	count, err := h.engagement.StageEngagementCount(r.Context(), actor, workspace, engagement.ParseStageID(r.PathValue("stageId")))
+	if err != nil {
+		h.engagementError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Count int `json:"count"`
+	}{count})
 }
 
 func (h *handler) archiveEngagementStage(w http.ResponseWriter, r *http.Request) {
@@ -375,6 +417,10 @@ func (h *handler) engagementError(w http.ResponseWriter, r *http.Request, err er
 	switch {
 	case errors.Is(err, identity.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "forbidden", "Access is denied.")
+	case errors.Is(err, engagement.ErrStaleStages):
+		writeProblem(w, r, http.StatusConflict, "stale-stages", "The stages or engagement count changed; reload and confirm again.")
+	case errors.Is(err, engagement.ErrConfirmationRequired):
+		writeProblem(w, r, http.StatusConflict, "confirmation-required", "Changing a stage kind requires confirmation.")
 	case errors.Is(err, engagement.ErrInvalidName):
 		h.invalidRequest(w, r, "The engagement name is invalid.")
 	case errors.Is(err, engagement.ErrInvalidInput):

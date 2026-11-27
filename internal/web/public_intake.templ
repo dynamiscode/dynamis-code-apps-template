@@ -5,7 +5,7 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
-templ publicIntakePage(data viewmodel.PageData, consent string, submission intake.Submission, message string, complete bool) {
+templ publicIntakePage(data viewmodel.PageData, consent string, submission intake.Submission, message string, fields map[string]string, complete bool) {
 	<!doctype html>
 	<html lang={ data.Locale } if data.Theme != "system" { data-theme={ data.Theme } }>
 		<head>
@@ -26,19 +26,34 @@ templ publicIntakePage(data viewmodel.PageData, consent string, submission intak
 					<form method="post">
 						<input type="text" name="website" tabindex="-1" aria-hidden="true" autocomplete="off" class="hidden"/>
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "name", Label: data.T("public_intake.name"), Value: submission.DisplayName}) {
-							<input class="input w-full" id="name" name="name" type="text" value={ submission.DisplayName } required maxlength="200" autocomplete="name"/>
+							<input class="input w-full" id="name" name="name" type="text" value={ submission.DisplayName } required maxlength="200" autocomplete="name" if fields["name"] != "" { aria-invalid="true" aria-describedby="name-error" }/>
+							if fields["name"] != "" {
+								<p class="text-error" id="name-error">{ fields["name"] }</p>
+							}
 						}
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "phone", Label: data.T("public_intake.phone"), Value: submission.Phone}) {
-							<input class="input w-full" id="phone" name="phone" type="tel" value={ submission.Phone } maxlength="50" autocomplete="tel" aria-describedby="intake-contact-help" data-entry-required-group="contact"/>
+							<input class="input w-full" id="phone" name="phone" type="tel" value={ submission.Phone } maxlength="50" autocomplete="tel" data-entry-required-group="contact" if fields["phone"] != "" { aria-invalid="true" aria-describedby="intake-contact-help phone-error" } else { aria-describedby="intake-contact-help" }/>
+							if fields["phone"] != "" {
+								<p class="text-error" id="phone-error">{ fields["phone"] }</p>
+							}
 						}
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "email", Label: data.T("public_intake.email"), Value: submission.Email}) {
-							<input class="input w-full" id="email" name="email" type="email" value={ submission.Email } maxlength="254" autocomplete="email" aria-describedby="intake-contact-help" data-entry-required-group="contact"/>
+							<input class="input w-full" id="email" name="email" type="email" value={ submission.Email } maxlength="254" autocomplete="email" data-entry-required-group="contact" if fields["email"] != "" { aria-invalid="true" aria-describedby="intake-contact-help email-error" } else { aria-describedby="intake-contact-help" }/>
+							if fields["email"] != "" {
+								<p class="text-error" id="email-error">{ fields["email"] }</p>
+							}
 						}
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "notes", Label: data.T("public_intake.notes"), Value: submission.Notes}) {
-							<textarea class="textarea w-full" id="notes" name="notes" maxlength="2000">{ submission.Notes }</textarea>
+							<textarea class="textarea w-full" id="notes" name="notes" maxlength="2000" if fields["notes"] != "" { aria-invalid="true" aria-describedby="notes-error" }>{ submission.Notes }</textarea>
+							if fields["notes"] != "" {
+								<p class="text-error" id="notes-error">{ fields["notes"] }</p>
+							}
 						}
 						<div class="my-4">
-							<label class="label flex items-start gap-2 whitespace-normal"><input class="checkbox shrink-0" type="checkbox" name="consent" required if submission.Consent { checked }/><span class="min-w-0 wrap-anywhere">{ consent }</span></label>
+							<label class="label flex items-start gap-2 whitespace-normal"><input class="checkbox shrink-0" id="consent" type="checkbox" name="consent" required if submission.Consent { checked } if fields["consent"] != "" { aria-invalid="true" aria-describedby="consent-error" }/><span class="min-w-0 wrap-anywhere">{ consent }</span></label>
+							if fields["consent"] != "" {
+								<p class="text-error" id="consent-error">{ fields["consent"] }</p>
+							}
 						</div>
 						<button class="btn btn-primary" type="submit">{ data.T("public_intake.submit") }</button>
 					</form>

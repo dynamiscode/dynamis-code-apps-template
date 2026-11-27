@@ -504,7 +504,7 @@ func listViewPanel(data viewmodel.PageData) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"}).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "list-view-rename-" + strconv.FormatInt(view.ID, 10), Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"}).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -685,7 +685,7 @@ func listViewPanel(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = atoms.PlainInput(atoms.InputProps{ID: "list-view-save-name", Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

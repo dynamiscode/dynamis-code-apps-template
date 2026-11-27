@@ -44,10 +44,10 @@ func TestArchivedFieldIsPermanentlyDeletedThroughForms(t *testing.T) {
 		t.Fatalf("archive field = %d: %s", archived.Code, archived.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil).Body.String()
-	if !strings.Contains(page, `action="`+deletePath+`"`) || !strings.Contains(page, "data-confirm=") {
-		t.Fatalf("archived field lacks a confirmed delete control: %s", page)
+	if !strings.Contains(page, `action="`+deletePath+`"`) || !strings.Contains(page, `name="confirm_delete" value="yes" required`) || strings.Contains(page, `data-confirm=`) {
+		t.Fatalf("archived field lacks an explicit inline confirmation: %s", page)
 	}
-	if !strings.Contains(page, `<p class="warning alert alert-warning py-2">Permanently delete this field? Its value is removed from every client and its choices are deleted. This cannot be undone.</p>`) {
+	if !strings.Contains(page, `Permanently delete this field? Its value is removed from every client and its choices are deleted. This cannot be undone.`) {
 		t.Fatalf("archived field does not explain the deletion effects without JavaScript: %s", page)
 	}
 

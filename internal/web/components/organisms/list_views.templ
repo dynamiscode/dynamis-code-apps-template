@@ -73,7 +73,7 @@ templ listViewPanel(data viewmodel.PageData) {
 								if view.Editable {
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/rename" } class="list-view-action">
 										<input type="hidden" name="csrf" value={ data.CSRF }/>
-										@atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"})
+										@atoms.PlainInput(atoms.InputProps{ID: "list-view-rename-" + strconv.FormatInt(view.ID, 10), Label: data.T("views.name"), Name: "name", Value: view.Name, Required: true, MaxLength: "60"})
 										<button class="btn btn-outline btn-xs" type="submit">{ data.T("views.rename") }</button>
 									</form>
 									<form method="post" action={ data.ListViewRoute + "/" + strconv.FormatInt(view.ID, 10) + "/delete" } class="list-view-action">
@@ -95,7 +95,7 @@ templ listViewPanel(data viewmodel.PageData) {
 						<input type="hidden" name="csrf" value={ data.CSRF }/>
 						<input type="hidden" name="query" value={ data.ListViewQuery }/>
 						<p class="list-view-hint">{ data.T("views.save_hint") }</p>
-						@atoms.PlainInput(atoms.InputProps{Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"})
+						@atoms.PlainInput(atoms.InputProps{ID: "list-view-save-name", Label: data.T("views.name"), Name: "name", Required: true, MaxLength: "60"})
 						if data.ListViewCanShare {
 							@atoms.PlainCheckbox(atoms.CheckboxProps{LabelClass: "list-view-check", After: data.T("views.shared"), Name: "shared", Attrs: templ.Attributes{"value": "1"}})
 							<p class="list-view-hint">{ data.T("views.share_hint") }</p>

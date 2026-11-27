@@ -3,10 +3,11 @@ package web
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 
 import (
+	"example.com/dynamis-code/apps-template/internal/clients"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
-// clientRowActions is a client row's menu. An active client can be opened, edited or deleted. An archived
+// clientRowActions is a client row's menu. An active client can be opened, archived or deleted. An archived
 // client can be opened, restored or deleted. Archiving keeps the client and its values; deleting removes them.
 func clientRowActions(data viewmodel.PageData, row viewmodel.ListRow) []organisms.ListAction {
 	href := data.CurrentPath + "/" + row.ID
@@ -21,7 +22,7 @@ func clientRowActions(data viewmodel.PageData, row viewmodel.ListRow) []organism
 		}
 	} else {
 		if data.CanEditClients {
-			actions = append(actions, organisms.ListAction{Label: data.T("ui.edit"), Icon: "edit", Href: clientDetailHref(data, row.ID)})
+			actions = append(actions, organisms.ListAction{Label: data.T("clients.archive"), Icon: "archive", PostPath: clientContextURL(href+"/archive", data.ClientReturnQuery), ClientArchiveName: row.CellText(clients.FieldDisplayName)})
 		}
 	}
 	if data.CanDeleteClients {

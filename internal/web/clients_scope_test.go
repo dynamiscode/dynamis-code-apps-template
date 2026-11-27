@@ -33,3 +33,21 @@ func TestClientDetailBackPreservesListState(t *testing.T) {
 		t.Fatalf("invalid return query accepted: %q", got)
 	}
 }
+
+func TestClientEditPreservesListReturn(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada"}}, env.cookies, nil)
+	detail := created.Header().Get("Location")
+	raw := "q=Ada&sort=displayName"
+	detailWithReturn := detail + "?return=" + url.QueryEscape(raw)
+	page := request(env.routes, http.MethodGet, detailWithReturn, nil, env.cookies, nil).Body.String()
+	action := regexp.MustCompile(`action="([^"]+/field\?return=[^"]+)"`).FindStringSubmatch(page)
+	if len(action) != 2 {
+		t.Fatal("inline editor lost list return context")
+	}
+	saved := request(env.routes, http.MethodPost, html.UnescapeString(action[1]), url.Values{"csrf": {env.csrf}, "version": {"1"}, "field": {"display_name"}, "value": {"Ada Updated"}}, env.cookies, nil)
+	location, err := url.Parse(saved.Header().Get("Location"))
+	if err != nil || saved.Code != http.StatusSeeOther || location.Query().Get("return") != raw {
+		t.Fatalf("edit lost list return context: %d %q", saved.Code, saved.Header().Get("Location"))
+	}
+}

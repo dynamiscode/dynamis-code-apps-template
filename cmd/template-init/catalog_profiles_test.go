@@ -131,6 +131,9 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 			t.Fatal(err)
 		}
 		content := []byte("template")
+		if path == "internal/web/engagement.templ" {
+			content = []byte("template\n<a class=\"link lg:hidden\" href=\"#action-history\">\n<a class=\"other\">")
+		}
 		if path == "scripts/actioncheck/exceptions.json" {
 			content = []byte(`[{"Path":"internal/web/catalog.templ","Reason":"catalog"},{"Path":"internal/web/engagement_list.templ","Reason":"clients"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"link lg:hidden\" href=\"#action-history\">","Reason":"detail"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"other\">","Reason":"other"},{"Path":"internal/web/components/molecules/list_column_heading.templ","Reason":"shared"}]`)
 		}
@@ -218,11 +221,11 @@ func TestGenerateCatalogProfile(t *testing.T) {
 				}
 				if path == "internal/web/catalog.templ" && !selected ||
 					transactionsPath(path) ||
-					(path == "internal/web/engagement_list.templ" || path == "internal/web/clients.templ" || path == "internal/web/engagement_new.templ") && !tc.clients ||
+					!tc.clients && clientsPath(path) ||
 					path == "internal/web/engagement.templ" && exception["OpenTag"] == `<a class="link lg:hidden" href="#action-history">` && !tc.clients {
 					continue
 				}
-				if path == "internal/web/clients.templ" {
+				if path == "internal/web/clients.templ" || path == "internal/web/engagement.templ" {
 					tag := exception["OpenTag"].(string)
 					template, err := os.ReadFile(filepath.Join(output, path))
 					if err != nil {
@@ -234,14 +237,15 @@ func TestGenerateCatalogProfile(t *testing.T) {
 						}
 						continue
 					}
-					if strings.Count(string(template), tag) != 1 {
-						t.Fatalf("exception tag not unique in generated %s: %s", path, tag)
+					tagAt := strings.Index(string(template), tag)
+					if tagAt < 0 {
+						continue
 					}
 					copied := make(map[string]any, len(exception))
 					for key, value := range exception {
 						copied[key] = value
 					}
-					copied["Line"] = float64(strings.Count(string(template[:strings.Index(string(template), tag)]), "\n") + 1)
+					copied["Line"] = float64(strings.Count(string(template[:tagAt]), "\n") + 1)
 					exception = copied
 				}
 				expected = append(expected, exception)

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
@@ -32,7 +33,7 @@ func TestWorkspaceCreateEngagementNavigation(t *testing.T) {
 				t.Fatalf("home: status=%d writer=%v", page.Code, tc.writer)
 			}
 			list := request(env.routes, http.MethodGet, home+"/engagements", nil, tc.cookies, nil)
-			if strings.Contains(list.Body.String(), `href="`+home+`/engagements/new" hx-get="`+home+`/engagements/new"`) != tc.writer {
+			if strings.Contains(list.Body.String(), `data-engagement-create`) != tc.writer {
 				t.Fatalf("engagement list create link: status=%d writer=%v", list.Code, tc.writer)
 			}
 			page = request(env.routes, http.MethodGet, clientsPath, nil, tc.cookies, nil)
@@ -267,15 +268,15 @@ func TestStageSettingsOrderAndBreadcrumb(t *testing.T) {
 		t.Fatalf("breadcrumb: %d", page.Code)
 	}
 	previous := -1
-	for _, text := range []string{"Lost prospect", "Active work", "Won project", "Another open"} {
-		index := strings.Index(body, text)
+	for _, text := range []string{"Active work", "Another open", "Won project", "Lost prospect"} {
+		index := strings.Index(body, ">"+text+"</strong>")
 		if index <= previous {
 			t.Fatalf("missing or unordered %q", text)
 		}
 		previous = index
 	}
 	viewer := request(env.routes, http.MethodGet, path, nil, env.viewerCookies, nil)
-	if strings.Contains(viewer.Body.String(), `name="direction"`) || strings.Contains(viewer.Body.String(), `name="confirm_archive"`) {
+	if strings.Contains(viewer.Body.String(), `name="before_id"`) || strings.Contains(viewer.Body.String(), `name="confirm_archive"`) {
 		t.Fatal("viewer sees stage management actions")
 	}
 }
@@ -302,21 +303,29 @@ func TestStageFiltersPreserveVisibleReordering(t *testing.T) {
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("archive: %d", response.Code)
 	}
-	response = request(env.routes, http.MethodPost, path+"/reorder", url.Values{"csrf": {env.csrf}, "stage": {stages[2].ID.String()}, "direction": {"up"}}, env.cookies, nil)
+	stages, err = service.ListStages(context.Background(), owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := json.Marshal(stages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response = request(env.routes, http.MethodPost, path+"/reorder", url.Values{"csrf": {env.csrf}, "stage_id": {stages[2].ID.String()}, "kind": {"open"}, "before_id": {stages[0].ID.String()}, "snapshot": {string(snapshot)}}, env.cookies, nil)
 	if response.Code != http.StatusSeeOther {
 		t.Fatalf("reorder: %d", response.Code)
 	}
 	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
 	body := page.Body.String()
-	first, last := strings.Index(body, "First stage"), strings.Index(body, "Last stage")
-	if page.Code != http.StatusOK || last < 0 || first < last || strings.Contains(body, "Archived stage") {
+	first, last := strings.Index(body, ">First stage</strong>"), strings.Index(body, ">Last stage</strong>")
+	if page.Code != http.StatusOK || last < 0 || first < last || strings.Contains(body, ">Archived stage</strong>") {
 		t.Fatalf("active order: %d %s", page.Code, body)
 	}
 	if err := env.auth.UpdateWorkspaceLocale(context.Background(), owner, "es", identity.AuditContext{}); err != nil {
 		t.Fatal(err)
 	}
 	page = request(env.routes, http.MethodGet, path+"?status=archived", nil, env.viewerCookies, nil)
-	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "Archived stage") || !strings.Contains(page.Body.String(), "Filtrar") || !strings.Contains(page.Body.String(), "Archivada") {
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), ">Archived stage</strong>") || strings.Contains(page.Body.String(), " draggable") || !strings.Contains(page.Body.String(), "Filtrar") || !strings.Contains(page.Body.String(), "Archivada") {
 		t.Fatalf("Spanish archived page: %d %s", page.Code, page.Body.String())
 	}
 }
@@ -332,7 +341,7 @@ func TestStagesThroughWeb(t *testing.T) {
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
-	created = request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"Completed project"}, "kind": {"won"}}, env.cookies, nil)
+	created = request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "name": {"Completed project"}, "kind": {"open"}}, env.cookies, nil)
 	if created.Code != http.StatusSeeOther {
 		t.Fatalf("create second = %d", created.Code)
 	}
@@ -344,7 +353,11 @@ func TestStagesThroughWeb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reordered := request(env.routes, http.MethodPost, path+"/reorder", url.Values{"csrf": {env.csrf}, "stage": {stages[1].ID.String()}, "direction": {"up"}}, env.cookies, nil)
+	snapshot, err := json.Marshal(stages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reordered := request(env.routes, http.MethodPost, path+"/reorder", url.Values{"csrf": {env.csrf}, "stage_id": {stages[1].ID.String()}, "kind": {"open"}, "before_id": {stages[0].ID.String()}, "snapshot": {string(snapshot)}}, env.cookies, nil)
 	if reordered.Code != http.StatusSeeOther {
 		t.Fatalf("reorder = %d", reordered.Code)
 	}
@@ -386,7 +399,7 @@ func TestStagesThroughWeb(t *testing.T) {
 	} {
 		for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
 			list := request(env.routes, http.MethodGet, path+tc.query, nil, cookies, nil)
-			if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), tc.present) || strings.Contains(list.Body.String(), tc.absent) || !strings.Contains(list.Body.String(), `name="status"`) {
+			if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), ">"+tc.present+"</strong>") || strings.Contains(list.Body.String(), ">"+tc.absent+"</strong>") || !strings.Contains(list.Body.String(), `name="status"`) {
 				t.Fatalf("list %s = %d %s", tc.query, list.Code, list.Body.String())
 			}
 		}
@@ -549,10 +562,10 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	viewerDetail := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	if !strings.Contains(writerDetail.Body.String(), `for="engagement-assignee"`) || !strings.Contains(writerDetail.Body.String(), ">Unassigned</option>") ||
-		!strings.Contains(writerDetail.Body.String(), "Next action: No next action") {
+		!strings.Contains(writerDetail.Body.String(), `<dt class="font-semibold">Next action</dt>`) || !strings.Contains(writerDetail.Body.String(), "No next action") {
 		t.Fatal("writer unassigned detail missing")
 	}
-	for _, want := range []string{"Assignee: Unassigned", "Next action: No next action"} {
+	for _, want := range []string{"Assignee: Unassigned", `<dt class="font-semibold">Next action</dt>`, "No next action"} {
 		if !strings.Contains(viewerDetail.Body.String(), want) {
 			t.Fatalf("unassigned detail missing %q", want)
 		}
@@ -631,6 +644,10 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil); got.Code != http.StatusUnprocessableEntity || !strings.Contains(got.Body.String(), invalidName) || !strings.Contains(got.Body.String(), `data-inline-dirty-on-load open`) {
 		t.Fatalf("invalid rename: %d %s", got.Code, got.Body.String())
+	}
+	invalidNameDetail := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {invalidName}}, env.cookies, nil)
+	if !strings.Contains(invalidNameDetail.Body.String(), `data-inline-saved="Engagement"`) || !strings.Contains(invalidNameDetail.Body.String(), `>Engagement</h1>`) {
+		t.Fatal("invalid name must leave the saved heading and cancel value intact")
 	}
 	if got := request(env.routes, http.MethodPost, namePath, url.Values{"csrf": {env.csrf}, "name": {"Renamed"}}, env.cookies, nil); got.Code != http.StatusSeeOther || got.Header().Get("Location") != detailPath+"?saved=1" {
 		t.Fatalf("rename: %d %s", got.Code, got.Header().Get("Location"))
@@ -711,11 +728,11 @@ func TestEngagementThroughWeb(t *testing.T) {
 		}
 	}
 	spanishWriter := request(env.routes, http.MethodGet, detailPath, nil, env.cookies, nil)
-	if !strings.Contains(spanishWriter.Body.String(), ">Sin asignar</option>") || !strings.Contains(spanishWriter.Body.String(), "Próxima acción: Sin próxima acción") {
+	if !strings.Contains(spanishWriter.Body.String(), ">Sin asignar</option>") || !strings.Contains(spanishWriter.Body.String(), `<dt class="font-semibold">Próxima acción</dt>`) || !strings.Contains(spanishWriter.Body.String(), "Sin próxima acción") {
 		t.Fatal("Spanish writer unassigned detail missing")
 	}
 	spanishViewer := request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
-	if !strings.Contains(spanishViewer.Body.String(), "Asignado a: Sin asignar") || !strings.Contains(spanishViewer.Body.String(), "Próxima acción: Sin próxima acción") {
+	if !strings.Contains(spanishViewer.Body.String(), "Asignado a: Sin asignar") || !strings.Contains(spanishViewer.Body.String(), `<dt class="font-semibold">Próxima acción</dt>`) || !strings.Contains(spanishViewer.Body.String(), "Sin próxima acción") {
 		t.Fatal("Spanish viewer unassigned detail missing")
 	}
 	spanishSaved := request(env.routes, http.MethodGet, detailPath+"?saved=1", nil, env.cookies, nil)
@@ -789,11 +806,17 @@ func TestEngagementThroughWeb(t *testing.T) {
 			t.Fatalf("invalid quote missing %q: %d", want, invalidQuote.Code)
 		}
 	}
+	if !strings.Contains(invalidQuote.Body.String(), "120.50 2026-11-23</p>") {
+		t.Fatal("invalid quote must retain the saved summary")
+	}
 	badQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"bogus"}, "amount": {"not-money"}, "date_sent": {"bad-date"}, "return_to": {"detail"}}, env.cookies, nil)
 	for _, want := range []string{`aria-describedby="engagement-quote-status-error"`, `aria-describedby="engagement-quote-amount-error"`, `aria-describedby="engagement-quote-date-error"`, `value="bogus" selected disabled`, `value="not-money"`, `data-entry-number="decimal"`, `value="bad-date"`, "Select a valid quote status.", "Enter a non-negative amount"} {
 		if badQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(badQuote.Body.String(), want) {
 			t.Fatalf("invalid quote fields missing %q: %d", want, badQuote.Code)
 		}
+	}
+	if strings.Contains(badQuote.Body.String(), "engagement.quote_bogus") || !strings.Contains(badQuote.Body.String(), "120.50 2026-11-23</p>") {
+		t.Fatal("invalid quote status must not replace the saved summary")
 	}
 	spanishQuote := request(env.routes, http.MethodPost, quotePath, url.Values{"csrf": {env.csrf}, "status": {"sent"}, "amount": {"-1"}, "return_to": {"detail"}}, append(append([]*http.Cookie{}, env.cookies...), &http.Cookie{Name: "locale", Value: "es"}), nil)
 	if spanishQuote.Code != http.StatusUnprocessableEntity || !strings.Contains(spanishQuote.Body.String(), "Introduce un importe no negativo") || strings.Contains(spanishQuote.Body.String(), `id="engagement-quote-status-error"`) {
@@ -844,6 +867,9 @@ func TestEngagementThroughWeb(t *testing.T) {
 	}
 	if !strings.Contains(invalidAction.Body.String(), `data-detail-dirty-on-load open`) {
 		t.Fatal("invalid action draft must reopen its editor")
+	}
+	if !strings.Contains(invalidAction.Body.String(), "Call client 2020-01-01") {
+		t.Fatal("invalid action must retain the saved summary")
 	}
 	invalidOwner := request(env.routes, http.MethodPost, actionPath, url.Values{"version": {"1"}, "csrf": {env.csrf}, "text": {"Keep this action"}, "owner_id": {"invalid"}, "return_to": {"detail"}}, env.cookies, nil)
 	for _, want := range []string{`aria-describedby="engagement-next-action-owner-error"`, `id="engagement-next-action-owner-error"`, `<option value="invalid" selected disabled>invalid — Unavailable</option>`} {
@@ -1004,5 +1030,70 @@ func TestEngagementThroughWeb(t *testing.T) {
 	viewer = request(env.routes, http.MethodGet, detailPath, nil, env.viewerCookies, nil)
 	if !strings.Contains(viewer.Body.String(), "No disponible</span>") {
 		t.Fatalf("missing actor: %d %s", viewer.Code, viewer.Body.String())
+	}
+}
+
+func TestStageGroupMoveConfirmationAndStaleSnapshot(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	owner, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.WorkspaceUpdate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := engagement.NewService(env.db, config.SQLite, env.auth)
+	stage, err := service.CreateStage(ctx, owner, env.workspaceID, engagement.StageInput{Name: "Move this stage", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, owner, env.workspaceID, clients.Input{DisplayName: "Move client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	createPath := "/workspaces/" + env.workspaceID.String() + "/engagements/new"
+	created := request(env.routes, http.MethodPost, createPath, url.Values{"csrf": {env.csrf}, "client": {client.ID.String()}, "name": {"Affected engagement"}, "stage": {stage.ID.String()}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create engagement: %d %s", created.Code, created.Body.String())
+	}
+	stages, err := service.ListStages(ctx, owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := json.Marshal(stages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/engagement-stages"
+	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, `data-stage-group="open"`) || !strings.Contains(body, `data-stage-group="won"`) || !strings.Contains(body, `data-stage-group="lost"`) {
+		t.Fatalf("groups: %d %s", page.Code, body)
+	}
+	values := url.Values{"csrf": {env.csrf}, "stage_id": {stage.ID.String()}, "kind": {"won"}, "snapshot": {string(snapshot)}}
+	preview := request(env.routes, http.MethodPost, path+"/reorder", values, env.cookies, nil)
+	if preview.Code != http.StatusOK || !strings.Contains(preview.Body.String(), "Move this stage") || !strings.Contains(preview.Body.String(), "Affected engagements</dt><dd>1</dd>") || !strings.Contains(preview.Body.String(), `name="confirm_move"`) {
+		t.Fatalf("confirmation: %d %s", preview.Code, preview.Body.String())
+	}
+	current, err := service.ListStages(ctx, owner, env.workspaceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range current {
+		if item.ID == stage.ID && item.Kind != "open" {
+			t.Fatal("unconfirmed move changed stage")
+		}
+	}
+	denied := url.Values{"csrf": {env.viewerCSRF}, "stage_id": {stage.ID.String()}, "kind": {"won"}, "snapshot": {string(snapshot)}}
+	if result := request(env.routes, http.MethodPost, path+"/reorder", denied, env.viewerCookies, nil); result.Code != http.StatusForbidden {
+		t.Fatalf("viewer: %d", result.Code)
+	}
+	values.Set("confirm_move", "yes")
+	values.Set("count", "1")
+	saved := request(env.routes, http.MethodPost, path+"/reorder", values, env.cookies, nil)
+	if saved.Code != http.StatusSeeOther {
+		t.Fatalf("confirmed move: %d %s", saved.Code, saved.Body.String())
+	}
+	stale := request(env.routes, http.MethodPost, path+"/reorder", values, env.cookies, nil)
+	if stale.Code != http.StatusConflict || !strings.Contains(stale.Body.String(), "changed") {
+		t.Fatalf("stale move: %d %s", stale.Code, stale.Body.String())
 	}
 }

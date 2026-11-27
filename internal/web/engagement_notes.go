@@ -50,7 +50,7 @@ func (h *Handler) setEngagementNotes(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		h.renderError(w, http.StatusInternalServerError)
 	default:
-		h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId")+"?saved=1")
+		h.redirect(w, r, engagementContextURL(clientContextURL(h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId")+"?saved=1", r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 	}
 }
 

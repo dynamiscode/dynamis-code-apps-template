@@ -70,6 +70,19 @@ cannot reconstruct omitted sensitive values.
 Migration `000062_transaction_description.sql` adds a description; existing
 entries receive an empty value.
 
+The approved stage-settings change uses migration `000066` to normalize stage
+positions in open, won, and lost order. It preserves the previous order within
+each kind, including archived stages. The migration is forward-only. Create and
+verify a pre-upgrade backup; restoring it discards subsequent writes. Follow the
+[upgrade procedure](operations.md#backup-and-restore).
+
+For a confirmed stage type change, the server checks the full stage snapshot
+(IDs, names, kinds, archive states, and order) and the count of all engagements
+in the stage in the same serializable transaction. A stale snapshot or count
+rejects the change. The type, order, and audit update atomically; engagement and
+history rows remain unchanged. See the
+[approved workflow decisions](engagement-workflow-decisions.md).
+
 Workspace currency settings apply to Catalog and Transactions. With no saved
 settings, USD with two decimal places is the default. A saved configuration has
 exactly one default and retains legacy precision; a noncanonical default is

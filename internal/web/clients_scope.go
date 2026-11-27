@@ -2,7 +2,10 @@ package web
 
 import (
 	"net/url"
+	"strconv"
+	"strings"
 
+	"example.com/dynamis-code/apps-template/internal/identity"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
@@ -12,6 +15,45 @@ func clientDetailHref(data viewmodel.PageData, id string) string {
 		href += "?return=" + url.QueryEscape(data.ClientReturnQuery)
 	}
 	return href
+}
+
+func clientContextURL(path, raw string) string {
+	if raw == "" || clientReturnHref("/clients", raw) == "/clients" {
+		return path
+	}
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+	return path + separator + "return=" + url.QueryEscape(raw)
+}
+
+func engagementReturnPath(workspace identity.WorkspaceID, raw string) string {
+	if len(raw) > 4096 {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	listPath := "/workspaces/" + workspace.String() + "/engagements"
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || u.Opaque != "" || u.Fragment != "" || (u.Path != listPath && u.Path != listPath+"/due") {
+		return ""
+	}
+	return u.RequestURI()
+}
+
+func engagementContextURL(path, raw string) string {
+	if raw == "" {
+		return path
+	}
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+	return path + separator + "engagement_return=" + url.QueryEscape(raw)
+}
+
+func clientTimelineURL(data viewmodel.PageData, page int) string {
+	path := data.CurrentPath + "/" + data.Client.ID.String() + "?timeline_page=" + strconv.Itoa(page)
+	return clientContextURL(path, data.ClientReturnQuery)
 }
 
 func clientReturnHref(path, raw string) string {
