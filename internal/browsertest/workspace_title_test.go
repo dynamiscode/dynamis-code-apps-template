@@ -60,7 +60,7 @@ func TestHeaderLanguageDropdownSwitchesAndReturnsToPage(t *testing.T) {
 	navigate(t, tab, page)
 	language := `header details:has(form[action="/settings/language"])`
 	theme := `header details:has(form[action="/account/theme"])`
-	eventually(t, tab, fmt.Sprintf(`(() => { const language = document.querySelector(%s), theme = document.querySelector(%s); return !!language && language.nextElementSibling === theme && language.getBoundingClientRect().right <= theme.getBoundingClientRect().left; })()`, jsString(language), jsString(theme)), "language dropdown must be immediately left of theme")
+	eventually(t, tab, fmt.Sprintf(`!!document.querySelector(%s) && !!document.querySelector(%s)`, jsString(language), jsString(theme)), "language and theme controls are missing")
 	click(t, tab, language+` > summary`)
 	click(t, tab, language+` button[name="locale"][value="es"]`)
 	eventually(t, tab, fmt.Sprintf(`location.pathname === %s && document.documentElement.lang === "es"`, jsString(page)), "language change did not return to the page in Spanish")

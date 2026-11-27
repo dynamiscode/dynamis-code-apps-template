@@ -131,6 +131,9 @@ func TestCopyTemplatePrunesActionExceptions(t *testing.T) {
 			t.Fatal(err)
 		}
 		content := []byte("template")
+		if path == "internal/web/engagement.templ" {
+			content = []byte("template\n<a class=\"link lg:hidden\" href=\"#action-history\">\n<a class=\"other\">")
+		}
 		if path == "scripts/actioncheck/exceptions.json" {
 			content = []byte(`[{"Path":"internal/web/catalog.templ","Reason":"catalog"},{"Path":"internal/web/engagement_list.templ","Reason":"clients"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"link lg:hidden\" href=\"#action-history\">","Reason":"detail"},{"Path":"internal/web/engagement.templ","OpenTag":"<a class=\"other\">","Reason":"other"},{"Path":"internal/web/components/molecules/list_column_heading.templ","Reason":"shared"}]`)
 		}

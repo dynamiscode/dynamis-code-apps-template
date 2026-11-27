@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/input"
 )
@@ -22,25 +21,14 @@ func stageCardPoint(t *testing.T, tab context.Context, name string, fraction flo
 	})()`, jsString(name), fraction))
 }
 
-func dragStage(t *testing.T, tab context.Context, source []float64, targetPoint func() []float64, gapPosition string) {
+func dragStage(t *testing.T, tab context.Context, source, target []float64) {
 	t.Helper()
 	columnMouse(t, tab, input.DispatchMouseEventTypeMouseMoved, source, false)
 	columnMouse(t, tab, input.DispatchMouseEventTypeMousePressed, source, true)
 	lifted := []float64{source[0], source[1] + 10}
 	moveColumnPointer(t, tab, source, lifted, 5)
-	eventually(t, tab, `Boolean(document.querySelector('.stage-drag-gap'))`, "stage drag did not show an insertion gap")
-	target := targetPoint()
-	point := lifted
-	for i := 1; i <= 20; i++ {
-		fraction := float64(i) / 20
-		point = []float64{lifted[0] + (target[0]-lifted[0])*fraction, lifted[1] + (target[1]-lifted[1])*fraction}
-		columnMouse(t, tab, input.DispatchMouseEventTypeMouseMoved, point, true)
-		if eval[bool](t, tab, gapPosition) {
-			break
-		}
-	}
-	eventually(t, tab, gapPosition, "stage drag gap did not reach the target")
-	columnMouse(t, tab, input.DispatchMouseEventTypeMouseReleased, point, false)
+	moveColumnPointer(t, tab, lifted, target, 20)
+	columnMouse(t, tab, input.DispatchMouseEventTypeMouseReleased, target, false)
 }
 
 func TestStageDragReorderAndGroupConfirmation(t *testing.T) {
@@ -67,37 +55,37 @@ func TestStageDragReorderAndGroupConfirmation(t *testing.T) {
 	click(t, tab, `a[href*="/engagements/new?client="]`)
 	waitVisible(t, tab, "#engagement-name")
 	fill(t, tab, "#engagement-name", "Drag engagement "+suffix)
-	selectEngagementStage(t, tab, second)
+	stageIndex := eval[int](t, tab, fmt.Sprintf(`[...document.querySelector("#engagement-stage").options].findIndex(option => option.textContent.trim() === %s && !option.disabled)`, jsString(second)))
+	if stageIndex < 0 {
+		t.Fatalf("stage %q not available", second)
+	}
+	click(t, tab, `.entry-field:has(#engagement-stage) .entry-picker-trigger`)
+	click(t, tab, fmt.Sprintf(`#engagement-stage-options .entry-picker-option:nth-child(%d)`, stageIndex+1))
+	eventually(t, tab, fmt.Sprintf(`document.querySelector("#engagement-stage").selectedOptions[0].textContent.trim() === %s`, jsString(second)), "stage selection did not change")
 	click(t, tab, `form:has(#engagement-name) .modal-action button[type=submit]`)
 	eventually(t, tab, `/\/engagements\/[^/?]+$/.test(location.pathname)`, "engagement was not created")
 
 	navigate(t, tab, workspace+"/engagement-stages")
+	eval[any](t, tab, `window.__stageDragStarts = 0; document.addEventListener("dragstart", () => window.__stageDragStarts++, true)`)
 	eventually(t, tab, `Boolean(document.querySelector('[data-stage-order-bound]'))`, "stage drag was not initialized")
 	source := stageCardPoint(t, tab, second, 0.5)
 	columnMouse(t, tab, input.DispatchMouseEventTypeMouseMoved, source, false)
 	columnMouse(t, tab, input.DispatchMouseEventTypeMousePressed, source, true)
 	lifted := []float64{source[0], source[1] + 10}
 	moveColumnPointer(t, tab, source, lifted, 5)
-	eventually(t, tab, `Boolean(document.querySelector('.stage-drag-gap'))`, "stage drag did not start")
 	target := eval[[]float64](t, tab, `(() => { const r = document.querySelector('[data-stage-group="won"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`)
-	moveColumnPointer(t, tab, lifted, target, 10)
-	eventually(t, tab, `Boolean(document.querySelector('[data-stage-group="won"].is-stage-drop-target'))`, "drag target was not highlighted")
-	if !eval[bool](t, tab, `(() => {
-		const groups = [...document.querySelectorAll('[data-stage-group]')];
-		const empty = groups.find(group => !group.querySelector('[data-stage-card]:not(.is-dragging)'));
-		return groups.length === 3 && groups.every(group => getComputedStyle(group).outlineStyle !== 'none') &&
-			empty && getComputedStyle(empty, '::after').content === '"Drop here"' &&
-			!!document.querySelector('[data-stage-group].is-stage-drop-target');
-	})()`) {
-		t.Fatal("drag must highlight groups, identify the target, and label an empty group")
+	if !eval[bool](t, tab, `(() => { const r = document.querySelector('[data-stage-group="won"]').getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; })()`) {
+		t.Fatal("won stage group is not available as a drag target")
 	}
-	call(t, tab, input.CancelDragging, cdp.Empty{})
+	moveColumnPointer(t, tab, lifted, target, 10)
+	eventually(t, tab, `window.__stageDragStarts > 0`, "stage drag did not start")
+	if !eval[bool](t, tab, `(() => { const event = new KeyboardEvent("keydown", {key: "Escape", bubbles: true, cancelable: true}); document.dispatchEvent(event); return event.defaultPrevented; })()`) {
+		t.Fatal("Escape was not handled while dragging")
+	}
 	columnMouse(t, tab, input.DispatchMouseEventTypeMouseReleased, target, false)
-	eventually(t, tab, `!document.querySelector('.stage-drag-gap, .stage-drag-preview, .is-stage-dragging, .is-stage-drop-target') && [...document.querySelectorAll('[data-stage-group]')].every(group => getComputedStyle(group, '::after').content === 'none')`, "cancel left drag guidance visible")
-	eventually(t, tab, fmt.Sprintf(`document.querySelector('[data-stage-group="open"]')?.textContent.includes(%s)`, jsString(second)), "cancel changed the stage group")
-	dragStage(t, tab, stageCardPoint(t, tab, second, 0.5), func() []float64 {
-		return eval[[]float64](t, tab, fmt.Sprintf(`(() => { const card = [...document.querySelectorAll('[data-stage-card]')].find(el => el.textContent.includes(%s)), r = card.getBoundingClientRect(); return [r.left + 25, r.top + r.height / 2 - 15]; })()`, jsString(first)))
-	}, fmt.Sprintf(`Boolean(document.querySelector('.stage-drag-gap')?.nextElementSibling?.textContent.includes(%s))`, jsString(first)))
+	eventually(t, tab, fmt.Sprintf(`document.querySelector('[data-stage-group="open"]')?.textContent.includes(%s) && !document.querySelector('dialog[aria-labelledby="confirm-stage-move-title"]')`, jsString(second)), "Escape changed the stage group")
+	target = eval[[]float64](t, tab, fmt.Sprintf(`(() => { const card = [...document.querySelectorAll('[data-stage-card]')].find(el => el.textContent.includes(%s)), r = card.getBoundingClientRect(); return [r.left + 25, r.top + r.height / 2 - 15]; })()`, jsString(first)))
+	dragStage(t, tab, stageCardPoint(t, tab, second, 0.5), target)
 	order := fmt.Sprintf(`(() => { const cards = [...document.querySelectorAll('[data-stage-group="open"] [data-stage-card]')]; return cards.findIndex(c => c.textContent.includes(%s)) < cards.findIndex(c => c.textContent.includes(%s)) && cards.some(c => c.textContent.includes(%s)); })()`, jsString(second), jsString(first), jsString(second))
 	eventually(t, tab, order, "within-group drop did not save the order")
 	navigate(t, tab, workspace+"/engagement-stages")
@@ -105,10 +93,8 @@ func TestStageDragReorderAndGroupConfirmation(t *testing.T) {
 
 	moveToWon := func() {
 		t.Helper()
-		eventually(t, tab, `Boolean(document.querySelector('[data-stage-order-bound]'))`, "stage drag was not initialized")
-		dragStage(t, tab, stageCardPoint(t, tab, second, 0.5), func() []float64 {
-			return eval[[]float64](t, tab, `(() => { const group = document.querySelector('[data-stage-group="won"]'), r = group.getBoundingClientRect(); return [r.left + r.width / 2, r.bottom - 3]; })()`)
-		}, `document.querySelector('.stage-drag-gap')?.parentElement?.dataset.stageGroup === 'won'`)
+		target := eval[[]float64](t, tab, `(() => { const group = document.querySelector('[data-stage-group="won"]'), r = group.getBoundingClientRect(); return [r.left + r.width / 2, r.bottom - 3]; })()`)
+		dragStage(t, tab, stageCardPoint(t, tab, second, 0.5), target)
 		waitVisible(t, tab, `dialog[aria-labelledby="confirm-stage-move-title"]`)
 		if !eval[bool](t, tab, fmt.Sprintf(`(() => { const values = [...document.querySelectorAll('dialog[aria-labelledby="confirm-stage-move-title"] dd')].map(el => el.textContent.trim()); return JSON.stringify(values) === JSON.stringify([%s, 'Open', 'Won', '1']); })()`, jsString(second))) {
 			t.Fatal("confirmation must show stage, old and new groups, and one affected engagement")

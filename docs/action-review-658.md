@@ -13,9 +13,9 @@ catalog atoms and feature-gated templates. Four shared shell controls used
 now use `btn-outline`, retaining their native button semantics and behavior.
 
 `make web-conformance` uses the templ parser and a Go type pass to check
-declared controls and supported render paths. It rejects conditional-only
-boundaries, invisible-border and ghost/link overrides, and unsupported
-render or spread sources. Static exceptions are audited in
+declared controls and supported render paths. It rejects unsupported render or
+spread sources and unsafe attributes without requiring a particular visual
+class or border. Static exceptions are audited in
 `scripts/actioncheck/exceptions.json` by exact file, line and opening tag.
 The runtime scanner does not inherit those source exceptions. Compose
 exceptional controls using statically checked template children, not opaque

@@ -451,7 +451,7 @@ li[data-optimistic="hidden"], tr[data-optimistic="hidden"] { display: none; }
 .entry-field > :is(input, textarea)::placeholder { color: var(--muted); opacity: 1; }
 .entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within) > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger):not([aria-invalid="true"]) { border-color: transparent; background-color: transparent; box-shadow: none; }
 .entry-field:is([data-entry-filled], :has(> select option:checked:not([value=""]))):not(:focus-within):hover > :is(input:not([type="hidden"]), textarea, select, .entry-picker-trigger) { background-color: var(--accent-surface); }
-.entry-field[data-entry-bound]:has(> input, > textarea, > select) > .entry-field-label { position: absolute; z-index: 1; left: calc(.75rem + var(--border, 1px)); top: .75rem; }
+.entry-field[data-entry-bound]:has(> input, > textarea) > .entry-field-label { position: absolute; z-index: 1; left: calc(.75rem + var(--border, 1px)); top: .75rem; pointer-events: none; }
 .entry-field[data-entry-bound]:not([data-entry-filled]):not(:focus-within) > .entry-field-label { color: var(--muted); }
 .entry-field[data-entry-bound]:has(> input, > textarea, > select):is([data-entry-filled], :focus-within) > .entry-field-label, .entry-field[data-entry-bound]:has(> input:is([type="date"], [type="time"], [type="datetime-local"])) > .entry-field-label { top: .15rem; font-size: .75rem; line-height: 1rem; }
 .entry-field[data-entry-bound] > :is(input, textarea, select), .entry-picker-trigger { padding-top: 1.1rem; }

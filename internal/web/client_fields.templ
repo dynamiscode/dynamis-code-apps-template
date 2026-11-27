@@ -19,7 +19,7 @@ templ clientFieldsPage(data viewmodel.PageData) {
 						<noscript>
 							<details if data.ErrorKey != "" { open }>
 								<summary class="btn btn-primary">{ data.T("clients.new_field") }</summary>
-								@clientFieldCreateForm(data, false)
+								@clientFieldCreateForm(data, false, "fallback-")
 							</details>
 						</noscript>
 					</div>
@@ -53,7 +53,7 @@ templ clientFieldList(data viewmodel.PageData) {
 					if data.ErrorKey == "clients.error_field_label" || data.ErrorKey == "clients.error_field_limit" {
 						@molecules.ErrorAlert(data.T(data.ErrorKey))
 					}
-					@clientFieldCreateForm(data, true)
+					@clientFieldCreateForm(data, true, "")
 				</div>
 			</dialog>
 		}
@@ -166,14 +166,14 @@ templ clientFieldList(data viewmodel.PageData) {
 	</section>
 }
 
-templ clientFieldCreateForm(data viewmodel.PageData, modal bool) {
+templ clientFieldCreateForm(data viewmodel.PageData, modal bool, prefix string) {
 	<form action={ data.FieldsPath } method="post" data-dirty-track data-unsaved-warning if data.ErrorKey == "clients.error_field_label" || data.ErrorKey == "clients.error_field_limit" { data-dirty-on-load }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
-		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-label", Label: data.T("clients.field_label"), Value: data.FieldDraft.Label}) {
-			<input class="input w-full" id="client-field-label" name="label" type="text" value={ data.FieldDraft.Label } required maxlength="100" data-trim=""/>
+		@molecules.EntryField(molecules.EntryFieldProps{ID: prefix + "client-field-label", Label: data.T("clients.field_label"), Value: data.FieldDraft.Label}) {
+			<input class="input w-full" id={ prefix + "client-field-label" } name="label" type="text" value={ data.FieldDraft.Label } required maxlength="100" data-trim=""/>
 		}
-		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-field-type", Label: data.T("clients.field_type")}) {
-			<select class="select w-full" id="client-field-type" name="type">
+		@molecules.EntryField(molecules.EntryFieldProps{ID: prefix + "client-field-type", Label: data.T("clients.field_type")}) {
+			<select class="select w-full" id={ prefix + "client-field-type" } name="type">
 				<option value="text" if data.FieldDraft.Type == "" || data.FieldDraft.Type == "text" { selected }>{ data.T("clients.field_type_text") }</option>
 				<option value="number" if data.FieldDraft.Type == "number" { selected }>{ data.T("clients.field_type_number") }</option>
 				<option value="date" if data.FieldDraft.Type == "date" { selected }>{ data.T("clients.field_type_date") }</option>

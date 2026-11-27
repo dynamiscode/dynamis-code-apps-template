@@ -2516,13 +2516,21 @@
 			dialog.showModal();
 			cancel.focus();
 		}, true);
-		cancel.addEventListener("click", () => dialog.close());
-		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
-		dialog.addEventListener("close", () => {
-			const menu = pending?.closest("details.list-menu");
-			if (menu) menu.open = true;
-			pending?.focus();
+		const closing = [];
+		const closeAndRestore = () => {
+			closing.push(pending);
 			pending = undefined;
+			dialog.close();
+		};
+		cancel.addEventListener("click", closeAndRestore);
+		dialog.addEventListener("cancel", () => closing.push(pending));
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) closeAndRestore(); });
+		dialog.addEventListener("close", () => {
+			const trigger = closing.shift();
+			if (!trigger || dialog.open) return;
+			const menu = trigger.closest("details.list-menu");
+			if (menu) menu.open = true;
+			trigger.focus();
 		});
 		confirm.addEventListener("click", () => {
 			if (!pending || pending.form.dataset.submitting === "true") return;
@@ -2533,9 +2541,11 @@
 			input.name = "confirm_archive";
 			input.value = "yes";
 			form.append(input);
+			form.addEventListener("formdata", () => input.remove(), { once: true });
+			closing.push(null);
+			pending = undefined;
 			dialog.close();
-			form.requestSubmit(button);
-			input.remove();
+			form.requestSubmit();
 		});
 	};
 
@@ -2634,7 +2644,12 @@
 				form.requestSubmit();
 			});
 			board.addEventListener("dragend", endDrag);
-			root.addEventListener("keydown", (event) => { if (event.key === "Escape") endDrag(); }, true);
+			root.addEventListener("keydown", (event) => {
+				if (event.key !== "Escape" || !drag) return;
+				event.preventDefault();
+				event.stopPropagation();
+				endDrag();
+			}, true);
 		});
 	};
 

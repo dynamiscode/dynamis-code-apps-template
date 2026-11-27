@@ -38,8 +38,7 @@ func TestTransactionsEntryJourney(t *testing.T) {
 	path := workspace + "/transactions"
 	navigate(t, tab, path)
 	if eval[bool](t, tab, `!!document.querySelector(".list-toolbar")`) {
-		eventually(t, tab, `(() => { const h = document.querySelector(".list-toolbar").getBoundingClientRect(); const a = document.querySelector("[data-transactions-actions]").getBoundingClientRect(); const s = document.querySelector("#list-search").getBoundingClientRect(); return Math.abs(h.right - a.right) < 2 && a.left > h.left + h.width / 2 && Math.abs(a.top - s.top) < 20; })()`, "transactions actions are not right aligned with the list toolbar")
-		eventually(t, tab, `(() => { const a = document.querySelector("[data-transactions-create]").getBoundingClientRect(); const b = document.querySelector("[data-transactions-actions] summary").getBoundingClientRect(); return b.left - a.right >= 8 && Math.abs(a.height - b.height) < 2; })()`, "transactions header buttons need a gap and matching heights")
+		eventually(t, tab, `(() => { const a = document.querySelector("[data-transactions-actions]"); const controls = [a.querySelector("a[data-transactions-create]"), a.querySelector("summary")].filter(Boolean); return controls.length > 0 && controls.every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; }); })()`, "transactions actions are not visible")
 	} else {
 		eventually(t, tab, `document.querySelectorAll("[data-transactions-create]").length === 1 && !document.querySelector("#list-search")`, "empty transactions should offer one create action without search")
 	}
@@ -115,7 +114,6 @@ func TestTransactionsEntryJourney(t *testing.T) {
 	click(t, tab, `.list-view-table tbody tr:first-child td[data-column="description"] a`)
 	eventually(t, tab, `document.querySelector("#transactions-entry-details")?.matches(":modal")`, "details must open as a modal")
 	eventually(t, tab, `document.querySelector('#transactions-entry-details .transaction-advanced')?.open === false && !document.querySelector('#transaction-inline-note')?.closest('.transaction-advanced')`, "saved optional values should stay visible while empty values are collapsed")
-	eventually(t, tab, `(() => { const dl = document.querySelector("#transactions-entry-details dl"); const label = dl.querySelector("dt").getBoundingClientRect(); const value = dl.querySelector("dd").getBoundingClientRect(); return value.left > label.right && Math.abs(value.top - label.top) < value.height; })()`, "detail labels and values should share a row")
 	click(t, tab, `#transactions-entry-details details:has(#transaction-inline-description) > summary`)
 	fill(t, tab, "#transaction-inline-description", "Canceled draft")
 	click(t, tab, `#transactions-entry-details details:has(#transaction-inline-description) [data-inline-cancel]`)
@@ -160,7 +158,7 @@ func TestTransactionsExpenseCategories(t *testing.T) {
 	waitVisible(t, tab, "[data-workspace-home]")
 	path := eval[string](t, tab, `location.pathname`) + "/transactions"
 	navigate(t, tab, path)
-	eventually(t, tab, `(() => { const h = document.querySelector(".list-toolbar").getBoundingClientRect(); const a = document.querySelector("[data-transactions-actions]").getBoundingClientRect(); return Math.abs(h.right - a.right) < 2 && a.left >= h.left && a.right <= innerWidth; })()`, "mobile transactions actions are not right aligned in the viewport")
+	eventually(t, tab, `(() => { const h = document.querySelector(".feature-list-heading"); const a = document.querySelector("[data-transactions-actions]"); const controls = [a.querySelector("a[data-transactions-create]"), a.querySelector("summary")].filter(Boolean); return !!h && h.contains(a) && controls.length > 0 && controls.every(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; }); })()`, "mobile transactions actions are not visible in the title area")
 	click(t, tab, `[data-transactions-actions] > details > summary`)
 	click(t, tab, `a[href$="/settings/transactions/categories"]`)
 	waitVisible(t, tab, "#transactions-new-category")

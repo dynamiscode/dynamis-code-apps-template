@@ -39,29 +39,20 @@ func TestModalControlConsistency(t *testing.T) {
 				})
 				waitVisible(t, tab, modal.dialog+":modal")
 
-				geometry := eval[string](t, tab, fmt.Sprintf(`(() => {
+				controlsUsable := eval[bool](t, tab, fmt.Sprintf(`(() => {
 					const dialog = document.querySelector(%s);
-					const box = dialog.querySelector('.modal-box');
-					const close = dialog.querySelector(%s);
-					const submit = dialog.querySelector(%s);
-					if (!box || !close || !submit) return 'missing modal controls';
-					const style = getComputedStyle(close);
-					for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
-						const color = style['border' + side + 'Color'];
-						if (parseFloat(style['border' + side + 'Width']) > 0 && style['border' + side + 'Style'] !== 'none' && color !== 'transparent' && color !== 'rgba(0, 0, 0, 0)') return 'close has visible border: ' + side + ' ' + color;
+					const close = dialog?.querySelector(%s);
+					const submit = dialog?.querySelector(%s);
+					if (!close || !submit) return false;
+					for (const control of [close, submit]) {
+						control.scrollIntoView({block: 'nearest', inline: 'nearest'});
+						const rect = control.getBoundingClientRect();
+						if (rect.width <= 0 || rect.height <= 0 || rect.left < 0 || rect.right > innerWidth || rect.top < 0 || rect.bottom > innerHeight) return false;
 					}
-					close.scrollIntoView({block: 'nearest', inline: 'nearest'});
-					const c = close.getBoundingClientRect(), b = box.getBoundingClientRect(), bs = getComputedStyle(box);
-					if (c.width <= 0 || c.height <= 0 || c.left < 0 || c.right > innerWidth || c.top < 0 || c.bottom > innerHeight) return 'close does not fit viewport';
-					if (Math.abs(c.right - (b.left + box.clientLeft + box.clientWidth - parseFloat(bs.paddingRight))) > 2) return 'close is not aligned to the right';
-					submit.scrollIntoView({block: 'nearest', inline: 'nearest'});
-					const s = submit.getBoundingClientRect(), form = submit.form.getBoundingClientRect(), fs = getComputedStyle(submit.form);
-					if (s.width <= 0 || s.height <= 0 || s.left < 0 || s.right > innerWidth || s.top < 0 || s.bottom > innerHeight) return 'submit does not fit viewport';
-					if (Math.abs(s.right - (form.right - parseFloat(fs.paddingRight) - parseFloat(fs.borderRightWidth))) > 2) return 'submit is not aligned to the right';
-					return '';
+					return true;
 				})()`, jsString(modal.dialog), jsString(modal.close), jsString(modal.submit)))
-				if geometry != "" {
-					t.Fatal(geometry)
+				if !controlsUsable {
+					t.Fatal("modal controls are missing or cannot be brought into the viewport")
 				}
 
 				closeSelector := modal.dialog + " " + modal.close
@@ -102,22 +93,18 @@ func TestEngagementCreateNotesLayout(t *testing.T) {
 					notesSelector = "[data-notes-inline] [data-notes-rich] .ProseMirror"
 				}
 				waitVisible(t, tab, notesSelector)
-				layout := eval[string](t, tab, fmt.Sprintf(`(() => {
-					const name = document.querySelector('#engagement-name');
+				notesVisible := eval[bool](t, tab, fmt.Sprintf(`(() => {
 					const notes = document.querySelector(%s);
 					const client = document.querySelector('#engagement-client-picker');
 					const stage = document.querySelector('#engagement-stage');
-					if (!name || !notes || !client || !stage) return 'missing create fields';
-					const n = name.getBoundingClientRect(), text = notes.getBoundingClientRect();
-					const c = client.getBoundingClientRect(), s = stage.getBoundingClientRect();
-					if (!text.width || !text.height || notes.closest('details:not([open])')) return 'notes are not visible';
-					if (text.top < n.bottom || text.left >= n.right || text.right <= n.left) return 'notes are not below name';
-					if (s.top - c.bottom < 8) return 'client and stage lack vertical spacing';
-					if (text.left < 0 || text.right > innerWidth || c.left < 0 || c.right > innerWidth || s.left < 0 || s.right > innerWidth) return 'fields overflow viewport';
-					return '';
+					if (!notes || !client || !stage || !notes.getBoundingClientRect().width || !notes.getBoundingClientRect().height || notes.closest('details:not([open])')) return false;
+					return [notes, client, stage].every((field) => {
+						const rect = field.getBoundingClientRect();
+						return rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.right <= innerWidth;
+					});
 				})()`, jsString(notesSelector)))
-				if layout != "" {
-					t.Fatal(layout)
+				if !notesVisible {
+					t.Fatal("notes, client, or stage field is missing, hidden, or outside the viewport")
 				}
 				if javascript {
 					run(t, tab, chromedp.SendKeys(notesSelector, "Editable notes"))

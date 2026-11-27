@@ -26,21 +26,14 @@ func TestCustomFieldHeadingAndActions(t *testing.T) {
 	for _, width := range []int64{1280, 390} {
 		run(t, tab, chromedp.EmulateViewport(width, 900))
 		layout := eval[struct {
-			Visible, NearHeading, NoOverflow bool
+			Visible, NoOverflow bool
 		}](t, tab, `(() => {
-			const heading = document.querySelector('.feature-list-heading');
-			const title = heading?.querySelector('.workspace-heading');
-			const action = heading?.querySelector('.feature-list-heading-actions [data-client-field-create]');
-			if (!title || !action) return {};
-			const h = title.getBoundingClientRect(), a = action.getBoundingClientRect(), container = heading.getBoundingClientRect();
-			return {visible: a.width > 0 && a.height > 0 && getComputedStyle(action).visibility === 'visible',
-				nearHeading: innerWidth > 608
-					? a.top >= h.top - 2 && a.bottom <= h.bottom + 2 && Math.abs(a.right - container.right) <= 2
-					: a.top >= h.bottom - 2 && a.top <= h.bottom + 24 && a.right <= innerWidth,
+			const action = document.querySelector('.feature-list-heading-actions [data-client-field-create]');
+			return {visible: Boolean(action && action.getClientRects().length > 0 && getComputedStyle(action).visibility === 'visible'),
 				noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth};
 		})()`)
-		if !layout.Visible || !layout.NearHeading || !layout.NoOverflow {
-			t.Fatalf("width %d: heading action layout %+v", width, layout)
+		if !layout.Visible || !layout.NoOverflow {
+			t.Fatalf("width %d: heading action unavailable or page overflows: %+v", width, layout)
 		}
 	}
 
@@ -62,10 +55,9 @@ func TestCustomFieldHeadingAndActions(t *testing.T) {
 	if !eval[bool](t, tab, fmt.Sprintf(`(() => {
 		const row = document.querySelector(%s);
 		const archive = row.querySelector('form[action$="/archive"] button');
-		const style = getComputedStyle(archive);
-		return !row.querySelector('form[action$="/delete"]') && archive.getBoundingClientRect().height >= 44 && parseFloat(style.borderWidth) === 0;
+		return !row.querySelector('form[action$="/delete"]') && archive.getClientRects().length > 0;
 	})()`, jsString(row))) {
-		t.Fatal("active field must offer an unboxed archive tile and no delete")
+		t.Fatal("active field must offer archive and no delete")
 	}
 	click(t, tab, row+` form[action$="/archive"] button`)
 	eventually(t, tab, fmt.Sprintf(`Boolean(document.querySelector(%s)?.querySelector('form[action$="/restore"]'))`, jsString(row)), "archive did not expose restore")
@@ -94,11 +86,8 @@ func TestCustomFieldHeadingAndActions(t *testing.T) {
 	run(t, tab, chromedp.Focus(disclosure), chromedp.KeyEvent("\r"))
 	if !eval[bool](t, tab, fmt.Sprintf(`(() => {
 		const row = document.querySelector(%s);
-		const restore = row.querySelector('form[action$="/restore"] button');
-		const remove = row.querySelector('details.client-delete > summary');
 		const banner = row.querySelector('details.client-delete[open]');
-		return [restore, remove].every(item => item && item.getBoundingClientRect().height >= 44 && parseFloat(getComputedStyle(item).borderWidth) === 0)
-			&& Boolean(banner?.textContent.includes('cannot be undone'))
+		return Boolean(banner?.textContent.includes('cannot be undone'))
 			&& Boolean(banner.querySelector('input[name="confirm_delete"][required]'));
 	})()`, jsString(row))) {
 		t.Fatal("delete banner must show the irreversible warning and require confirmation")

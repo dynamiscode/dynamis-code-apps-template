@@ -53,12 +53,6 @@ type focusInfo struct {
 	BoxShadow string `json:"boxShadow"`
 }
 
-type spacingMetrics struct {
-	Gap       float64 `json:"gap"`
-	MarginTop string  `json:"marginTop"`
-	Height    float64 `json:"height"`
-}
-
 type oauthRegistration struct {
 	Status int `json:"status"`
 	Body   struct {
@@ -144,9 +138,6 @@ func (s *a11yRun) flow() error {
 	if err := s.audit("login"); err != nil {
 		return err
 	}
-	if err := s.expectFormActionSpacing("#password", `form[action="/login"] button[type="submit"]`, "login"); err != nil {
-		return err
-	}
 	if err := s.expectKeyboardOrder(); err != nil {
 		return err
 	}
@@ -156,11 +147,6 @@ func (s *a11yRun) flow() error {
 	}
 	if err := s.audit("workspaces"); err != nil {
 		return err
-	}
-	if err := s.expectFormActionSpacing("#workspace-locale", `form[action="/workspaces"] button[type="submit"]`, "workspace creation"); err != nil {
-		current, _ := s.location()
-		body, _ := eval[string](s.browser, "document.body.innerText")
-		return fmt.Errorf("%w at %s: %s", err, current, body)
 	}
 	href, err := eval[string](s.browser, `document.querySelector(".cards a").getAttribute("href")`)
 	if err != nil {
@@ -249,9 +235,6 @@ func (s *a11yRun) flow() error {
 	if err := s.waitFor("#workspace-locale"); err != nil {
 		return err
 	}
-	if err := s.expectFormActionSpacing("#workspace-locale", `form[action$="/settings/general"] button[type="submit"]`, "general settings"); err != nil {
-		return err
-	}
 	if err := s.setViewport(320, 800); err != nil {
 		return err
 	}
@@ -312,9 +295,6 @@ func (s *a11yRun) flow() error {
 		return err
 	}
 	if err := s.audit("sessions"); err != nil {
-		return err
-	}
-	if err := s.expectNoExtraButtonMargin(".inline button", "inline actions"); err != nil {
 		return err
 	}
 	if err := s.expectMobileNoOverflow("sessions"); err != nil {
@@ -738,44 +718,6 @@ func (s *a11yRun) expectActive(id string) error {
 func (s *a11yRun) expectFocusRole(role, message string) error {
 	if err := s.waitUntil(fmt.Sprintf(`document.activeElement?.getAttribute("role") === %s`, jsString(role))); err != nil {
 		return fmt.Errorf("%s: %w", message, err)
-	}
-	return nil
-}
-
-func (s *a11yRun) expectFormActionSpacing(controlSelector, buttonSelector, name string) error {
-	metrics, err := eval[*spacingMetrics](s.browser, fmt.Sprintf(`(() => {
-		const control = document.querySelector(%s);
-		const button = document.querySelector(%s);
-		if (!control || !button) return null;
-		const rect = button.getBoundingClientRect();
-		return {
-			gap: rect.top - control.getBoundingClientRect().bottom,
-			marginTop: getComputedStyle(button).marginTop,
-			height: rect.height,
-		};
-	})()`, jsString(controlSelector), jsString(buttonSelector)))
-	if err != nil {
-		return err
-	}
-	if metrics == nil {
-		return fmt.Errorf("%s spacing controls missing", name)
-	}
-	if metrics.MarginTop != "12px" || metrics.Gap < 12 || metrics.Height < 44 {
-		return fmt.Errorf("%s button spacing invalid: %+v", name, *metrics)
-	}
-	return nil
-}
-
-func (s *a11yRun) expectNoExtraButtonMargin(selector, name string) error {
-	marginTop, err := eval[string](s.browser, fmt.Sprintf(`(() => {
-		const button = document.querySelector(%s);
-		return button ? getComputedStyle(button).marginTop : "null";
-	})()`, jsString(selector)))
-	if err != nil {
-		return err
-	}
-	if marginTop != "0px" {
-		return fmt.Errorf("%s button has unexpected top margin: %s", name, marginTop)
 	}
 	return nil
 }

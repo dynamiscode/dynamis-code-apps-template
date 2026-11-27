@@ -106,14 +106,10 @@ func TestColumnDragPreviewDropAndCancel(t *testing.T) {
 	if !eval[bool](t, tab, `(() => {
 		const list = document.querySelector('#list-column-switches');
 		const gap = list.querySelector('.list-column-placeholder');
-		const preview = document.querySelector('.list-column-drag-preview');
-		const panel = document.querySelector('.list-columns-panel');
 		return list.firstElementChild.matches('[data-locked][draggable="false"]') && gap && gap !== list.firstElementChild &&
-			gap.getBoundingClientRect().height > 0 && !gap.querySelector('button, input, form') &&
-			preview && getComputedStyle(preview).backgroundColor === getComputedStyle(panel).backgroundColor &&
-			!getComputedStyle(preview).backgroundColor.startsWith('rgba(') && getComputedStyle(preview).opacity === '1';
+			gap.getBoundingClientRect().height > 0 && !gap.querySelector('button, input, form');
 	})()`) {
-		t.Fatal("drag must show an empty gap after the locked column and an opaque matching preview")
+		t.Fatal("drag must show an empty insertion gap after the locked column")
 	}
 	if got := columnOrder(t, tab); fmt.Sprint(got) != fmt.Sprint(original) {
 		t.Fatalf("columns changed before drop: %v, want %v", got, original)

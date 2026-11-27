@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"html"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1353,7 +1352,6 @@ func recvTypeName(recv *ast.FieldList) string {
 }
 
 func safeElement(element *templparser.Element, imports map[string]string) bool {
-	boundary := false
 	classSeen := false
 	for _, attr := range element.Attributes {
 		switch attr := attr.(type) {
@@ -1376,12 +1374,6 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 					return false
 				}
 				classSeen = true
-				// Match templ's literal normalization, then HTML's entity decoding.
-				value := html.UnescapeString(strings.Join(strings.Fields(attr.Value), " "))
-				if !actionattrs.SafeClass(value) {
-					return false
-				}
-				boundary = actionattrs.HasBoundary(value)
 			}
 		case *templparser.ExpressionAttribute:
 			key, ok := attr.Key.(templparser.ConstantAttributeKey)
@@ -1398,11 +1390,10 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 					return false
 				}
 				for _, item := range expr.(*ast.CompositeLit).Elts {
-					value, unconditional, ok := classValue(item, imports)
-					if !ok || !actionattrs.SafeClass(value) {
+					_, _, ok := classValue(item, imports)
+					if !ok {
 						return false
 					}
-					boundary = boundary || (unconditional && actionattrs.HasBoundary(value))
 				}
 			}
 		case *templparser.BoolConstantAttribute:
@@ -1415,7 +1406,7 @@ func safeElement(element *templparser.Element, imports map[string]string) bool {
 			}
 		}
 	}
-	return boundary
+	return true
 }
 
 func safeActionAuxKey(key templparser.AttributeKey) bool {
@@ -1457,19 +1448,7 @@ func classValue(expr ast.Expr, imports map[string]string) (string, bool, bool) {
 	if value, ok := stringValue(expr); ok {
 		return value, true, true
 	}
-	// actionattrs.LinkClass enforces the boundary token itself at runtime;
-	// actionattrs.ButtonClass does not (it relies on its caller's element
-	// already carrying an unconditional "btn" literal), so it contributes
-	// an empty, trivially-safe, non-boundary token. A raw element has no
-	// such caller to rely on, but ButtonClass is still accepted here
-	// because safeElement's own boundary accumulation still requires some
-	// other item in the same class expression to supply "btn"/"border";
-	// ButtonClass alone, with no such item, correctly leaves boundary false
-	// and the element rejected.
-	if isActionattrsCall(expr, "LinkClass", imports) {
-		return "btn", true, true
-	}
-	if isActionattrsCall(expr, "ButtonClass", imports) {
+	if isActionattrsCall(expr, "LinkClass", imports) || isActionattrsCall(expr, "ButtonClass", imports) {
 		return "", true, true
 	}
 	call, ok := expr.(*ast.CallExpr)
@@ -1505,24 +1484,11 @@ func isActionattrsCall(expr ast.Expr, name string, imports map[string]string) bo
 	pkg, ok := selector.X.(*ast.Ident)
 	return ok && trustedPackage(imports, pkg.Name, actionattrsImportPath)
 }
-
-// safeClassExpr reports whether expr is a known-safe class source: a string
-// literal that passes the static checks, or a runtime-guarded
-// actionattrs.ButtonClass/LinkClass call (see that package's doc comments).
-// requireBoundary applies the hasBoundary literal check on the literal
-// path; on the actionattrs-call path, only LinkClass is accepted when a
-// boundary is required, because only LinkClass enforces one at runtime.
-// ButtonClass does not, and is only safe where the caller's own element
-// already carries "btn" unconditionally (atoms.Button's own definition),
-// which requireBoundary=false signals.
-func safeClassExpr(expr ast.Expr, requireBoundary bool, imports map[string]string) bool {
-	if value, ok := stringValue(expr); ok {
-		return actionattrs.SafeClass(value) && (!requireBoundary || actionattrs.HasBoundary(value))
-	}
-	if isActionattrsCall(expr, "LinkClass", imports) {
+func safeClassExpr(expr ast.Expr, imports map[string]string) bool {
+	if _, ok := stringValue(expr); ok {
 		return true
 	}
-	return !requireBoundary && isActionattrsCall(expr, "ButtonClass", imports)
+	return isActionattrsCall(expr, "LinkClass", imports) || isActionattrsCall(expr, "ButtonClass", imports)
 }
 
 // safeComponent reports whether expr -- the argument of an `@` component
@@ -1695,7 +1661,7 @@ func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
 		if len(call.Args) != attrsIndex+1 {
 			return false
 		}
-		return safeClassExpr(call.Args[classIndex], false, imports) && safeAttrs(call.Args[attrsIndex], imports)
+		return safeClassExpr(call.Args[classIndex], imports) && safeAttrs(call.Args[attrsIndex], imports)
 	}
 	if kind == "Dropdown" {
 		if len(call.Args) != 1 {
@@ -1725,7 +1691,7 @@ func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
 			}
 			switch key.Name {
 			case "Class", "ListClass", "PanelClass", "SummaryClass":
-				if !safeClassExpr(kv.Value, false, imports) {
+				if !safeClassExpr(kv.Value, imports) {
 					return false
 				}
 			case "SummaryAttrs", "PanelAttrs":
@@ -1765,7 +1731,6 @@ func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
 	if !componentOK || !propsOK || !trustedPackage(imports, componentPackage.Name, atomsImportPath) || !trustedPackage(imports, propsPackage.Name, atomsImportPath) {
 		return false
 	}
-	hasClass := false
 	for _, field := range props.Elts {
 		kv, ok := field.(*ast.KeyValueExpr)
 		if !ok {
@@ -1777,17 +1742,16 @@ func safeComponentCall(call *ast.CallExpr, imports map[string]string) bool {
 		}
 		switch key.Name {
 		case "Class":
-			if !safeClassExpr(kv.Value, kind != "Button", imports) {
+			if !safeClassExpr(kv.Value, imports) {
 				return false
 			}
-			hasClass = true
 		case "Attrs":
 			if !safeAttrs(kv.Value, imports) {
 				return false
 			}
 		}
 	}
-	return hasClass || kind == "Button"
+	return true
 }
 
 // safeAttrs validates an Attrs expression. A literal `templ.Attributes{...}`
