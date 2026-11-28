@@ -2,6 +2,21 @@ package identity
 
 import "testing"
 
+// Expected grants follow the workspace permissions table in docs/authentication.md.
+var authorizationMatrix = map[Permission][4]bool{
+	WorkspaceRead:     {true, true, true, true},
+	MembersRead:       {true, true, true, true},
+	ResourcesRead:     {true, true, true, true},
+	ResourcesWrite:    {true, true, true, false},
+	WorkspaceUpdate:   {true, true, false, false},
+	MembersManage:     {true, true, false, false},
+	InvitationsManage: {true, true, false, false},
+	WorkspaceExport:   {true, true, false, false},
+	WorkspaceDelete:   {true, false, false, false},
+	OwnershipTransfer: {true, false, false, false},
+	SCIMManage:        {true, true, false, false},
+}
+
 // The shared policy grants nothing unless a role table lists it. An unknown
 // role or an unlisted permission must produce an empty grant.
 func TestPolicyGrantsNothingForUnknownRoleOrUnlistedPermission(t *testing.T) {

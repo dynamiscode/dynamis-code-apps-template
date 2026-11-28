@@ -108,7 +108,8 @@ func TestLinkLifecycle(t *testing.T) {
 		t.Fatalf("create without key: %v", err)
 	}
 	svc.ConfigureEncryption(secretbox.New(map[int][]byte{1: []byte("01234567890123456789012345678901")}, 1))
-	if _, err := svc.Create(ctx, owner, boot.WorkspaceID, "Again", identity.AuditContext{}); err != nil {
+	newToken, err := svc.Create(ctx, owner, boot.WorkspaceID, "Again", identity.AuditContext{})
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.Rotate(ctx, identity.Principal{}, boot.WorkspaceID, "No", identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
@@ -133,6 +134,9 @@ func TestLinkLifecycle(t *testing.T) {
 	}
 	if err := svc.Disable(ctx, member, boot.WorkspaceID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member disable: %v", err)
+	}
+	if workspace, consent, err := svc.Resolve(ctx, newToken); err != nil || workspace != boot.WorkspaceID || consent != "Again" {
+		t.Fatalf("link after forbidden changes: workspace=%v consent=%q err=%v", workspace, consent, err)
 	}
 	var count int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_events WHERE workspace_id = ? AND event_type LIKE 'public_intake.%'`, boot.WorkspaceID).Scan(&count); err != nil || count != 5 {

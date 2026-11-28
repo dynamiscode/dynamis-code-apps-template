@@ -154,12 +154,17 @@ func checkMethods(t *testing.T, db *sql.DB, driver config.DatabaseDriver) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	foundRemaining := false
 	for _, method := range all {
 		if method.ID == remaining {
+			foundRemaining = true
 			if _, err := s.SaveMethod(ctx, actor, owner.WorkspaceID, method.ID, method.Name, false); !errors.Is(err, ErrLastMethod) {
 				t.Fatalf("last method: %v", err)
 			}
 		}
+	}
+	if !foundRemaining {
+		t.Fatalf("enabled method %q missing from method list", remaining)
 	}
 	for i := range 103 {
 		if _, err := db.ExecContext(ctx, `INSERT INTO transactions_payment_methods (workspace_id, name, display_name, enabled) VALUES ($1, $2, $3, $4)`, owner.WorkspaceID, fmt.Sprintf("historical-%03d", i), fmt.Sprintf("Historical %03d", i), i != 0); err != nil {

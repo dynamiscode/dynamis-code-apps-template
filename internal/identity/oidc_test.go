@@ -180,6 +180,10 @@ func TestOIDCRejectsUnsafeDiscoveryDestinations(t *testing.T) {
 		"https://localhost",
 		"https://127.0.0.1",
 		"https://169.254.169.254/latest/meta-data",
+		"https://user:pass@id.example.com",
+		"https://id.example.com/#fragment",
+		"https://sub.localhost",
+		"https://[::1]",
 		"https://10.0.0.1",
 	}
 	for _, value := range unsafe {

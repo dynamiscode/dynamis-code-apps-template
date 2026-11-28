@@ -62,16 +62,11 @@ func TestPostgresIdentityLifecycle(t *testing.T) {
 		}
 		roleUsers[role] = userID
 	}
-	for role, userID := range roleUsers {
-		for _, permission := range []Permission{
-			WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
-			MembersRead, MembersManage, InvitationsManage,
-			SCIMManage,
-			ResourcesRead, ResourcesWrite,
-		} {
-			_, err := service.Authorize(ctx, userID, bootstrap.WorkspaceID, permission)
-			if got, want := err == nil, permissionsForRole(role)[permission]; got != want {
-				t.Errorf("PostgreSQL role %s permission %s = %v, want %v", role, permission, got, want)
+	for roleIndex, role := range []Role{Owner, Admin, Member, Viewer} {
+		for permission, grants := range authorizationMatrix {
+			_, err := service.Authorize(ctx, roleUsers[role], bootstrap.WorkspaceID, permission)
+			if want := grants[roleIndex]; (want && err != nil) || (!want && !errors.Is(err, ErrForbidden)) {
+				t.Errorf("PostgreSQL role %s permission %s error = %v, want allowed = %v", role, permission, err, want)
 			}
 		}
 	}

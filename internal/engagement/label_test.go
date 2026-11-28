@@ -70,12 +70,19 @@ func TestWorkspaceLabel(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = svc.SetLabel(ctx, actor, boot.WorkspaceID, "Matter", identity.AuditContext{})
+		label := "Denied"
+		if role == identity.Admin {
+			label = "Matter"
+		}
+		err = svc.SetLabel(ctx, actor, boot.WorkspaceID, label, identity.AuditContext{})
 		if role == identity.Admin && err != nil {
 			t.Fatalf("admin: %v", err)
 		}
 		if role != identity.Admin && !errors.Is(err, identity.ErrForbidden) {
 			t.Fatalf("%s: %v", role, err)
+		}
+		if got, err := svc.Label(ctx, owner, boot.WorkspaceID); err != nil || got != "Matter" {
+			t.Fatalf("%s changed label: %q %v", role, got, err)
 		}
 	}
 	if err := svc.SetLabel(ctx, owner, boot.WorkspaceID, "", identity.AuditContext{}); err != nil {

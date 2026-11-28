@@ -55,7 +55,7 @@ func TestStagesThroughREST(t *testing.T) {
 		t.Fatalf("archive = %d %s", archived.Code, archived.Body.String())
 	}
 	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
-	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"archived":true`) || strings.Index(list.Body.String(), "Won") > strings.Index(list.Body.String(), "Prospect") {
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"archived":true`) || !strings.Contains(list.Body.String(), "Won") || !strings.Contains(list.Body.String(), "Prospect") || strings.Index(list.Body.String(), "Won") > strings.Index(list.Body.String(), "Prospect") {
 		t.Fatalf("list = %d %s", list.Code, list.Body.String())
 	}
 }
@@ -121,10 +121,22 @@ func TestEngagementThroughREST(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	assertDeniedUnchanged := func(method, path, body string) {
+		t.Helper()
+		before := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", token, nil)
+		if before.Code != http.StatusOK {
+			t.Fatalf("read before denied write: %d %s", before.Code, before.Body.String())
+		}
+		assertProblem(t, serveAuthorized(handler, method, path, body, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+		after := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", token, nil)
+		if after.Code != http.StatusOK || after.Body.String() != before.Body.String() {
+			t.Fatalf("denied write changed engagement: before %s, after %d %s", before.Body.String(), after.Code, after.Body.String())
+		}
+	}
 	namePath := base + "/engagements/" + e.ID + "/name"
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, namePath, `{}`, token, nil), http.StatusBadRequest, "invalid-request")
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, base+"/engagements/not-an-id/name", `{"name":"New"}`, token, nil), http.StatusNotFound, "not-found")
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, namePath, `{"name":"Denied"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPut, namePath, `{"name":"Denied"}`)
 	for _, name := range []string{"", "   ", strings.Repeat("é", 201)} {
 		body, err := json.Marshal(map[string]string{"name": name})
 		if err != nil {
@@ -135,7 +147,7 @@ func TestEngagementThroughREST(t *testing.T) {
 	if r := serveAuthorized(handler, http.MethodPut, namePath, `{"name":"  Élan  "}`, token, nil); r.Code != http.StatusNoContent {
 		t.Fatalf("rename: %d %s", r.Code, r.Body.String())
 	}
-	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"name":"Élan"`) {
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"name":"Élan"`) {
 		t.Fatalf("renamed: %d %s", r.Code, r.Body.String())
 	}
 	var auditCount int
@@ -160,18 +172,18 @@ func TestEngagementThroughREST(t *testing.T) {
 	if r := serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":true}`, token, nil); r.Code != http.StatusNoContent {
 		t.Fatalf("agreement: %d %s", r.Code, r.Body.String())
 	}
-	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"agreement":{"recorded":true`) {
-		t.Fatalf("agreement read: %s", r.Body.String())
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"agreement":{"recorded":true`) {
+		t.Fatalf("agreement read: %d %s", r.Code, r.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":false}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPut, agreementPath, `{"recorded":false}`)
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, agreementPath, `{"recorded":true,"fileId":"invalid"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	if r := serveAuthorized(handler, http.MethodPut, assigneePath, `{"assigneeId":"`+userID.String()+`"}`, token, nil); r.Code != http.StatusNoContent {
 		t.Fatalf("assign: %d %s", r.Code, r.Body.String())
 	}
-	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"assigneeId":"`+userID.String()+`"`) {
-		t.Fatalf("assignment read: %s", r.Body.String())
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"assigneeId":"`+userID.String()+`"`) {
+		t.Fatalf("assignment read: %d %s", r.Code, r.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, assigneePath, `{}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPut, assigneePath, `{}`)
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, assigneePath, `{"assigneeId":"invalid"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, assigneePath, `{"assigneeId":"`+identity.UserID(999999).String()+`"}`, token, nil), http.StatusBadRequest, "invalid-request")
 	if r := serveAuthorized(handler, http.MethodPut, assigneePath, `{}`, token, nil); r.Code != http.StatusNoContent {
@@ -180,11 +192,11 @@ func TestEngagementThroughREST(t *testing.T) {
 	if r := serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"sent","amount":"120.50","dateSent":"2026-11-23"}`, token, nil); r.Code != http.StatusNoContent {
 		t.Fatalf("quote: %d %s", r.Code, r.Body.String())
 	}
-	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); !strings.Contains(r.Body.String(), `"amount":"120.50"`) {
-		t.Fatalf("quote read: %s", r.Body.String())
+	if r := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); r.Code != http.StatusOK || !strings.Contains(r.Body.String(), `"amount":"120.50"`) {
+		t.Fatalf("quote read: %d %s", r.Code, r.Body.String())
 	}
 	assertProblem(t, serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"wrong"}`, token, nil), http.StatusBadRequest, "invalid-request")
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, quotePath, `{"status":"sent"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPut, quotePath, `{"status":"sent"}`)
 	updated := serveAuthorized(handler, http.MethodPut, actionPath, `{"text":"Call","dueDate":"2020-01-01","ownerId":"`+userID.String()+`"}`, token, nil)
 	if updated.Code != http.StatusNoContent {
 		t.Fatalf("set action: %d %s", updated.Code, updated.Body.String())
@@ -197,8 +209,16 @@ func TestEngagementThroughREST(t *testing.T) {
 	if due.Code != http.StatusOK || !strings.Contains(due.Body.String(), e.ID) {
 		t.Fatalf("due: %d %s", due.Code, due.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, actionPath, `{}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
-	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"clientId":"`+c.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPut, actionPath, `{}`)
+	var countBefore int
+	if err := db.QueryRow("SELECT COUNT(*) FROM engagements WHERE workspace_id = ?", workspaceID).Scan(&countBefore); err != nil {
+		t.Fatal(err)
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, base+"/engagements", `{"name":"Denied","clientId":"`+c.ID+`","stageId":"`+open.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	var countAfter int
+	if err := db.QueryRow("SELECT COUNT(*) FROM engagements WHERE workspace_id = ?", workspaceID).Scan(&countAfter); err != nil || countAfter != countBefore {
+		t.Fatalf("engagement count after denied create = %d, want %d: %v", countAfter, countBefore, err)
+	}
 	if got := serveAuthorized(handler, http.MethodGet, base+"/engagements/"+e.ID, "", readOnly.Secret, nil); got.Code != http.StatusOK {
 		t.Fatalf("read only get: %d", got.Code)
 	}
@@ -210,7 +230,7 @@ func TestEngagementThroughREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	movePath := base + "/engagements/" + e.ID + "/stage"
-	assertProblem(t, serveAuthorized(handler, http.MethodPost, movePath, `{"stageId":"`+target.ID+`"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	assertDeniedUnchanged(http.MethodPost, movePath, `{"stageId":"`+target.ID+`"}`)
 	if moved := serveAuthorized(handler, http.MethodPost, movePath, `{"stageId":"`+target.ID+`"}`, token, nil); moved.Code != http.StatusNoContent {
 		t.Fatalf("move: %d %s", moved.Code, moved.Body.String())
 	}

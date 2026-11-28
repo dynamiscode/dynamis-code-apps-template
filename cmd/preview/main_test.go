@@ -165,11 +165,17 @@ func TestRejectsCrossOriginMutation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := httptest.NewRequest(http.MethodPost, "http://localhost/workspaces", nil)
+	r := httptest.NewRequest(http.MethodPost, "http://localhost/workspaces", strings.NewReader(url.Values{"name": {"Forbidden studio"}, "locale": {"en"}}.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	r.Header.Set("Origin", "http://other.example")
 	w := httptest.NewRecorder()
 	p.ServeHTTP(w, r)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d", w.Code)
+	}
+	w = httptest.NewRecorder()
+	p.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://localhost/", nil))
+	if strings.Contains(w.Body.String(), "Forbidden studio") {
+		t.Fatal("cross-origin request changed workspace state")
 	}
 }

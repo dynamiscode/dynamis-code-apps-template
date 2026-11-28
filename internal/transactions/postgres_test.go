@@ -121,8 +121,10 @@ func TestPostgresConcurrentRefundCap(t *testing.T) {
 	close(start)
 	successes := 0
 	for range 2 {
-		if <-results == nil {
+		if err := <-results; err == nil {
 			successes++
+		} else if !errors.Is(err, ErrInvalidInput) {
+			t.Fatalf("concurrent refund error = %v, want ErrInvalidInput", err)
 		}
 	}
 	if successes != 1 {

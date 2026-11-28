@@ -121,12 +121,15 @@ func TestPreferencesCannotBeReadOrChangedOutsideAuthenticatedScope(t *testing.T)
 	if err != nil || !got["name"] {
 		t.Fatalf("other member preferences = %v, %v; want their default", got, err)
 	}
-	if err := service.Set(ctx, member, boot.WorkspaceID, "clients", "name", false, defaults); err != nil {
+	if err := service.Set(ctx, member, boot.WorkspaceID, "clients", "name", true, defaults); err != nil {
 		t.Fatal(err)
 	}
 	got, err = service.Get(ctx, owner, boot.WorkspaceID, "clients", defaults)
 	if err != nil || got["name"] {
 		t.Fatalf("owner preferences changed by another member = %v, %v; want hidden", got, err)
+	}
+	if err := service.Set(ctx, member, boot.WorkspaceID, "clients", "name", false, defaults); err != nil {
+		t.Fatal(err)
 	}
 	if err := service.Set(ctx, owner, boot.WorkspaceID, ListItems, "name", false, defaults); err != nil {
 		t.Fatal(err)

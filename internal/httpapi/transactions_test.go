@@ -104,7 +104,7 @@ func TestTransactionsREST(t *testing.T) {
 	if response := serveAuthorized(mux, http.MethodPost, path+"/entries", out, ownerToken, nil); response.Code != http.StatusBadRequest {
 		t.Fatalf("archived category = %d %s", response.Code, response.Body.String())
 	}
-	if response := serveAuthorized(mux, http.MethodGet, path+"/entries", "", ownerToken, nil); !strings.Contains(response.Body.String(), `"categoryName":"Office rent"`) {
+	if response := serveAuthorized(mux, http.MethodGet, path+"/entries", "", ownerToken, nil); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"categoryName":"Office rent"`) {
 		t.Fatalf("history = %d %s", response.Code, response.Body.String())
 	}
 	methods := serveAuthorized(mux, http.MethodGet, path+"/methods", "", ownerToken, nil)
@@ -132,7 +132,7 @@ func TestTransactionsREST(t *testing.T) {
 		t.Fatalf("disable method = %d %s", disabledMethod.Code, disabledMethod.Body.String())
 	}
 	ownerMethods := serveAuthorized(mux, http.MethodGet, path+"/methods", "", ownerToken, nil)
-	if !strings.Contains(ownerMethods.Body.String(), `"name":"Bank wire","enabled":false`) {
+	if ownerMethods.Code != http.StatusOK || !strings.Contains(ownerMethods.Body.String(), `"name":"Bank wire","enabled":false`) {
 		t.Fatalf("owner methods = %d %s", ownerMethods.Code, ownerMethods.Body.String())
 	}
 	disabledEntry := serveAuthorized(mux, http.MethodPost, path+"/entries", `{"description":"Receipt","direction":"in","amountMinor":1,"currency":"USD","paymentMethod":"`+wire.ID+`"}`, ownerToken, nil)
@@ -283,19 +283,56 @@ func TestTransactionsREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	otherPath := "/api/v1/workspaces/" + other.String() + "/transactions"
+	if _, err := db.Exec("INSERT INTO transactions_payment_methods (workspace_id, name, display_name, enabled) VALUES (?, 'cash', 'Cash', TRUE) ON CONFLICT (workspace_id, name) DO NOTHING", other); err != nil {
+		t.Fatal(err)
+	}
+	probe := serveAuthorized(mux, http.MethodPost, path+"/entries", body, ownerToken, nil)
+	var probeEntry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(probe.Body.Bytes(), &probeEntry); probe.Code != http.StatusCreated || err != nil || probeEntry.ID == "" {
+		t.Fatalf("foreign void target = %d %s, %v", probe.Code, probe.Body.String(), err)
+	}
 	for _, operation := range []struct{ method, suffix, body string }{
 		{http.MethodGet, "/totals", ""},
 		{http.MethodGet, "/entries", ""},
 		{http.MethodGet, "/methods", ""},
 		{http.MethodPost, "/methods", `{"name":"Foreign"}`},
-		{http.MethodPut, "/methods", `{"id":"cash","name":"Cash","enabled":true}`},
-		{http.MethodPost, "/entries/" + sale.ID + "/void", `{"reason":"Wrong"}`},
+		{http.MethodPut, "/methods", `{"id":"cash","name":"Cash","enabled":false}`},
+		{http.MethodPost, "/entries/" + probeEntry.ID + "/void", `{"reason":"Wrong"}`},
 		{http.MethodPost, "/entries", body},
 	} {
 		response := serveAuthorized(mux, operation.method, otherPath+operation.suffix, operation.body, ownerToken, nil)
 		if response.Code != http.StatusNotFound {
 			t.Errorf("foreign workspace %s %s = %d %s", operation.method, operation.suffix, response.Code, response.Body.String())
 		}
+	}
+	var foreignEntries, foreignMethods int
+	var foreignCashEnabled bool
+	if err := db.QueryRow("SELECT COUNT(*) FROM transactions_entries WHERE workspace_id = ?", other).Scan(&foreignEntries); err != nil || foreignEntries != 0 {
+		t.Fatalf("foreign entries after denied writes = %d, %v", foreignEntries, err)
+	}
+	if err := db.QueryRow("SELECT COUNT(*) FROM transactions_payment_methods WHERE workspace_id = ? AND display_name = ?", other, "Foreign").Scan(&foreignMethods); err != nil || foreignMethods != 0 {
+		t.Fatalf("foreign methods after denied writes = %d, %v", foreignMethods, err)
+	}
+	if err := db.QueryRow("SELECT enabled FROM transactions_payment_methods WHERE workspace_id = ? AND name = 'cash'", other).Scan(&foreignCashEnabled); err != nil || !foreignCashEnabled {
+		t.Fatalf("foreign cash after denied update = %t, %v", foreignCashEnabled, err)
+	}
+	probeKey, err := transactions.ParseEntryID(probeEntry.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var voidedCount int
+	if err := db.QueryRow("SELECT COUNT(*) FROM transactions_entries WHERE id = ? AND voided_at IS NOT NULL", probeKey).Scan(&voidedCount); err != nil || voidedCount != 0 {
+		t.Fatalf("foreign void changed entry: %d, %v", voidedCount, err)
+	}
+	snapshot := func(suffix string) string {
+		t.Helper()
+		response := serveAuthorized(mux, http.MethodGet, path+suffix, "", ownerToken, nil)
+		if response.Code != http.StatusOK {
+			t.Fatalf("snapshot %s = %d %s", suffix, response.Code, response.Body.String())
+		}
+		return response.Body.String()
 	}
 	var adminMethod transactions.Method
 	for _, role := range []identity.Role{identity.Admin, identity.Member, identity.Viewer} {
@@ -343,6 +380,7 @@ func TestTransactionsREST(t *testing.T) {
 				}
 			}
 		}
+		entriesBefore := snapshot("/entries")
 		response := serveAuthorized(mux, http.MethodPost, path+"/entries", body, token.Secret, nil)
 		want = http.StatusCreated
 		if role == identity.Viewer {
@@ -351,6 +389,10 @@ func TestTransactionsREST(t *testing.T) {
 		if response.Code != want {
 			t.Errorf("%s create = %d %s", role, response.Code, response.Body.String())
 		}
+		if role == identity.Viewer && snapshot("/entries") != entriesBefore {
+			t.Fatal("viewer create changed entries despite refusal")
+		}
+		categoriesBefore, methodsBefore := snapshot("/categories"), snapshot("/methods")
 		response = serveAuthorized(mux, http.MethodPost, path+"/categories", `{"name":"Role category"}`, token.Secret, nil)
 		methodResponse := serveAuthorized(mux, http.MethodPost, path+"/methods", `{"name":"Admin method"}`, token.Secret, nil)
 		want = http.StatusForbidden
@@ -363,6 +405,9 @@ func TestTransactionsREST(t *testing.T) {
 		if methodResponse.Code != want {
 			t.Errorf("%s create method = %d %s", role, methodResponse.Code, methodResponse.Body.String())
 		}
+		if role != identity.Admin && (snapshot("/categories") != categoriesBefore || snapshot("/methods") != methodsBefore) {
+			t.Fatalf("%s changed categories or methods despite refusal", role)
+		}
 		if role == identity.Admin && (json.Unmarshal(methodResponse.Body.Bytes(), &adminMethod) != nil || adminMethod.ID == "") {
 			t.Fatalf("admin method = %s", methodResponse.Body.String())
 		}
@@ -374,8 +419,13 @@ func TestTransactionsREST(t *testing.T) {
 		if updateResponse.Code != want {
 			t.Errorf("%s update method = %d %s", role, updateResponse.Code, updateResponse.Body.String())
 		}
+		if role != identity.Admin && snapshot("/methods") != methodsBefore {
+			t.Fatalf("%s changed method despite refusal", role)
+		}
 		if role == identity.Admin {
-			serveAuthorized(mux, http.MethodPut, path+"/methods", `{"id":"`+wire.ID+`","name":"Bank wire","enabled":false}`, ownerToken, nil)
+			if reset := serveAuthorized(mux, http.MethodPut, path+"/methods", `{"id":"`+wire.ID+`","name":"Bank wire","enabled":false}`, ownerToken, nil); reset.Code != http.StatusOK {
+				t.Fatalf("reset method = %d %s", reset.Code, reset.Body.String())
+			}
 		}
 		target := serveAuthorized(mux, http.MethodPost, path+"/entries", body, ownerToken, nil)
 		var targetEntry struct {
@@ -384,9 +434,13 @@ func TestTransactionsREST(t *testing.T) {
 		if target.Code != http.StatusCreated || json.Unmarshal(target.Body.Bytes(), &targetEntry) != nil || targetEntry.ID == "" {
 			t.Fatalf("target = %d %s", target.Code, target.Body.String())
 		}
+		entriesBefore = snapshot("/entries")
 		response = serveAuthorized(mux, http.MethodPost, path+"/entries/"+targetEntry.ID+"/void", `{"reason":"Wrong"}`, token.Secret, nil)
 		if response.Code != want {
 			t.Errorf("%s void = %d %s", role, response.Code, response.Body.String())
+		}
+		if role != identity.Admin && snapshot("/entries") != entriesBefore {
+			t.Fatalf("%s void changed entries despite refusal", role)
 		}
 		if role == identity.Member {
 			refundBody := `{"description":"Refund","direction":"out","amountMinor":1,"currency":"USD","paymentMethod":"cash","refundOfEntryId":"` + sale.ID + `"}`
@@ -394,8 +448,12 @@ func TestTransactionsREST(t *testing.T) {
 				t.Errorf("member refund = %d %s", response.Code, response.Body.String())
 			}
 			correctionBody := `{"description":"Replacement","direction":"in","amountMinor":1,"currency":"USD","paymentMethod":"cash","replacesEntryId":"` + correction.ID + `"}`
+			entriesBefore = snapshot("/entries")
 			if response := serveAuthorized(mux, http.MethodPost, path+"/entries", correctionBody, token.Secret, nil); response.Code != http.StatusForbidden {
 				t.Errorf("member replacement = %d %s", response.Code, response.Body.String())
+			}
+			if snapshot("/entries") != entriesBefore {
+				t.Fatal("member replacement changed entries despite refusal")
 			}
 		}
 	}

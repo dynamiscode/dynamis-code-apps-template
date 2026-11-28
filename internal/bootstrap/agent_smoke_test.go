@@ -113,7 +113,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	var created struct {
 		ID string `json:"id"`
 	}
-	if response.StatusCode != http.StatusCreated || json.NewDecoder(response.Body).Decode(&created) != nil {
+	if response.StatusCode != http.StatusCreated || json.NewDecoder(response.Body).Decode(&created) != nil || created.ID == "" {
 		t.Fatalf("REST create status = %d", response.StatusCode)
 	}
 
@@ -130,6 +130,13 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 		}, &stdout, &stderr)
 	if exit != 0 || stderr.Len() != 0 || !json.Valid(stdout.Bytes()) {
 		t.Fatalf("CLI exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	}
+	var shown struct {
+		ID          string `json:"id"`
+		DisplayName string `json:"displayName"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &shown); err != nil || shown.ID != created.ID || shown.DisplayName != "smoke client" {
+		t.Fatalf("CLI show = %q, %v", stdout.String(), err)
 	}
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "live-smoke", Version: "1"}, nil)
@@ -213,7 +220,7 @@ func TestAgentSurfacesLiveSmoke(t *testing.T) {
 	var second struct {
 		ID string `json:"id"`
 	}
-	if secondResponse.StatusCode != http.StatusCreated || json.NewDecoder(secondResponse.Body).Decode(&second) != nil {
+	if secondResponse.StatusCode != http.StatusCreated || json.NewDecoder(secondResponse.Body).Decode(&second) != nil || second.ID == "" {
 		t.Fatalf("second REST create status = %d", secondResponse.StatusCode)
 	}
 	select {

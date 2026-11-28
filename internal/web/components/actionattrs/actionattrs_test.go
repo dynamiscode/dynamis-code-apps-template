@@ -90,7 +90,7 @@ func TestTemplMethodIsUnique(t *testing.T) {
 			return err
 		}
 		if info.IsDir() {
-			if info.Name() == "node_modules" || info.Name() == ".git" {
+			if info.Name() == "node_modules" || strings.HasPrefix(info.Name(), ".") {
 				return filepath.SkipDir
 			}
 			return nil
@@ -141,6 +141,15 @@ func renderScanned(t *testing.T, c templ.Component) (string, func()) {
 			t.Fatal("expected Scanned to panic")
 		}
 	}
+}
+
+func renderAccepted(t *testing.T, c templ.Component) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Scanned(c).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
 }
 
 func TestScannedRejectsUnboundedAnchor(t *testing.T) {
@@ -200,7 +209,7 @@ func TestScannedPreservesLiteralActionTextInRawContexts(t *testing.T) {
 		`<svg><![CDATA[<a>sample</a>]]></svg>`,
 		`<svg><![CDATA[ > <a href="#sample">sample</a> ]]></svg>`,
 	} {
-		got, _ := renderScanned(t, rawHTMLComponent(fragment))
+		got := renderAccepted(t, rawHTMLComponent(fragment))
 		if got != fragment {
 			t.Errorf("got %q, want %q", got, fragment)
 		}
@@ -208,9 +217,9 @@ func TestScannedPreservesLiteralActionTextInRawContexts(t *testing.T) {
 }
 
 func TestScannedAcceptsPlainIcon(t *testing.T) {
-	got, assertNoPanic := renderScanned(t, rawHTMLComponent(`<svg class="h-4 w-4"></svg>`))
-	_ = assertNoPanic
-	if !strings.Contains(got, "<svg") {
+	const fragment = `<svg class="h-4 w-4"></svg>`
+	got := renderAccepted(t, rawHTMLComponent(fragment))
+	if got != fragment {
 		t.Fatalf("expected the icon to render unchanged, got %q", got)
 	}
 }
@@ -221,15 +230,16 @@ func TestScannedAcceptsPlainIcon(t *testing.T) {
 // scripts/actioncheck requires everywhere else (a "btn" boundary class, no
 // forbidden override) passes untouched.
 func TestScannedAcceptsAlreadySafeNestedButton(t *testing.T) {
-	got, _ := renderScanned(t, rawHTMLComponent(`<tr><td>Row</td><td><button class="btn btn-sm btn-outline">Archive</button></td></tr>`))
-	if !strings.Contains(got, "btn-outline") {
+	const fragment = `<tr><td>Row</td><td><button class="btn btn-sm btn-outline">Archive</button></td></tr>`
+	got := renderAccepted(t, rawHTMLComponent(fragment))
+	if got != fragment {
 		t.Fatalf("expected the already-safe nested button to render unchanged, got %q", got)
 	}
 }
 
 func TestScannedListRowLink(t *testing.T) {
 	const valid = `<tr><td class="list-linked-cell"><a class="list-row-link" href="/items">Item</a></td></tr>`
-	got, _ := renderScanned(t, rawHTMLComponent(valid))
+	got := renderAccepted(t, rawHTMLComponent(valid))
 	if got != valid {
 		t.Fatalf("got %q, want %q", got, valid)
 	}
@@ -399,8 +409,9 @@ func TestScannedDetectsShortWrite(t *testing.T) {
 // validates correctly; see Scanned's doc comment on the memory cost of
 // nesting (each layer holds its own full copy of the slot's output).
 func TestScannedNestingStillValidates(t *testing.T) {
-	got, _ := renderScanned(t, Scanned(rawHTMLComponent(`<button class="btn btn-outline">ok</button>`)))
-	if !strings.Contains(got, "btn-outline") {
+	const fragment = `<button class="btn btn-outline">ok</button>`
+	got := renderAccepted(t, Scanned(rawHTMLComponent(fragment)))
+	if got != fragment {
 		t.Fatalf("expected the nested-safe button to render unchanged, got %q", got)
 	}
 }

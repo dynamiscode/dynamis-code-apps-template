@@ -101,10 +101,17 @@ func TestAuthenticatedSessionResponseIsNotCacheable(t *testing.T) {
 	if got := writer.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q", got)
 	}
+	found := map[string]bool{"session": false, "csrf": false}
 	for _, cookie := range writer.Result().Cookies() {
-		if (cookie.Name == "session" || cookie.Name == "csrf") && !cookie.Secure {
-			t.Fatalf("%s cookie Secure = false", cookie.Name)
+		if _, ok := found[cookie.Name]; ok {
+			if !cookie.Secure {
+				t.Fatalf("%s cookie Secure = false", cookie.Name)
+			}
+			found[cookie.Name] = true
 		}
+	}
+	if !found["session"] || !found["csrf"] {
+		t.Fatalf("missing authentication cookies: %v", found)
 	}
 }
 
@@ -199,8 +206,8 @@ func TestIdentityRESTContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	members = serveAuthorized(handler, http.MethodGet, base+"/members", "", token, nil)
-	if !strings.Contains(members.Body.String(), "zmember@example.com") || strings.Contains(members.Body.String(), "nextCursor") {
-		t.Fatalf("default members response omitted a workspace member: %s", members.Body.String())
+	if members.Code != http.StatusOK || !strings.Contains(members.Body.String(), "zmember@example.com") || strings.Contains(members.Body.String(), "nextCursor") {
+		t.Fatalf("default members response = %d %s", members.Code, members.Body.String())
 	}
 	var firstPage struct {
 		Members []memberResponse `json:"members"`

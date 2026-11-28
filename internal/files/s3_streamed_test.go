@@ -166,6 +166,9 @@ func TestStreamedS3ContentWriteDeniesViewer(t *testing.T) {
 	if _, err := service.PutContent(ctx, viewer, owner.WorkspaceID, pending.ID, strings.NewReader("hello"), identity.AuditContext{}); err != identity.ErrForbidden {
 		t.Fatalf("viewer content write = %v, want forbidden", err)
 	}
+	if _, err := store.Head(ctx, service.storedObjectKey(pending)); !errors.Is(err, ErrObjectNotFound) {
+		t.Fatalf("object after denied write = %v, want ErrObjectNotFound", err)
+	}
 }
 
 func s3TestStorage(endpoint string) config.Storage {

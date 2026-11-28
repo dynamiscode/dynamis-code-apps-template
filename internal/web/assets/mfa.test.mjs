@@ -43,19 +43,16 @@ const deferred = () => {
 
 const cancelError = () => Object.assign(new Error("user dismissed"), { name: "NotAllowedError" });
 
-// Loads mfa.js against minimal DOM stubs. Login and enrollment are both present unless disabled.
-// The injected atob is lenient because mfa.js's decode() appends "===" to base64url input, which
-// native atob rejects (InvalidCharacterError). The stub reaches the code under test; fixing decode()
-// is tracked separately and is out of scope here.
+// Load the registered passkey components against minimal DOM stubs.
 function load({ login = false, enroll = false, credentialsGet, credentialsCreate, fetchImpl } = {}) {
   const main = element();
   const loginButton = element({ dataset: { csrf: "test-csrf" } });
   const loginSubmit = element();
   const optionsNode = element({
-    textContent: JSON.stringify({ publicKey: { challenge: "AAEC", allowCredentials: [] } })
+    textContent: JSON.stringify({ publicKey: { challenge: "AAEC", allowCredentials: [{ id: "-_8" }] } })
   });
   const enrollButtons = [element(), element()];
-  const enrollParent = element();
+  const enrollParent = element({ prepend(child) { this.prepended = child; } });
   const csrfInput = { value: "test-csrf" };
   const passwordInput = { value: "not-a-real-password" };
   const enrollForm = element({
@@ -90,10 +87,9 @@ function load({ login = false, enroll = false, credentialsGet, credentialsCreate
   };
   const navigator = { credentials: { get: credentialsGet, create: credentialsCreate } };
   const fetch = fetchImpl || (async () => { throw new TypeError("no fetch stub"); });
-  const atob = value => Buffer.from(value, "base64").toString("binary");
   const exportStyle = { module: true, exports: {} };
   new Function("module", "window", "document", "navigator", "fetch", "atob", componentsCode)(
-    exportStyle, window, document, navigator, fetch, atob
+    exportStyle, window, document, navigator, fetch, globalThis.atob
   );
   exportStyle.exports.passkeyLogin().init();
   exportStyle.exports.passkeyEnroll().init();
@@ -102,7 +98,11 @@ function load({ login = false, enroll = false, credentialsGet, credentialsCreate
 
 test("login: buttons stay busy during the prompt and re-enable with a notice on cancel", async () => {
   const prompt = deferred();
-  const env = load({ login: true, credentialsGet: () => prompt.promise });
+  const env = load({ login: true, credentialsGet: ({ publicKey }) => {
+    assert.deepEqual([...publicKey.challenge], [0, 1, 2]);
+    assert.deepEqual([...publicKey.allowCredentials[0].id], [251, 255]);
+    return prompt.promise;
+  } });
   const click = env.loginButton.listeners.click();
   assert.equal(env.loginButton.disabled, true);
   assert.equal(env.loginSubmit.disabled, true);
@@ -151,10 +151,16 @@ test("enrollment: non-OK without a usable safe message shows the generic text, n
 test("enrollment: cancel shows the registration notice in the form's container", async () => {
   const env = load({
     enroll: true,
-    credentialsCreate: async () => { throw cancelError(); },
-    fetchImpl: async () => jsonResponse(true, { challenge: "tok", options: { publicKey: { challenge: "AAEC", user: { id: "AQI" } } } })
+    credentialsCreate: async ({ publicKey }) => {
+      assert.deepEqual([...publicKey.challenge], [0, 1, 2]);
+      assert.deepEqual([...publicKey.user.id], [1, 2]);
+      assert.deepEqual([...publicKey.excludeCredentials[0].id], [251, 255]);
+      throw cancelError();
+    },
+    fetchImpl: async () => jsonResponse(true, { challenge: "tok", options: { publicKey: { challenge: "AAEC", user: { id: "AQI" }, excludeCredentials: [{ id: "-_8" }] } } })
   });
   await env.enrollForm.listeners.submit({ preventDefault() {} });
+  assert.equal(env.enrollParent.prepended, env.notice.current);
   assert.equal(env.notice.current.textContent, "Passkey registration was canceled or timed out.");
   assert.equal(env.enrollButtons.every(b => b.disabled === false), true);
   assert.equal(env.window.location.reloads, 0);

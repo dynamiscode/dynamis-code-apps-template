@@ -89,9 +89,23 @@ func TestCatalogRESTCompleteRoleMatrix(t *testing.T) {
 				if writable {
 					want = op.success
 				}
+				var before string
+				if !writable {
+					list := serveAuthorized(routes, http.MethodGet, path+"?includeArchived=true", "", ownerToken, nil)
+					if list.Code != http.StatusOK {
+						t.Fatalf("catalog before denied write = %d %s", list.Code, list.Body.String())
+					}
+					before = list.Body.String()
+				}
 				result := serveAuthorized(routes, op.method, op.target, op.body, token.Secret, map[string]string{"If-Match": etag(entry.Revision)})
 				if result.Code != want {
 					t.Errorf("%s %s: %d want %d", op.method, op.target, result.Code, want)
+				}
+				if !writable {
+					list := serveAuthorized(routes, http.MethodGet, path+"?includeArchived=true", "", ownerToken, nil)
+					if list.Code != http.StatusOK || list.Body.String() != before {
+						t.Fatalf("%s %s changed catalog despite refusal: %d %s", op.method, op.target, list.Code, list.Body.String())
+					}
 				}
 			}
 		})

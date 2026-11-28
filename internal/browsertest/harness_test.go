@@ -88,22 +88,15 @@ func startFixtures() (func(), error) {
 		return nil, err
 	}
 
-	binaries := map[string]string{
-		"server":          "./cmd/server",
-		"bootstrap-admin": "./cmd/bootstrap-admin",
-		"seed-member":     "./internal/browsertest/seedmember",
+	build := exec.Command("go", "build", "-o", dir, "./cmd/server", "./cmd/bootstrap-admin", "./internal/browsertest/seedmember")
+	build.Dir = repoRoot
+	if out, err := build.CombinedOutput(); err != nil {
+		return fail(fmt.Errorf("build browser fixtures: %w\n%s", err, out))
 	}
 	oidcBuild := exec.Command("go", "build", "-tags", "oidcfixture", "-o", filepath.Join(dir, "oidc-fixture"), "./internal/web/testdata/oidcfixture")
 	oidcBuild.Dir = repoRoot
 	if out, err := oidcBuild.CombinedOutput(); err != nil {
 		return fail(fmt.Errorf("build oidc-fixture: %w\n%s", err, out))
-	}
-	for name, pkg := range binaries {
-		build := exec.Command("go", "build", "-o", filepath.Join(dir, name), pkg)
-		build.Dir = repoRoot
-		if out, err := build.CombinedOutput(); err != nil {
-			return fail(fmt.Errorf("build %s: %w\n%s", name, err, out))
-		}
 	}
 
 	appDB := filepath.Join(dir, "app.db")
@@ -120,7 +113,7 @@ func startFixtures() (func(), error) {
 	seedEnv := append(append([]string{}, base...),
 		"PLAYWRIGHT_EMAIL="+fixtureOwnerEmail, "PLAYWRIGHT_MEMBER_EMAIL="+fixtureMemberEmail,
 		"PLAYWRIGHT_MEMBER_PASSWORD="+fixtureMemberPass, "PLAYWRIGHT_SQLITE_PATH="+appDB)
-	if err := runTool(dir, seedEnv, "seed-member"); err != nil {
+	if err := runTool(dir, seedEnv, "seedmember"); err != nil {
 		return fail(err)
 	}
 

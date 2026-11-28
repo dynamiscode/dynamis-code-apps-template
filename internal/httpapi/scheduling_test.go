@@ -183,6 +183,38 @@ func TestSchedulingRESTReadOnlyRoles(t *testing.T) {
 	if err := json.Unmarshal(created.Body.Bytes(), &resource); err != nil || resource.ID == "" {
 		t.Fatalf("create: %d %s", created.Code, created.Body.String())
 	}
+	if response := serveAuthorized(h, http.MethodPut, path+"/"+resource.ID+"/working-hours", `{"hours":[{"weekday":1,"start":"09:00","end":"17:00"}]}`, ownerToken, nil); response.Code != http.StatusNoContent {
+		t.Fatalf("seed hours: %d %s", response.Code, response.Body.String())
+	}
+	client, err := clients.NewService(db, config.SQLite, auth, 50).Create(ctx, actor, wid, clients.Input{DisplayName: "Client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	engagements := engagement.NewService(db, config.SQLite, auth)
+	stage, err := engagements.CreateStage(ctx, actor, wid, engagement.StageInput{Name: "Open", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engagements.Create(ctx, actor, wid, engagement.Input{Name: "Engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := "/api/v1/workspaces/" + workspace
+	entryResponse := serveAuthorized(h, http.MethodPost, base+"/catalog", `{"name":"Visit","durationMinutes":60,"prices":[{"mode":"manual","currency":"USD","variant":"Standard"}]}`, ownerToken, nil)
+	var entry struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(entryResponse.Body.Bytes(), &entry); entryResponse.Code != http.StatusCreated || err != nil || entry.ID == "" {
+		t.Fatalf("seed catalog = %d %s, %v", entryResponse.Code, entryResponse.Body.String(), err)
+	}
+	bookingsPath := path + "/" + resource.ID + "/bookings"
+	bookingResponse := serveAuthorized(h, http.MethodPost, bookingsPath, `{"entryId":"`+entry.ID+`","start":"2026-11-23T09:00:00Z"}`, ownerToken, nil)
+	var booking struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(bookingResponse.Body.Bytes(), &booking); bookingResponse.Code != http.StatusCreated || err != nil || booking.ID == "" {
+		t.Fatalf("seed booking = %d %s, %v", bookingResponse.Code, bookingResponse.Body.String(), err)
+	}
 	for _, role := range []identity.Role{identity.Member, identity.Viewer} {
 		inv, err := auth.CreateInvitation(ctx, actor, string(role)+"@example.com", role, time.Hour, identity.AuditContext{})
 		if err != nil {
@@ -214,15 +246,27 @@ func TestSchedulingRESTReadOnlyRoles(t *testing.T) {
 			t.Fatalf("%s hours: %d", role, response.Code)
 		}
 		if role == identity.Viewer {
-			if response := serveAuthorized(h, http.MethodPut, path+"/"+resource.ID+"/bookings/invalid/move", `{"start":"2026-11-23T10:00:00Z"}`, token.Secret, nil); response.Code != http.StatusForbidden {
+			before := serveAuthorized(h, http.MethodGet, bookingsPath, "", ownerToken, nil)
+			if before.Code != http.StatusOK {
+				t.Fatalf("bookings before denied writes: %d %s", before.Code, before.Body.String())
+			}
+			if response := serveAuthorized(h, http.MethodPut, bookingsPath+"/"+booking.ID+"/move", `{"start":"2026-11-23T10:00:00Z"}`, token.Secret, nil); response.Code != http.StatusForbidden {
 				t.Fatalf("viewer move: %d", response.Code)
 			}
-			if response := serveAuthorized(h, http.MethodPut, "/api/v1/workspaces/"+workspace+"/scheduling/bookings/invalid/engagement", `{"engagementId":null}`, token.Secret, nil); response.Code != http.StatusForbidden {
+			if response := serveAuthorized(h, http.MethodPut, base+"/scheduling/bookings/"+booking.ID+"/engagement", `{"engagementId":"`+eng.ID.String()+`"}`, token.Secret, nil); response.Code != http.StatusForbidden {
 				t.Fatalf("viewer engagement: %d", response.Code)
 			}
-			if response := serveAuthorized(h, http.MethodPut, path+"/"+resource.ID+"/bookings/invalid/status", `{"status":"done"}`, token.Secret, nil); response.Code != http.StatusForbidden {
+			if response := serveAuthorized(h, http.MethodPut, bookingsPath+"/"+booking.ID+"/status", `{"status":"done"}`, token.Secret, nil); response.Code != http.StatusForbidden {
 				t.Fatalf("viewer status: %d", response.Code)
 			}
+			after := serveAuthorized(h, http.MethodGet, bookingsPath, "", ownerToken, nil)
+			if after.Code != http.StatusOK || after.Body.String() != before.Body.String() {
+				t.Fatalf("viewer denied writes changed bookings: before %s, after %d %s", before.Body.String(), after.Code, after.Body.String())
+			}
+		}
+		after := serveAuthorized(h, http.MethodGet, path, "", ownerToken, nil)
+		if after.Code != http.StatusOK || !strings.Contains(after.Body.String(), `"name":"Room"`) || strings.Contains(after.Body.String(), `"name":"Denied"`) || !strings.Contains(after.Body.String(), `"start":"09:00"`) {
+			t.Fatalf("%s denied writes changed resources: %d %s", role, after.Code, after.Body.String())
 		}
 	}
 }

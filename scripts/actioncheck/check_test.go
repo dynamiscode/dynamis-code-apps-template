@@ -20,6 +20,16 @@ const testImports = "package demo\n\n" +
 	"import molecules \"example.com/dynamis-code/apps-template/internal/web/components/molecules\"\n" +
 	"import \"example.com/dynamis-code/apps-template/internal/web/components/actionattrs\"\n"
 
+func requireViolation(t *testing.T, got []Violation, reason string) {
+	t.Helper()
+	for _, violation := range got {
+		if violation.Reason == reason {
+			return
+		}
+	}
+	t.Fatalf("missing violation %q in %v", reason, got)
+}
+
 func TestTransactionAmountFormatterIsScoped(t *testing.T) {
 	expr, err := parser.ParseExpr(`view(transactions.FormatAmount(amount, currency, locale))`)
 	if err != nil {
@@ -68,14 +78,24 @@ func TestReviewedInlineScriptRejectsMutatedAndMovedBytes(t *testing.T) {
 	}
 	source := string(body)
 	start := strings.Index(source, "<script>")
-	end := strings.Index(source[start:], "</script>") + start + len("</script>")
-	script := source[start:end]
+	if start < 0 {
+		t.Fatal("reviewed script is missing")
+	}
+	end := strings.Index(source[start:], "</script>")
+	if end < 0 {
+		t.Fatal("reviewed script closing tag is missing")
+	}
+	script := source[start : start+end+len("</script>")]
+	mutated := strings.Replace(script, "modal.close()", "document.createElement(\"button\")", 1)
+	if mutated == script {
+		t.Fatal("reviewed script mutation did not change the fixture")
+	}
 	for _, tc := range []struct {
 		path, script string
 		want         int
 	}{
 		{path, script, 0},
-		{path, strings.Replace(script, "modal.close()", "document.createElement(\"button\")", 1), 1},
+		{path, mutated, 1},
 		{path, script + "\n" + script, 1},
 		{"internal/web/new.templ", script, 1},
 	} {
@@ -357,9 +377,7 @@ templ Demo(class string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("unsafe component built in a {{ }} block and bare-rendered was not caught")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component built in Go code")
 }
 
 // TestUnsafeComponentBuiltInHelperFuncIsCaught is the same bypass, but the
@@ -379,9 +397,7 @@ templ Demo() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("unsafe component built in a helper function was not caught")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component built in Go code")
 }
 
 // TestButtonClassDoesNotSatisfyAnchorBoundary regresses a bug found in
@@ -784,9 +800,7 @@ func buildIcon(class string) templ.Component {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("an unresolved Button construction in a plain .go file was not caught")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component built in Go code")
 }
 
 func TestCheckGoFileRejectsExternalComponentFactory(t *testing.T) {
@@ -945,9 +959,7 @@ func buildIcon(class string) templ.Component {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("templ.Raw building raw HTML in a plain .go file was not caught")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component built in Go code")
 }
 
 func TestNestedTemplRawInsideUnrecognizedWrapperIsCaught(t *testing.T) {
@@ -976,9 +988,7 @@ templ Demo(class string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("a bare @icon reference to a templ.Raw value built in the same {{ }} block was not caught")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component built in Go code")
 }
 
 // TestExternalPackageTemplRawSlotIsRejected regresses the first bug
@@ -1004,9 +1014,7 @@ templ Demo() {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("a bare @icon reference to an externally-supplied component must be rejected")
-	}
+	requireViolation(t, got, "unbounded or unresolved action component")
 }
 
 // TestAnonymousTemplParamTemplFieldIsRejected regresses the second bug
@@ -1027,7 +1035,5 @@ templ Demo(evil struct{ Templ func() templ.Attributes }) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) == 0 {
-		t.Fatal("an anonymous struct templ-function parameter with a field literally named Templ must be rejected")
-	}
+	requireViolation(t, got, "struct field literally named Templ bypasses the action-attribute guard")
 }

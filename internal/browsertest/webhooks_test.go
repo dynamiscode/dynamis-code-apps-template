@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,9 +23,18 @@ func responseHeaders(t *testing.T, tab context.Context, urlPart, method string) 
 	t.Helper()
 	call(t, tab, network.Enable, network.EnableParams{})
 	found := make(chan string, 1)
+	var requests sync.Map
 	_ = chromedp.Listen(tab, func(ev any) {
+		if request, ok := ev.(*network.EventRequestWillBeSent); ok {
+			requests.Store(request.RequestID, request.Request.Method == method && strings.Contains(request.Request.URL, urlPart))
+			return
+		}
 		response, ok := ev.(*network.EventResponseReceived)
-		if !ok || !strings.Contains(response.Response.URL, urlPart) {
+		if !ok {
+			return
+		}
+		matches, foundRequest := requests.Load(response.RequestID)
+		if !foundRequest || matches != true || !strings.Contains(response.Response.URL, urlPart) {
 			return
 		}
 		for name, value := range response.Response.Headers {
@@ -37,7 +47,6 @@ func responseHeaders(t *testing.T, tab context.Context, urlPart, method string) 
 			}
 		}
 	})
-	_ = method
 	return found
 }
 

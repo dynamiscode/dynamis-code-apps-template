@@ -85,19 +85,27 @@ func TestChangesAreScopedToTheirWorkspace(t *testing.T) {
 		t.Fatalf("other workspace received %d changes", len(page.Changes))
 	}
 	// A principal without membership in the first workspace is refused outright.
-	if _, err := fx.service.Changes(fx.ctx, otherOwner, fx.workspaceID, changeOrigin, 10); !errors.Is(err, identity.ErrForbidden) {
+	otherMember := addMember(t, fx.ctx, fx.db, fx.auth, otherOwner, otherWorkspace, "other-member@example.com", identity.Member)
+	if _, err := fx.service.Changes(fx.ctx, otherMember, fx.workspaceID, changeOrigin, 10); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("cross-workspace read error = %v, want forbidden", err)
 	}
 }
 
 func TestChangesRetainOnlyTheLatestThousandPerWorkspace(t *testing.T) {
 	fx := newFixture(t)
-	for range maximumRetainedChanges + 1 {
-		if _, err := fx.service.Create(fx.ctx, fx.member, fx.workspaceID, Input{DisplayName: "Bulk"}, identity.AuditContext{}); err != nil {
+	var first, last ClientID
+	for i := range 1001 {
+		client, err := fx.service.Create(fx.ctx, fx.member, fx.workspaceID, Input{DisplayName: "Bulk"}, identity.AuditContext{})
+		if err != nil {
 			t.Fatal(err)
 		}
+		if i == 0 {
+			first = client.ID
+		}
+		last = client.ID
 	}
 	retained := 0
+	var sawFirst, sawLast bool
 	cursor := changeOrigin
 	for {
 		page, err := fx.service.Changes(fx.ctx, fx.viewer, fx.workspaceID, cursor, 100)
@@ -107,10 +115,14 @@ func TestChangesRetainOnlyTheLatestThousandPerWorkspace(t *testing.T) {
 		if len(page.Changes) == 0 {
 			break
 		}
+		for _, change := range page.Changes {
+			sawFirst = sawFirst || change.ClientID == first
+			sawLast = sawLast || change.ClientID == last
+		}
 		retained += len(page.Changes)
 		cursor = page.Next
 	}
-	if retained != maximumRetainedChanges {
-		t.Fatalf("retained changes = %d, want %d", retained, maximumRetainedChanges)
+	if retained != 1000 || sawFirst || !sawLast {
+		t.Fatalf("retained changes = %d, first present = %v, last present = %v; want 1000 latest", retained, sawFirst, sawLast)
 	}
 }

@@ -157,6 +157,14 @@ func TestMemberRemovalAndTransferRequireServerConfirmation(t *testing.T) {
 	if len(members) != 2 {
 		t.Fatalf("members after unconfirmed actions = %d, want 2", len(members))
 	}
+	for _, member := range members {
+		if member.ID == target.ID && member.Role != identity.Viewer {
+			t.Fatalf("unconfirmed actions changed target role to %q", member.Role)
+		}
+		if member.UserID == env.ownerID && member.Role != identity.Owner {
+			t.Fatalf("unconfirmed actions changed owner role to %q", member.Role)
+		}
+	}
 }
 
 func TestMemberRemovalRequiresCSRFAndConfirmedOrdinaryForm(t *testing.T) {

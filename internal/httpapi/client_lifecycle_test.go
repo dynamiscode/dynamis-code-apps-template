@@ -94,6 +94,14 @@ func TestClientArchiveUnarchiveAndDeleteOverREST(t *testing.T) {
 	if response := serveAuthorized(handler, http.MethodDelete, clientPath, "", writeOnly.Secret, nil); response.Code != http.StatusForbidden {
 		t.Fatalf("write-only token delete = %d %s; want 403", response.Code, response.Body.String())
 	}
+	afterDenied := serveAuthorized(handler, http.MethodGet, clientPath, "", token, nil)
+	var unchanged struct {
+		ArchivedAt *string `json:"archivedAt"`
+		Version    int     `json:"version"`
+	}
+	if err := json.Unmarshal(afterDenied.Body.Bytes(), &unchanged); afterDenied.Code != http.StatusOK || err != nil || unchanged.ArchivedAt != nil || unchanged.Version != 3 {
+		t.Fatalf("client after denied writes = %d %s, %v", afterDenied.Code, afterDenied.Body.String(), err)
+	}
 
 	if deleted := serveAuthorized(handler, http.MethodDelete, clientPath, "", token, nil); deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete = %d %s", deleted.Code, deleted.Body.String())

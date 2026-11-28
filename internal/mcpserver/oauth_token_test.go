@@ -103,8 +103,14 @@ func TestOAuthTokenEndpointIssuesRefreshesAndServesMCP(t *testing.T) {
 	refreshed := postForm(tokenEndpoint, "/oauth/token", url.Values{
 		"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "client_id": {setup.client.ClientID},
 	})
-	if refreshed.Code != http.StatusOK {
+	var renewed tokenResponse
+	if refreshed.Code != http.StatusOK || json.Unmarshal(refreshed.Body.Bytes(), &renewed) != nil ||
+		renewed.AccessToken == "" || renewed.RefreshToken == "" || renewed.RefreshToken == issued.RefreshToken ||
+		renewed.TokenType != "Bearer" || renewed.Scope != "resources:read" {
 		t.Fatalf("refresh = %d %s", refreshed.Code, refreshed.Body.String())
+	}
+	if response := postMCP(setup.state.handler, renewed.AccessToken, "", initialize); response.Code != http.StatusOK {
+		t.Fatalf("MCP with refreshed access token = %d %s", response.Code, response.Body.String())
 	}
 	reused := postForm(tokenEndpoint, "/oauth/token", url.Values{
 		"grant_type": {"refresh_token"}, "refresh_token": {issued.RefreshToken}, "client_id": {setup.client.ClientID},
@@ -161,8 +167,8 @@ func TestOAuthAccessTokenScopesChallengesAndRevocation(t *testing.T) {
 		"code_verifier": {testPKCEVerifier}, "resource": {testOAuthResourceURL},
 	})
 	var tokens tokenResponse
-	if err := json.Unmarshal(issued.Body.Bytes(), &tokens); err != nil {
-		t.Fatal(err)
+	if err := json.Unmarshal(issued.Body.Bytes(), &tokens); issued.Code != http.StatusOK || err != nil || tokens.AccessToken == "" {
+		t.Fatalf("token exchange = %d %s, %v", issued.Code, issued.Body.String(), err)
 	}
 
 	request := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(
@@ -178,6 +184,9 @@ func TestOAuthAccessTokenScopesChallengesAndRevocation(t *testing.T) {
 	}
 
 	const initialize = `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"oauth","version":"1"}}}`
+	if before := postMCP(setup.state.handler, tokens.AccessToken, "", initialize); before.Code != http.StatusOK {
+		t.Fatalf("access token before revocation = %d %s", before.Code, before.Body.String())
+	}
 	revoked := postForm(revokeEndpoint, "/oauth/revoke", url.Values{"token": {tokens.AccessToken}})
 	if revoked.Code != http.StatusOK || revoked.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("revoke = %d headers=%v", revoked.Code, revoked.Header())

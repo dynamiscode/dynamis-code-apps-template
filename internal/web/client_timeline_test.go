@@ -21,7 +21,7 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatalf("add = %d: %s", first.Code, first.Body.String())
 	}
 	page := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(page, `data-timeline-composer`) || !strings.Contains(page, `data-timeline-dialog`) || !strings.Contains(page, `timeline-vertical`) || strings.Index(page, `id="timeline-text"`) > strings.Index(page, `id="timeline-type"`) {
+	if !strings.Contains(page, `data-timeline-composer`) || !strings.Contains(page, `data-timeline-dialog`) || !strings.Contains(page, `timeline-vertical`) || strings.Index(page, `id="timeline-text"`) < 0 || strings.Index(page, `id="timeline-text"`) > strings.Index(page, `id="timeline-type"`) {
 		t.Fatal("timeline or writing-first form missing")
 	}
 	if strings.Contains(page, `maxlength="2000"`) {
@@ -44,7 +44,7 @@ func TestClientTimelineForms(t *testing.T) {
 		t.Fatalf("correction = %d", corrected.Code)
 	}
 	page = request(env.routes, http.MethodGet, detail, nil, env.cookies, nil).Body.String()
-	if !strings.Contains(page, "#timeline-"+entryID) || strings.Index(page, "First contact") < strings.Index(page, "Correction") {
+	if !strings.Contains(page, "#timeline-"+entryID) || strings.Index(page, "Correction") < 0 || strings.Index(page, "First contact") < strings.Index(page, "Correction") {
 		t.Fatal("correction reference or ordering missing")
 	}
 	for _, tc := range []struct{ typ, text, message string }{{"note", "", "Text is required"}, {"note", strings.Repeat("a", 2001), "2,000"}, {"invalid", "draft text", "entry type"}} {

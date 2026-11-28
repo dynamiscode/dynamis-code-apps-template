@@ -71,10 +71,13 @@ func TestDateValueAcceptsCalendarDatesOnly(t *testing.T) {
 func TestYesNoValueStoresTrueOrFalseOnly(t *testing.T) {
 	f := newFixture(t)
 	field := defineTypedField(t, f, FieldTypeYesNo)
-	for _, input := range []string{"true", "false", " false "} {
+	for input, want := range map[string]string{"true": "true", "false": "false", " false ": "false"} {
 		client := createClientForValues(t, f, "Ada")
 		if _, err := f.service.SetValue(f.ctx, f.member, f.workspaceID, client.ID, client.Version, field.ID, input, identity.AuditContext{}); err != nil {
 			t.Fatalf("SetValue(%q) error = %v", input, err)
+		}
+		if got, ok := valueOf(t, f, f.viewer, client.ID, field.ID); !ok || got != want {
+			t.Fatalf("SetValue(%q) stored %q (set=%v), want %q", input, got, ok, want)
 		}
 	}
 	for _, input := range []string{"yes", "no", "1", "0", "True", "TRUE", "on"} {

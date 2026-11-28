@@ -52,26 +52,26 @@ func TestSavedViewsAreListedMadeDefaultAndChanged(t *testing.T) {
 	if err := service.SetDefault(ctx, actor, workspace, ListClients, view.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, defaultID, _ = service.List(ctx, actor, workspace, ListClients); defaultID != view.ID {
-		t.Fatalf("default = %d, want %d", defaultID, view.ID)
+	if _, defaultID, err = service.List(ctx, actor, workspace, ListClients); err != nil || defaultID != view.ID {
+		t.Fatalf("default = %d, err = %v, want %d", defaultID, err, view.ID)
 	}
 	if err := service.Update(ctx, actor, workspace, view.ID, "Renamed", State{Query: "sort=email"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := service.Get(ctx, actor, workspace, view.ID); got.Name != "Renamed" || got.State.Query != "sort=email" {
-		t.Fatalf("after update = %+v", got)
+	if got, err := service.Get(ctx, actor, workspace, view.ID); err != nil || got.Name != "Renamed" || got.State.Query != "sort=email" {
+		t.Fatalf("after update = %+v, %v", got, err)
 	}
 	if err := service.SetDefault(ctx, actor, workspace, ListClients, 0); err != nil {
 		t.Fatal(err)
 	}
-	if _, defaultID, _ = service.List(ctx, actor, workspace, ListClients); defaultID != 0 {
-		t.Fatalf("cleared default = %d", defaultID)
+	if _, defaultID, err = service.List(ctx, actor, workspace, ListClients); err != nil || defaultID != 0 {
+		t.Fatalf("cleared default = %d, %v", defaultID, err)
 	}
 	if err := service.Delete(ctx, actor, workspace, view.ID); err != nil {
 		t.Fatal(err)
 	}
-	if views, _, _ = service.List(ctx, actor, workspace, ListClients); len(views) != 0 {
-		t.Fatalf("deleted view still listed: %+v", views)
+	if views, _, err = service.List(ctx, actor, workspace, ListClients); err != nil || len(views) != 0 {
+		t.Fatalf("views after delete = %+v, %v", views, err)
 	}
 }
 
@@ -83,8 +83,8 @@ func TestSharedViewsAreSharedAndRefusedOutsideTheRules(t *testing.T) {
 	if _, err := service.Create(ctx, actor, workspace, ListFiles, "PDFs", true, State{Query: "mime=application/pdf"}); err != nil {
 		t.Fatal(err)
 	}
-	if views, _, _ := service.List(ctx, actor, workspace, ListFiles); len(views) != 1 || !views[0].Shared {
-		t.Fatalf("shared view not listed as shared: %+v", views)
+	if views, _, err := service.List(ctx, actor, workspace, ListFiles); err != nil || len(views) != 1 || !views[0].Shared || views[0].Name != "PDFs" {
+		t.Fatalf("shared view = %+v, %v", views, err)
 	}
 	transactionsView, err := service.Create(ctx, actor, workspace, ListTransactions, "Receipts", false, State{Query: "filter=direction%3Aequals%3Ain", Visible: map[string]bool{"amount": true}})
 	if err != nil {
@@ -150,13 +150,25 @@ func TestTransactionsViewsRequireTransactionsReadPermission(t *testing.T) {
 		t.Fatalf("get: %v", err)
 	}
 	for name, err := range map[string]error{
-		"update":        service.Update(ctx, viewer, workspace, view.ID, "Changed", State{}),
-		"delete":        service.Delete(ctx, viewer, workspace, view.ID),
-		"default":       service.SetDefault(ctx, viewer, workspace, ListTransactions, view.ID),
-		"clear default": service.SetDefault(ctx, viewer, workspace, ListTransactions, 0),
+		"update":  service.Update(ctx, viewer, workspace, view.ID, "Changed", State{}),
+		"delete":  service.Delete(ctx, viewer, workspace, view.ID),
+		"default": service.SetDefault(ctx, viewer, workspace, ListTransactions, view.ID),
 	} {
 		if !errors.Is(err, identity.ErrForbidden) {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+	views, defaultID, err := service.List(ctx, owner, workspace, ListTransactions)
+	if err != nil || len(views) != 1 || views[0].ID != view.ID || views[0].Name != "Shared" || defaultID != 0 {
+		t.Fatalf("owner views after forbidden changes = %+v, default %d, %v", views, defaultID, err)
+	}
+	if err := service.SetDefault(ctx, owner, workspace, ListTransactions, view.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.SetDefault(ctx, viewer, workspace, ListTransactions, 0); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("clear default: %v", err)
+	}
+	if _, defaultID, err := service.List(ctx, owner, workspace, ListTransactions); err != nil || defaultID != view.ID {
+		t.Fatalf("default after forbidden clear = %d, %v; want %d", defaultID, err, view.ID)
 	}
 }

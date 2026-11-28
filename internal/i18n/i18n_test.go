@@ -2,14 +2,18 @@ package i18n
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"testing/fstest"
 )
 
 func TestCatalogsHaveExactKeyParity(t *testing.T) {
-	catalogs := make([]map[string]string, 0, len(supported))
-	for _, locale := range supported {
-		contents, err := localeFiles.ReadFile("locales/" + string(locale) + ".json")
+	if got := Supported(); !slices.Equal(got, []Locale{"en", "es"}) {
+		t.Fatalf("Supported() = %v, want [en es]", got)
+	}
+	catalogs := make([]map[string]string, 0, 2)
+	for _, locale := range []string{"en", "es"} {
+		contents, err := localeFiles.ReadFile("locales/" + locale + ".json")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -19,7 +23,7 @@ func TestCatalogsHaveExactKeyParity(t *testing.T) {
 		}
 		catalogs = append(catalogs, messages)
 	}
-	if len(catalogs) != 2 || len(catalogs[0]) != len(catalogs[1]) {
+	if len(catalogs[0]) != len(catalogs[1]) {
 		t.Fatalf("catalog key counts = %d and %d", len(catalogs[0]), len(catalogs[1]))
 	}
 	for key := range catalogs[0] {

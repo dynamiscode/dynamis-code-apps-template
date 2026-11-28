@@ -93,6 +93,9 @@ lifecycle is implemented.
 
 ## Local authentication
 
+New local passwords must be 12–1024 UTF-8 bytes, not characters. This applies
+to bootstrap, invitations, password changes, and password resets.
+
 Passwords use Argon2id with a random 16-byte salt, 19 MiB memory, two
 iterations, one lane, and a 32-byte result. Authentication returns the same
 public error for an unknown email, invalid email, missing local password, or

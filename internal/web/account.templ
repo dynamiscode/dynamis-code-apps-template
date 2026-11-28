@@ -101,8 +101,9 @@ templ accountPageView(data viewmodel.PageData) {
 							<form action="/account/password" method="post">
 								<input type="hidden" name="csrf" value={ data.CSRF }/>
 								@molecules.TextField("current-password", data.T("account.current_password"), templ.Attributes{"name": "current_password", "type": "password", "autocomplete": "current-password", "required": true})
-								@molecules.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-strength": true})
-								@molecules.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "minlength": "12", "maxlength": "1024", "required": true, "data-match": "new-password"})
+								@molecules.TextField("new-password", data.T("account.new_password"), templ.Attributes{"name": "new_password", "type": "password", "autocomplete": "new-password", "required": true, "data-strength": true, "aria-describedby": "new-password-help"})
+								<p id="new-password-help">{ data.T("ui.password_length") }</p>
+								@molecules.TextField("password-confirmation", data.T("account.confirm_password"), templ.Attributes{"name": "password_confirmation", "type": "password", "autocomplete": "new-password", "required": true, "data-match": "new-password"})
 								@molecules.SubmitButton(data.T("account.change_password"), nil)
 							</form>
 						</section>

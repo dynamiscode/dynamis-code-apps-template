@@ -47,7 +47,7 @@ func TestMCPListAppliesPublishedDefaults(t *testing.T) {
 	page := decodeOutput[clientPageOutput](t, callTool(t, session, "clients_list_v1", map[string]any{
 		"workspaceId": state.workspaceID,
 	}))
-	if len(page.Clients) != 50 || page.Total <= 50 || page.Page != 1 {
+	if len(page.Clients) != 50 || page.Total != 51 || page.Page != 1 {
 		t.Fatalf("default page = %d items, total %d, page %d", len(page.Clients), page.Total, page.Page)
 	}
 }

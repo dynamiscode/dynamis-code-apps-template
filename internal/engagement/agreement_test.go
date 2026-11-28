@@ -91,6 +91,10 @@ func TestAgreementCanBeRecordedAndCleared(t *testing.T) {
 	if err := svc.SetAgreement(ctx, actor, boot.WorkspaceID, e.ID, Agreement{FileID: id.EncodeKey(id.TypeFile, otherFile)}, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("foreign file = %v", err)
 	}
+	got, err = svc.Get(ctx, actor, boot.WorkspaceID, e.ID)
+	if err != nil || !got.Agreement.Recorded || got.Agreement.FileID != shortID {
+		t.Fatalf("foreign file changed agreement = %+v, %v", got.Agreement, err)
+	}
 	if _, err := db.ExecContext(ctx, `DELETE FROM files WHERE id = ?`, fileID); err == nil {
 		t.Fatal("referenced file was deleted")
 	}

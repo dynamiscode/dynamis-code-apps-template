@@ -6,7 +6,8 @@ const { wireDetailDialogs } = createRequire(import.meta.url)("./alpine-component
 
 function fixture({ initiallyOpen = false, dirtyOnLoad = false, supported = true } = {}) {
 	const handlers = {};
-	const on = (name) => (type, handler) => { handlers[`${name}:${type}`] = handler; };
+	const on = (name) => (type, handler) => { (handlers[`${name}:${type}`] ??= []).push(handler); };
+	const fire = (name, event) => { for (const handler of handlers[name] ?? []) handler(event); };
 	const field = { name: "text", type: "text", value: "saved" };
 	const form = { elements: [field] };
 	const cancel = { hidden: true, addEventListener: on("cancel") };
@@ -18,7 +19,7 @@ function fixture({ initiallyOpen = false, dirtyOnLoad = false, supported = true 
 		removeAttribute: (name) => assert.equal(name, "open"),
 		querySelector: (selector) => ({ form, "[data-detail-cancel]": cancel, "[data-detail-fallback-cancel]": fallback, '[role="alert"], [aria-invalid="true"]': initiallyOpen ? { focus: () => alertFocused++ } : null })[selector],
 		addEventListener: on("dialog"),
-		close: () => { closed++; handlers["dialog:close"](); },
+		close: () => { closed++; fire("dialog:close"); },
 	};
 	if (supported) dialog.showModal = () => shown++;
 	const details = {
@@ -26,7 +27,7 @@ function fixture({ initiallyOpen = false, dirtyOnLoad = false, supported = true 
 		hasAttribute: (name) => name === "data-detail-dirty-on-load" && dirtyOnLoad,
 		querySelector: (selector) => ({ "[data-detail-dialog]": dialog, summary })[selector],
 	};
-	return { root: { querySelectorAll: () => [details] }, handlers, details, dialog, field, cancel, fallback, counts: () => ({ focused, shown, closed, alertFocused }) };
+	return { root: { querySelectorAll: () => [details] }, fire, details, dialog, field, cancel, fallback, counts: () => ({ focused, shown, closed, alertFocused }) };
 }
 
 const event = () => ({ prevented: false, preventDefault() { this.prevented = true; } });
@@ -47,11 +48,11 @@ test("dialog opens once, focuses errors, and restores focus on cancel", () => {
 	assert.equal(f.cancel.hidden, false);
 	assert.equal(f.fallback.hidden, true);
 	assert.deepEqual(f.counts(), { focused: 0, shown: 1, closed: 0, alertFocused: 1 });
-	f.handlers["cancel:click"](event());
+	f.fire("cancel:click", event());
 	assert.equal(f.details.open, false);
 	assert.deepEqual(f.counts(), { focused: 1, shown: 1, closed: 1, alertFocused: 1 });
 	const click = event();
-	f.handlers["summary:click"](click);
+	f.fire("summary:click", click);
 	assert.equal(click.prevented, true);
 	assert.equal(f.details.open, true);
 	assert.equal(f.counts().shown, 2);
@@ -64,14 +65,14 @@ test("dirty Escape and cancellation require confirmation and keep draft", () => 
 	globalThis.window = { confirm: (message) => { assert.equal(message, "Discard?"); prompts++; return confirm; } };
 	try {
 		wireDetailDialogs(f.root);
-		f.handlers["summary:click"](event());
+		f.fire("summary:click", event());
 		f.field.value = "draft";
 		const escape = event();
-		f.handlers["dialog:cancel"](escape);
+		f.fire("dialog:cancel", escape);
 		assert.equal(escape.prevented, true);
 		assert.equal(f.counts().closed, 0);
 		confirm = true;
-		f.handlers["cancel:click"](event());
+		f.fire("cancel:click", event());
 		assert.equal(f.counts().closed, 1);
 		assert.equal(f.field.value, "draft");
 		assert.equal(prompts, 2);
@@ -85,7 +86,7 @@ test("server-echoed drafts require confirmation even without further edits", () 
 	globalThis.window = { confirm: () => { prompts++; return false; } };
 	try {
 		wireDetailDialogs(f.root);
-		f.handlers["cancel:click"](event());
+		f.fire("cancel:click", event());
 		assert.equal(prompts, 1);
 		assert.equal(f.counts().closed, 0);
 	} finally { globalThis.window = previous; }

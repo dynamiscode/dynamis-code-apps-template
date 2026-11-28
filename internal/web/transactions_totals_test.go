@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"html"
 	"net/http"
 	"strings"
 	"testing"
@@ -75,12 +74,12 @@ func TestTransactionsTotalsWeb(t *testing.T) {
 	}
 	custom := path + "?period=custom&start=2026-01-02&end=2026-01-03"
 	page := request(routes, http.MethodGet, custom, nil, cookies, nil)
-	for _, value := range []string{"USD", "EUR", html.EscapeString(transactions.FormatTotal("125", "USD", "en")), html.EscapeString(transactions.FormatTotal("25", "USD", "en")), html.EscapeString(transactions.FormatTotal("100", "USD", "en")), html.EscapeString(transactions.FormatTotal("40", "EUR", "en")), "Uncategorized", "2026-01-02", "2026-01-03", `value="custom"`, `for="transactions-totals-start"`, "workspace time zone"} {
+	for _, value := range []string{"USD", "EUR", "USD 1.25", "USD 0.25", "USD 1.00", "EUR 0.40", "Uncategorized", "2026-01-02", "2026-01-03", `value="custom"`, `for="transactions-totals-start"`, "workspace time zone"} {
 		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), value) {
 			t.Fatalf("totals missing %q: %d %s", value, page.Code, page.Body)
 		}
 	}
-	for _, value := range []string{html.EscapeString(transactions.FormatTotal("27670116110564327421", "GBP", "en")), html.EscapeString(transactions.FormatTotal("18446744073709551614", "GBP", "en")), "Archived", "Active"} {
+	for _, value := range []string{"GBP 276,701,161,105,643,274.21", "GBP 184,467,440,737,095,516.14", "Archived", "Active"} {
 		if !strings.Contains(page.Body.String(), value) {
 			t.Fatalf("totals missing %q: %s", value, page.Body)
 		}

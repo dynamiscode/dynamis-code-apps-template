@@ -30,7 +30,7 @@ func TestSQLiteFileShortIDMigrationPreservesRowsAndNeverReusesKeys(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, entry := range entries {
-		if entry.Name() == "000020_file_short_ids.sql" {
+		if entry.Name() >= "000020" {
 			continue
 		}
 		data, err := fs.ReadFile(migrationFiles, "migrations/"+entry.Name())

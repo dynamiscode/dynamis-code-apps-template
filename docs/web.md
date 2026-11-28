@@ -367,7 +367,7 @@ each driven by a template attribute:
 | Inline validation and error summary | every form | Fields are checked when left and on submit; invalid fields get a message and `aria-invalid`, and a focused summary links to each one. A full-page server error takes focus on load. |
 | Forgiving format | `data-trim`, MFA codes | Text is trimmed. The server accepts authenticator codes with spaces or dashes and recovery codes in any case. |
 | Input masks | `data-mask="digits"`, `data-mask="upper"` | Authenticator codes keep digits only; recovery codes become upper case. |
-| Password strength and reveal | `data-strength`, every password | A meter scores 0 below 12 characters (the server minimum); a toggle shows or hides the value. `data-match` checks a confirmation. |
+| Password strength and reveal | `data-strength`, every password | New passwords must contain 12–1024 UTF-8 bytes. The meter scores 0 outside that range; a toggle shows or hides the value. `data-match` checks a confirmation. Without JavaScript, the server validates submissions. |
 | Smart defaults | `data-default="timezone"`, token expiry | An empty timezone is filled from the browser; API tokens default to 90 days. |
 | Dirty detection | `data-dirty-track`, `data-requires-change` | Save stays disabled until a field changes. |
 | Unsaved-changes warning | `data-unsaved-warning` | Leaving a changed form asks first. |

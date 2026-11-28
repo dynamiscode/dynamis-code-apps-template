@@ -113,10 +113,17 @@ func TestAuditMethodTargetRejectsUntrustedMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	found := false
 	for _, entry := range history {
-		if entry.EventType == "transactions.method.updated" && entry.TargetLabel != "" {
-			t.Fatalf("untrusted target exposed: %+v", entry)
+		if entry.EventType == "transactions.method.updated" {
+			found = true
+			if entry.TargetLabel != "" {
+				t.Fatalf("untrusted target exposed: %+v", entry)
+			}
 		}
+	}
+	if !found {
+		t.Fatal("untrusted method audit event missing from history")
 	}
 }
 
@@ -140,22 +147,22 @@ func TestTransactionsAuditHistoryLabels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := 0
+	found := map[string]bool{}
 	for _, entry := range history {
-		for _, event := range events {
-			if entry.EventType != event.EventType {
-				continue
-			}
-			found++
-			if entry.TargetType == "transactions_method" && entry.TargetLabel != "cash" {
+		switch entry.EventType {
+		case "transactions.method.updated":
+			found[entry.EventType] = true
+			if entry.TargetType != "transactions_method" || entry.TargetLabel != "cash" {
 				t.Fatalf("method label: %+v", entry)
 			}
-			if entry.TargetType == "transactions_category" && (entry.CategoryPreviousName != "Old" || entry.CategoryNewName != "New") {
+		case "transactions.category.rename":
+			found[entry.EventType] = true
+			if entry.TargetType != "transactions_category" || entry.CategoryPreviousName != "Old" || entry.CategoryNewName != "New" {
 				t.Fatalf("category names: %+v", entry)
 			}
 		}
 	}
-	if found != len(events) {
-		t.Fatalf("found %d events, want %d", found, len(events))
+	if len(found) != len(events) {
+		t.Fatalf("found event types %v, want both method and category events", found)
 	}
 }

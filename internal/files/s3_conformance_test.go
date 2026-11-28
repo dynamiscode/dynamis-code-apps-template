@@ -156,7 +156,10 @@ func conformanceRequest(t *testing.T, method, rawURL string, headers http.Header
 		t.Fatalf("%s request failed: %v", method, err)
 	}
 	defer resp.Body.Close()
-	payload, _ := io.ReadAll(resp.Body)
+	payload, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("%s response body: %v", method, err)
+	}
 	return resp.StatusCode, string(payload)
 }
 

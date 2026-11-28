@@ -238,6 +238,10 @@ func TestClientValuesShowReadOnlyToViewersAndRefuseTheirWrites(t *testing.T) {
 	if refusedClear.Code != http.StatusForbidden {
 		t.Fatalf("viewer clear = %d, want 403", refusedClear.Code)
 	}
+	after := request(env.routes, http.MethodGet, detail, nil, env.cookies, nil)
+	if after.Code != http.StatusOK || !strings.Contains(after.Body.String(), "Friend") || strings.Contains(after.Body.String(), "Blocked") {
+		t.Fatalf("denied viewer writes changed the saved value: %d %s", after.Code, after.Body.String())
+	}
 }
 
 func TestClientValuesHideArchivedFieldsAndRefuseWritesToThem(t *testing.T) {

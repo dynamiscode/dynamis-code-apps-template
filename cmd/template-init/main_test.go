@@ -300,12 +300,51 @@ func TestGenerateWithoutAgentPrunesAgentSurfaceAndBuilds(t *testing.T) {
 	}
 }
 
+func TestRunCommandEnvironmentIsolation(t *testing.T) {
+	urls := []string{
+		"POSTGRES_TEST_URL",
+		"POSTGRES_ENGAGEMENT_ACTION_UPGRADE_TEST_URL",
+		"POSTGRES_ENGAGEMENT_NAMES_UPGRADE_TEST_URL",
+		"POSTGRES_WORKSPACE_CURRENCIES_UPGRADE_TEST_URL",
+		"POSTGRES_ITEMS_UPGRADE_TEST_URL",
+	}
+	if os.Getenv("TEMPLATE_INIT_ENV_TEST_CHILD") == "1" {
+		for _, name := range urls {
+			if _, ok := os.LookupEnv(name); ok {
+				t.Errorf("%s reached child process", name)
+			}
+		}
+		if got := os.Getenv("TEMPLATE_INIT_ENV_TEST_RETAINED"); got != "retained" {
+			t.Errorf("unrelated environment variable = %q, want retained", got)
+		}
+		return
+	}
+
+	for _, name := range urls {
+		t.Setenv(name, "must-not-reach-child")
+	}
+	t.Setenv("TEMPLATE_INIT_ENV_TEST_CHILD", "1")
+	t.Setenv("TEMPLATE_INIT_ENV_TEST_RETAINED", "retained")
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runCommand(t.TempDir(), executable, "-test.run=^TestRunCommandEnvironmentIsolation$"); err != nil {
+		t.Fatalf("child environment: %v", err)
+	}
+}
+
+// Child commands inherit GOFLAGS; the parent go test's -race flag is not inherited.
 func runCommand(directory, name string, args ...string) error {
 	command := exec.Command(name, args...)
 	command.Dir = directory
 	command.Env = make([]string, 0, len(os.Environ()))
 	for _, value := range os.Environ() {
-		if strings.HasPrefix(value, "POSTGRES_TEST_URL=") {
+		if strings.HasPrefix(value, "POSTGRES_TEST_URL=") ||
+			strings.HasPrefix(value, "POSTGRES_ENGAGEMENT_ACTION_UPGRADE_TEST_URL=") ||
+			strings.HasPrefix(value, "POSTGRES_ENGAGEMENT_NAMES_UPGRADE_TEST_URL=") ||
+			strings.HasPrefix(value, "POSTGRES_WORKSPACE_CURRENCIES_UPGRADE_TEST_URL=") ||
+			strings.HasPrefix(value, "POSTGRES_ITEMS_UPGRADE_TEST_URL=") {
 			continue
 		}
 		command.Env = append(command.Env, value)

@@ -33,6 +33,9 @@ maintainable, and evidenced.
 
 ## Change obligations
 
+- For test design, test removal, or CI changes, follow
+  [test and CI practices](docs/development.md#test-and-ci-practices).
+
 - For new browser journeys or meaningful interaction or visual changes, follow
   [UX review](docs/ux-review.md). Missing rendered-browser evidence blocks
   completion; automated checks alone do not establish usability.

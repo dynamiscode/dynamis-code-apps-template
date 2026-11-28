@@ -94,15 +94,15 @@ func TestClientChoiceOptionsOverREST(t *testing.T) {
 	assertProblem(t, serveAuthorized(handler, http.MethodDelete, optionBase+"/"+gold.ID, "", token, nil), http.StatusNotFound, "not-found")
 
 	values := serveAuthorized(handler, http.MethodGet, clientBase+"/"+client.ID+"/values", "", token, nil)
-	if strings.Contains(values.Body.String(), gold.ID) {
-		t.Fatalf("deleted option still on the client: %s", values.Body.String())
+	if values.Code != http.StatusOK || strings.Contains(values.Body.String(), gold.ID) {
+		t.Fatalf("client values after option delete = %d %s", values.Code, values.Body.String())
 	}
 	clientNow := serveAuthorized(handler, http.MethodGet, clientBase+"/"+client.ID, "", token, nil)
-	if clientNow.Header().Get("ETag") != `"v3"` {
-		t.Fatalf("client after option delete ETag = %q, want v3", clientNow.Header().Get("ETag"))
+	if clientNow.Code != http.StatusOK || clientNow.Header().Get("ETag") != `"v3"` {
+		t.Fatalf("client after option delete = %d, ETag %q, want 200 and v3", clientNow.Code, clientNow.Header().Get("ETag"))
 	}
-	if listed := serveAuthorized(handler, http.MethodGet, optionBase, "", token, nil); strings.Contains(listed.Body.String(), gold.ID) {
-		t.Fatalf("deleted option still listed: %s", listed.Body.String())
+	if listed := serveAuthorized(handler, http.MethodGet, optionBase, "", token, nil); listed.Code != http.StatusOK || strings.Contains(listed.Body.String(), gold.ID) {
+		t.Fatalf("options after delete = %d %s", listed.Code, listed.Body.String())
 	}
 }
 

@@ -8,17 +8,18 @@ function fixture() {
 	const node = () => ({
 		hidden: false, attrs: {}, events: {}, textContent: "", tabIndex: 0,
 		classList: { add() {}, remove() {} },
-		addEventListener(name, fn) { this.events[name] = fn; },
+		addEventListener(name, fn) { (this.events[name] ??= []).push(fn); },
 		setAttribute(name, value) { this.attrs[name] = value; },
 		removeAttribute(name) { delete this.attrs[name]; },
-		click() { return this.events.click(); },
+		emit(name, event) { return (this.events[name] ?? []).map((fn) => fn(event)); },
+		click() { return Promise.all(this.emit("click")); },
 		focus() { this.focused = true; },
 	});
 	const textarea = Object.assign(node(), {
 		value: "Hello world", selectionStart: 6, selectionEnd: 11, maxLength: 5000,
 		setRangeText(text, start, end) { this.value = this.value.slice(0, start) + text + this.value.slice(end); },
 		setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
-		dispatchEvent(event) { this.events[event.type](event); },
+		dispatchEvent(event) { this.emit(event.type, event); },
 	});
 	const controls = node(), tools = node(), writePanel = node(), output = node(), write = node(), preview = node(), count = node();
 	controls.hidden = true;
@@ -44,7 +45,7 @@ test("formatting keeps selection and updates character count", () => {
 	const { textarea, controls, tools, count } = fixture();
 	assert.equal(controls.hidden, false);
 	assert.equal(count.textContent, "Characters: 11 / 5000");
-	tools.events.click({ target: { closest: () => ({ dataset: { markdown: "bold" } }) } });
+	tools.emit("click", { target: { closest: () => ({ dataset: { markdown: "bold" } }) } });
 	assert.equal(textarea.value, "Hello **world**");
 	assert.equal(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd), "world");
 	assert.equal(textarea.focused, true);
@@ -56,7 +57,7 @@ test("list formatting prefixes each selected line", () => {
 	textarea.value = "first\nsecond";
 	textarea.selectionStart = 2;
 	textarea.selectionEnd = textarea.value.length;
-	tools.events.click({ target: { closest: () => ({ dataset: { markdown: "list" } }) } });
+	tools.emit("click", { target: { closest: () => ({ dataset: { markdown: "list" } }) } });
 	assert.equal(textarea.value, "- first\n- second");
 	assert.equal(textarea.value.slice(textarea.selectionStart, textarea.selectionEnd), "rst\n- second");
 });
@@ -93,7 +94,7 @@ test("late preview cannot replace the draft after returning to write", async (t)
 	const { textarea, output, write, preview } = fixture();
 	const pending = preview.click();
 	let prevented = false;
-	preview.events.keydown({ key: "ArrowLeft", preventDefault() { prevented = true; } });
+	preview.emit("keydown", { key: "ArrowLeft", preventDefault() { prevented = true; } });
 	resolve({ ok: true, headers: new Headers({ "content-type": "text/html" }), text: async () => "<p>Old</p>" });
 	await pending;
 	assert.equal(prevented, true);

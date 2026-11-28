@@ -46,8 +46,13 @@ func TestListFilterKeepsAppliedConditions(t *testing.T) {
 	}
 	view := buildListFilterView("/list", query, fields, input)
 	for name, href := range map[string]string{"field link": view.Fields[0].Href, "back": view.BackHref} {
-		if strings.Count(href, "filter=") != 2 {
-			t.Fatalf("%s lost a condition: %q", name, href)
+		parsed, err := url.Parse(href)
+		if err != nil {
+			t.Fatalf("%s has invalid URL %q: %v", name, href, err)
+		}
+		filters := parsed.Query()["filter"]
+		if len(filters) != 2 || filters[0] != "size:equals:1" || filters[1] != "name:equals:x" {
+			t.Fatalf("%s lost or changed a condition: %q", name, href)
 		}
 	}
 }

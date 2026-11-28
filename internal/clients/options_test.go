@@ -64,7 +64,7 @@ func TestOwnerAddsOptionsMembersChooseViewersRead(t *testing.T) {
 func TestOptionLimitIsOneHundredPerField(t *testing.T) {
 	f := newFixture(t)
 	field := defineChoiceField(t, f, "Tier")
-	for i := 1; i <= maxFieldOptions; i++ {
+	for i := 1; i <= 100; i++ {
 		addOptionOK(t, f, field, fmt.Sprintf("Option %03d", i))
 	}
 	if _, err := f.service.AddOption(f.ctx, f.owner, f.workspaceID, field.ID, "Over", identity.AuditContext{}); !errors.Is(err, ErrOptionLimit) {

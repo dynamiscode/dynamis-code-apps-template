@@ -170,6 +170,10 @@ func TestPriceOptions(t *testing.T) {
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID, manual); err != nil {
 		t.Fatal(err)
 	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(entries) != 1 || len(entries[0].Prices) != 2 || entries[0].Prices[0].ID != priceID || entries[0].Prices[0].Mode != "manual" || entries[0].Prices[0].Amount != nil || entries[0].Prices[0].Currency != "EUR" || entries[0].Prices[0].Variant != "Week" {
+		t.Fatalf("manual price = %+v, %v", entries, err)
+	}
 	fixed := PriceOption{Mode: "fixed", Amount: &amount, Currency: "BHD", Variant: "Visit"}
 	if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID, fixed); err != nil {
 		t.Fatal(err)
@@ -179,6 +183,10 @@ func TestPriceOptions(t *testing.T) {
 		if err := s.UpdatePrice(ctx, actor, owner.WorkspaceID, entry.ID, priceID, invalid); !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("invalid edit: %v", err)
 		}
+	}
+	entries, err = s.List(ctx, actor, owner.WorkspaceID, false)
+	if err != nil || len(entries) != 1 || len(entries[0].Prices) != 2 || entries[0].Prices[0].ID != priceID || entries[0].Prices[0].Mode != "fixed" || entries[0].Prices[0].Amount == nil || *entries[0].Prices[0].Amount != "0.123" || entries[0].Prices[0].Currency != "BHD" || entries[0].Prices[0].Variant != "Visit" {
+		t.Fatalf("fixed price after rejected edits = %+v, %v", entries, err)
 	}
 	minutes := 45
 	if err := s.Update(ctx, actor, owner.WorkspaceID, entry.ID, "Updated", &minutes, 1); err != nil {

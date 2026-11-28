@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/platform/config"
@@ -116,12 +117,25 @@ func TestNewSenderSelectsConfiguredProvider(t *testing.T) {
 func TestCloudflareSendRejectsHeaderInjection(t *testing.T) {
 	t.Parallel()
 
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = io.WriteString(w, `{"success":true,"result":{"delivered":["ann@example.com"],"permanent_bounces":[],"queued":[]}}`)
+	}))
+	defer server.Close()
 	sender, err := NewCloudflare(testCloudflareConfig())
 	if err != nil {
 		t.Fatalf("NewCloudflare() error = %v", err)
 	}
+	sender.endpoint = server.URL
+	if err := sender.Send(context.Background(), "ann@example.com", "Verify", "body"); err != nil {
+		t.Fatalf("valid Send() error = %v", err)
+	}
 	if err := sender.Send(context.Background(), "ann@example.com\r\nBcc: x@example.com", "Verify", "body"); err == nil {
 		t.Fatal("Send() accepted CRLF in recipient")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("requests = %d, want only the valid message", got)
 	}
 }
 

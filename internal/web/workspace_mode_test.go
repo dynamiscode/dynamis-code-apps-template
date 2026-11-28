@@ -13,7 +13,7 @@ import (
 
 func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 	ctx := context.Background()
-	handler, auth, _, owner := testWebConfigured(t, 10, false, func(h *Handler) {
+	handler, auth, workspaceID, owner := testWebConfigured(t, 10, false, func(h *Handler) {
 		h.SetWorkspaceMode(config.WorkspaceModeSingle)
 	})
 	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
@@ -23,8 +23,8 @@ func TestSingleWorkspaceModeHidesCreationAndReturnsNotFound(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 
 	home := request(handler, http.MethodGet, "/", nil, cookies, nil)
-	if home.Code != http.StatusFound || strings.Contains(home.Body.String(), `action="/workspaces"`) {
-		t.Fatalf("single mode home = %d, want 302 to the oldest workspace", home.Code)
+	if home.Code != http.StatusFound || home.Header().Get("Location") != "/workspaces/"+workspaceID.String() || strings.Contains(home.Body.String(), `action="/workspaces"`) {
+		t.Fatalf("single mode home = %d, location = %q, want 302 to the oldest workspace", home.Code, home.Header().Get("Location"))
 	}
 
 	created := request(handler, http.MethodPost, "/workspaces", url.Values{

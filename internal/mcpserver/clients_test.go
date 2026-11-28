@@ -239,6 +239,11 @@ func TestMCPClientLifecycleUsesSharedService(t *testing.T) {
 	if !refused.IsError || !strings.Contains(contentText(refused), "human approval") {
 		t.Fatalf("delete without approval = %+v", refused)
 	}
+	if result := callTool(t, session, "clients_get_v1", map[string]any{
+		"workspaceId": state.workspaceID, "clientId": string(created.ID),
+	}); result.IsError {
+		t.Fatalf("client missing after declined deletion: %s", contentText(result))
+	}
 	deleted := decodeOutput[deletedOutput](t, callTool(t, session, "clients_delete_v1", map[string]any{
 		"workspaceId": state.workspaceID, "clientId": string(created.ID),
 	}))
@@ -298,7 +303,8 @@ func TestMCPCustomFieldsAndValuesUseSharedService(t *testing.T) {
 	values := decodeOutput[valuesOutput](t, callTool(t, session, "clients_values_list_v1", map[string]any{
 		"workspaceId": state.workspaceID, "clientId": string(client.ID),
 	}))
-	if len(values.Values) != 2 || values.Values[0].Value == nil || *values.Values[0].Value != "Gold" {
+	if len(values.Values) != 2 || values.Values[0].FieldID != tier.ID || values.Values[0].Value == nil || *values.Values[0].Value != "Gold" ||
+		values.Values[1].FieldID != segment.ID || values.Values[1].Value == nil || *values.Values[1].Value != string(option.ID) {
 		t.Fatalf("values = %+v", values.Values)
 	}
 
@@ -307,6 +313,13 @@ func TestMCPCustomFieldsAndValuesUseSharedService(t *testing.T) {
 	}))
 	if cleared.Version != 4 {
 		t.Fatalf("clear value = %+v", cleared)
+	}
+	values = decodeOutput[valuesOutput](t, callTool(t, session, "clients_values_list_v1", map[string]any{
+		"workspaceId": state.workspaceID, "clientId": string(client.ID),
+	}))
+	if len(values.Values) != 2 || values.Values[0].FieldID != tier.ID || values.Values[0].Value != nil ||
+		values.Values[1].FieldID != segment.ID || values.Values[1].Value == nil || *values.Values[1].Value != string(option.ID) {
+		t.Fatalf("values after clear = %+v", values.Values)
 	}
 
 	early := callTool(t, session, "client_fields_delete_v1", map[string]any{
@@ -407,6 +420,17 @@ func TestMCPClientToolsRefuseOutOfRoleCallsLikeREST(t *testing.T) {
 			}
 		})
 	}
+	fields := decodeOutput[fieldsOutput](t, callTool(t, owner, "client_fields_list_v1", map[string]any{"workspaceId": state.workspaceID}))
+	if len(fields.Fields) != 1 || fields.Fields[0].ID != field.ID || fields.Fields[0].ArchivedAt != nil {
+		t.Fatalf("fields after denied writes = %+v", fields.Fields)
+	}
+	var optionCount int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM client_field_options WHERE workspace_id = ?", state.workspaceKey).Scan(&optionCount); err != nil || optionCount != 0 {
+		t.Fatalf("options after denied write = %d, %v", optionCount, err)
+	}
+	if result := callTool(t, owner, "clients_get_v1", map[string]any{"workspaceId": state.workspaceID, "clientId": string(client.ID)}); result.IsError {
+		t.Fatalf("client missing after denied delete: %s", contentText(result))
+	}
 	created := createClientTool(t, member, state.workspaceID, "Member Made")
 	if created.ID == "" {
 		t.Fatal("member could not create a client")
@@ -425,6 +449,10 @@ func TestMCPClientToolsRefuseOutOfRoleCallsLikeREST(t *testing.T) {
 	})
 	if err == nil && !viewerWrite.IsError {
 		t.Fatalf("viewer write with read-only token = %+v", viewerWrite)
+	}
+	page := decodeOutput[clientPageOutput](t, callTool(t, owner, "clients_list_v1", map[string]any{"workspaceId": state.workspaceID}))
+	if len(page.Clients) != 2 || page.Total != 2 {
+		t.Fatalf("clients after denied create = %+v", page)
 	}
 }
 
@@ -492,6 +520,10 @@ func TestMCPClientWriteToolsNeedResourcesWriteScope(t *testing.T) {
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	var count int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM clients WHERE workspace_id = ?", state.workspaceKey).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("clients after denied write = %d, %v", count, err)
+	}
 }
 
 func TestMCPClientTimeline(t *testing.T) {
@@ -528,5 +560,9 @@ func TestMCPClientTimeline(t *testing.T) {
 	result, err := viewer.CallTool(context.Background(), &mcp.CallToolParams{Name: "clients_timeline_add_v1", Arguments: args})
 	if err == nil && !result.IsError {
 		t.Fatal("viewer write accepted")
+	}
+	var count int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM client_timeline_entries WHERE client_id = ?", clients.ParseClientIDOrZero(string(client.ID))).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("timeline after denied write = %d entries, %v", count, err)
 	}
 }

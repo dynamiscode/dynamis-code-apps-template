@@ -51,33 +51,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: make lint
+      # The PostgreSQL race job runs the actioncheck tests.
+      - run: make lint ACTIONCHECK_TEST=true
 
   go-test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Resolve Go build cache
-        id: gocache
-        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.gocache.outputs.dir }}
-          key: gobuild-${{ runner.os }}-go-test-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            gobuild-${{ runner.os }}-go-test-
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: make test
+      - run: make test-unit
 
   go-build:
     runs-on: ubuntu-24.04
@@ -96,11 +80,6 @@ jobs:
           key: gobuild-${{ runner.os }}-go-build-${{ hashFiles('go.sum') }}
           restore-keys: |
             gobuild-${{ runner.os }}-go-build-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
       - run: make build
 
   go-checks:
@@ -116,6 +95,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: sh scripts/check-migration-history.sh "$BASE_SHA" "$HEAD_SHA"
       - run: sh scripts/test-check-migration-history.sh
+      - run: sh scripts/test-check-postgres-test-results.sh
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
@@ -139,9 +119,9 @@ jobs:
         run: |
           set -euo pipefail
           test "$(make -n race)" = 'go test -race ./...'
-          verify=$(make -n verify)
+          verify=$(make -n verify ACTIONCHECK_TEST=true)
           # template-smoke runs in its own path-filtered job.
-          remaining=$(make -n lint test deps-check workflow-check generate-check templ-check css-check build; make -n template-smoke)
+          remaining=$(make -n lint test-unit deps-check workflow-check generate-check templ-check css-check build ACTIONCHECK_TEST=true; make -n template-smoke ACTIONCHECK_TEST=true)
           diff -u <(printf '%s\n' "$verify" | sed '/^go test -race \.\/\.\.\.$/d') <(printf '%s\n' "$remaining")
       - run: make deps-check workflow-check generate-check templ-check css-check
 
@@ -181,23 +161,12 @@ jobs:
       - run: make template-smoke
 
   go-race:
+    if: always()
+    needs: postgres
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Resolve Go build cache
-        id: gocache
-        run: echo "dir=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.gocache.outputs.dir }}
-          key: gobuild-${{ runner.os }}-go-race-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            gobuild-${{ runner.os }}-go-race-
-      - run: go test -race -timeout 30m ./...
+      - name: Require race verification
+        run: test '${{ needs.postgres.result }}' = success
 
   postgres:
     runs-on: ubuntu-24.04
@@ -217,6 +186,10 @@ jobs:
           --health-retries 10
     env:
       POSTGRES_TEST_URL: postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable
+      POSTGRES_ENGAGEMENT_ACTION_UPGRADE_TEST_URL: postgres://postgres@127.0.0.1:5432/engagement_action_upgrade_test?sslmode=disable
+      POSTGRES_ENGAGEMENT_NAMES_UPGRADE_TEST_URL: postgres://postgres@127.0.0.1:5432/engagement_names_upgrade_test?sslmode=disable
+      POSTGRES_WORKSPACE_CURRENCIES_UPGRADE_TEST_URL: postgres://postgres@127.0.0.1:5432/workspace_currencies_upgrade_test?sslmode=disable
+      POSTGRES_ITEMS_UPGRADE_TEST_URL: postgres://postgres@127.0.0.1:5432/items_upgrade_test?sslmode=disable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
@@ -232,8 +205,20 @@ jobs:
           key: gobuild-${{ runner.os }}-postgres-${{ hashFiles('go.sum') }}
           restore-keys: |
             gobuild-${{ runner.os }}-postgres-
-      - run: command -v pg_dump && command -v pg_restore
-      - run: go test -race -timeout 30m ./...
+      - name: Prepare dedicated migration databases
+        run: |
+          set -eu
+          command -v pg_dump
+          command -v pg_restore
+          for db in engagement_action_upgrade_test engagement_names_upgrade_test workspace_currencies_upgrade_test items_upgrade_test; do
+            docker exec "${{ job.services.postgres.id }}" createdb -U postgres "$db"
+          done
+      - name: Run race tests and require PostgreSQL upgrades
+        shell: bash
+        run: |
+          set -euo pipefail
+          go test -race -json -timeout 30m ./... | tee "$RUNNER_TEMP/postgres-test.jsonl"
+          sh scripts/check-postgres-test-results.sh "$RUNNER_TEMP/postgres-test.jsonl"
 
   changes:
     runs-on: ubuntu-24.04
@@ -289,9 +274,17 @@ jobs:
           key: gobuild-${{ runner.os }}-accessibility-${{ hashFiles('go.sum') }}
           restore-keys: |
             gobuild-${{ runner.os }}-accessibility-
+      - name: Build browser smoke binaries
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-smoke-bin"
+          go build -o "$RUNNER_TEMP/browser-smoke-bin/" ./cmd/server ./cmd/bootstrap-admin ./cmd/browsersmoke
       - run: make browser-smoke
       - run: make accessibility-smoke
+        env:
+          BROWSER_SMOKE_BIN_DIR: ${{ runner.temp }}/browser-smoke-bin
       - run: make webmcp-smoke
+        env:
+          BROWSER_SMOKE_BIN_DIR: ${{ runner.temp }}/browser-smoke-bin
 
   source-vulnerabilities:
     runs-on: ubuntu-24.04
