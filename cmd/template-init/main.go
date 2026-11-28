@@ -643,7 +643,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"encoding/json"`)
 	case "internal/httpapi/scheduling_test.go":
 		value = removeText(value, "func TestSchedulingBookingsREST(", "func TestSchedulingRESTReadOnlyRoles(")
-		value = removeText(value, "\t\tif role == identity.Viewer {\n\t\t\tif response := serveAuthorized(h, http.MethodPut, path+\"/\"+resource.ID+\"/bookings/invalid/move\"", "\n\t}\n}")
+		value = removeText(value, "\tclient, err := clients.NewService", "\tfor _, role := range")
+		value = removeText(value, "\t\tif role == identity.Viewer {\n\t\t\tbefore := serveAuthorized", "\t\tafter := serveAuthorized(h, http.MethodGet, path,")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
 	case "internal/scheduling/service_test.go":
@@ -875,6 +876,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeText(value, "\t\t\t} else if err := s.SetEngagement(", "\t\t\t} else if role == identity.Viewer {")
 	case "internal/httpapi/scheduling_test.go":
 		value = removeText(value, "\tctx := context.Background()\n\tauth, err := identity.NewService", "\tbase := \"/api/v1/workspaces/\" + workspace")
+		value = removeText(value, "\tclient, err := clients.NewService", "\tbase := \"/api/v1/workspaces/\" + workspace")
+		value = removeText(value, "\t\t\tif response := serveAuthorized(h, http.MethodPut, base+\"/scheduling/bookings/\"+booking.ID+\"/engagement\"", "\t\t\tif response := serveAuthorized(h, http.MethodPut, bookingsPath+\"/\"+booking.ID+\"/status\"")
 		value = strings.Replace(value, "h, db, workspace, token := testHandler(t)", "h, _, workspace, token := testHandler(t)", 1)
 		value = removeText(value, "\tresponse = serveAuthorized(h, http.MethodPut, base+\"/scheduling/bookings/\"+booking.ID+\"/engagement\"", "\tresponse = serveAuthorized(h, http.MethodPost, path+\"/bookings\", body")
 		value = removeText(value, "\t\t\tif response := serveAuthorized(h, http.MethodPut, \"/api/v1/workspaces/\"+workspace+\"/scheduling/bookings/invalid/engagement\"", "\t\t\tif response := serveAuthorized(h, http.MethodPut, path+\"/\"+resource.ID+\"/bookings/invalid/status\"")

@@ -83,6 +83,48 @@ func TestClientsOmissionRetainsBookingWebTests(t *testing.T) {
 	}
 }
 
+func TestSchedulingRESTProfileRewrites(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	path := filepath.Join(filepath.Dir(file), "..", "..", "internal", "httpapi", "scheduling_test.go")
+	source, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name    string
+		clients bool
+		catalog bool
+	}{
+		{"without-clients", false, true},
+		{"without-catalog", true, false},
+		{"without-both", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output := source
+			if !tc.clients {
+				output = disableClientsSource("internal/httpapi/scheduling_test.go", output)
+			}
+			if !tc.catalog {
+				output = disableCatalogSource("internal/httpapi/scheduling_test.go", output)
+			}
+			text := string(output)
+			for _, removed := range []string{"clients.", "engagement.", "eng.ID.String()"} {
+				if strings.Contains(text, removed) {
+					t.Errorf("profile output retains %q", removed)
+				}
+			}
+			for _, kept := range []string{"func TestSchedulingResourcesREST(", "func TestSchedulingRESTReadOnlyRoles(", "denied writes changed resources"} {
+				if !strings.Contains(text, kept) {
+					t.Errorf("profile output lost %q", kept)
+				}
+			}
+			if _, err := parser.ParseFile(token.NewFileSet(), path, output, 0); err != nil {
+				t.Fatalf("profile output: %v", err)
+			}
+		})
+	}
+}
+
 func TestCatalogOmissionPrunesEngagementBookings(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
