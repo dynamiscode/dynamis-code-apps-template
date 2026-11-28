@@ -53,6 +53,8 @@ in-process S3-compatible endpoint. Set `S3_CONFORMANCE_ENDPOINT` and
    during iteration to maintain fast feedback loops, then applicable checks
    listed below.
 
+Browser tests should wait for application-managed focus before sending keyboard input. Treat fixture rendering canceled by a client navigation as a canceled request, not a rendering failure.
+
 Ordinary features stay vertical: application behavior first, transport
 adapters second. Reuse shared authorization, Problem Details, audit,
 telemetry, and rendering code. Add no optional capability until its trigger in
