@@ -24,11 +24,11 @@ func TestClientListCellValueShowsTypedCells(t *testing.T) {
 		"text":  TextCell("Ada"),
 	}}
 	cases := map[string]string{
-		"when":  page.DateTime(at),
+		"when":  "Nov 20, 2026 9:30 AM",
 		"empty": "",
-		"yes":   page.T("clients.yes"),
-		"no":    page.T("clients.no"),
-		"role":  page.Role(identity.Owner),
+		"yes":   "Yes",
+		"no":    "No",
+		"role":  "Owner",
 		"text":  "Ada",
 		"id":    "row-1",
 	}

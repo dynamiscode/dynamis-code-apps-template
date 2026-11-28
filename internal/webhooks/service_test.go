@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -48,11 +49,17 @@ func TestEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	type capturedRequest struct {
 		headers http.Header
 		body    []byte
+		err     error
 	}
 	received := make(chan capturedRequest, 1)
+	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		body, _ := io.ReadAll(request.Body)
-		received <- capturedRequest{headers: request.Header.Clone(), body: body}
+		requests.Add(1)
+		body, err := io.ReadAll(request.Body)
+		select {
+		case received <- capturedRequest{headers: request.Header.Clone(), body: body, err: err}:
+		default:
+		}
 		writer.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
@@ -95,7 +102,15 @@ func TestEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	if _, err := service.DeliverPending(ctx, 1); err != nil {
 		t.Fatal(err)
 	}
-	receivedRequest := <-received
+	var receivedRequest capturedRequest
+	select {
+	case receivedRequest = <-received:
+	default:
+		t.Fatal("webhook request was not sent")
+	}
+	if receivedRequest.err != nil {
+		t.Fatalf("read webhook request: %v", receivedRequest.err)
+	}
 	body := receivedRequest.body
 	eventID, timestamp := receivedRequest.headers.Get("Webhook-Id"), receivedRequest.headers.Get("Webhook-Timestamp")
 	mac := hmac.New(sha256.New, []byte(created.Secret))
@@ -112,6 +127,9 @@ func TestEventsAreSignedEncryptedAndDeliveredOnce(t *testing.T) {
 	var count int
 	if err := db.QueryRow("SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id = ?", created.ID).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("delivery count = %d, err = %v", count, err)
+	}
+	if processed, err := service.DeliverPending(ctx, 1); err != nil || processed != 0 || requests.Load() != 1 {
+		t.Fatalf("repeat delivery = %d, %v; HTTP requests = %d, want 0 and 1", processed, err, requests.Load())
 	}
 }
 

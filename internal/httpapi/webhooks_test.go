@@ -41,6 +41,12 @@ func TestWebhookRESTContracts(t *testing.T) {
 	if rotated.Code != http.StatusOK || rotated.Header().Get("Cache-Control") != "no-store" || strings.Contains(rotated.Body.String(), createdValue.Secret) {
 		t.Fatalf("webhook rotate = %d, %s", rotated.Code, rotated.Body.String())
 	}
+	var rotatedValue struct {
+		Secret string `json:"secret"`
+	}
+	if err := json.Unmarshal(rotated.Body.Bytes(), &rotatedValue); err != nil || rotatedValue.Secret == "" || rotatedValue.Secret == createdValue.Secret {
+		t.Fatalf("webhook rotation did not return a new secret: %v", err)
+	}
 	client := serveAuthorized(handler, http.MethodPost, "/api/v1/workspaces/"+workspaceID+"/clients",
 		`{"displayName":"Webhook client"}`, token, nil)
 	if client.Code != http.StatusCreated {

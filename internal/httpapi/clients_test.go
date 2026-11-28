@@ -102,7 +102,7 @@ func TestClientCreateAndUpdateUseShortIDsAndValidation(t *testing.T) {
 	var page struct {
 		Clients []map[string]any `json:"clients"`
 	}
-	if err := json.Unmarshal(list.Body.Bytes(), &page); err != nil || len(page.Clients) != 1 {
+	if err := json.Unmarshal(list.Body.Bytes(), &page); err != nil || len(page.Clients) != 1 || page.Clients[0]["id"] != client.ID || page.Clients[0]["phone"] != "+1 555 0100" {
 		t.Fatalf("list page = %+v, %v", page, err)
 	}
 	if got := serveAuthorized(handler, http.MethodGet, base+"?limit=0", "", token, nil); got.Code != http.StatusBadRequest {
@@ -136,6 +136,10 @@ func TestClientWritesNeedWriteScope(t *testing.T) {
 	response := serveAuthorized(handler, http.MethodPost, "/api/v1/workspaces/"+workspaceID+"/clients",
 		`{"displayName":"Blocked"}`, readOnly.Secret, nil)
 	assertProblem(t, response, http.StatusForbidden, "insufficient-scope")
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM clients WHERE workspace_id = ?", parsed).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("clients after denied create = %d, %v", count, err)
+	}
 }
 
 // Sort and filter are query parameters on the list. Descending sorts take a

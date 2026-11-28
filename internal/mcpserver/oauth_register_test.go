@@ -31,7 +31,8 @@ func TestOAuthRegistrationEndpointRegistersPublicClients(t *testing.T) {
 	if response.Code != http.StatusCreated || json.Unmarshal(response.Body.Bytes(), &registered) != nil {
 		t.Fatalf("register = %d %s", response.Code, response.Body.String())
 	}
-	if registered["client_id"] == "" || registered["client_name"] != "Desktop MCP" ||
+	clientID, ok := registered["client_id"].(string)
+	if !ok || clientID == "" || registered["client_name"] != "Desktop MCP" ||
 		registered["token_endpoint_auth_method"] != "none" ||
 		!reflect.DeepEqual(registered["response_types"], []any{"code"}) ||
 		response.Header().Get("Cache-Control") != "no-store" {

@@ -138,18 +138,11 @@ func TestAuthorizationMatrixAndOwnershipTransfer(t *testing.T) {
 		users[role] = userID
 	}
 
-	permissions := []Permission{
-		WorkspaceRead, WorkspaceUpdate, WorkspaceDelete, WorkspaceExport, OwnershipTransfer,
-		MembersRead, MembersManage, InvitationsManage, ResourcesRead, ResourcesWrite,
-		SCIMManage,
-	}
-	for _, role := range roles {
-		for _, permission := range permissions {
-			_, err := service.Authorize(
-				ctx, users[role], bootstrap.WorkspaceID, permission,
-			)
-			if got, want := err == nil, permissionsForRole(role)[permission]; got != want {
-				t.Errorf("role %s permission %s allowed = %v, want %v", role, permission, got, want)
+	for roleIndex, role := range roles {
+		for permission, grants := range authorizationMatrix {
+			_, err := service.Authorize(ctx, users[role], bootstrap.WorkspaceID, permission)
+			if want := grants[roleIndex]; (want && err != nil) || (!want && !errors.Is(err, ErrForbidden)) {
+				t.Errorf("role %s permission %s error = %v, want allowed = %v", role, permission, err, want)
 			}
 		}
 	}
@@ -1206,6 +1199,7 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 		"SELECT secret_hash FROM invitations",
 		"SELECT secret_hash FROM api_tokens",
 		"SELECT secret_hash FROM scim_tokens",
+		"SELECT secret_hash FROM oauth_tokens",
 		"SELECT token_hash || binding_hash FROM invitation_return_handoffs",
 		"SELECT token_hash FROM email_verifications",
 		"SELECT token_hash FROM password_resets",
@@ -1229,6 +1223,10 @@ func assertDatabaseDoesNotContain(t *testing.T, db *sql.DB, secret string) {
 				rows.Close()
 				t.Fatal("database contains supplied secret")
 			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			t.Fatal(err)
 		}
 		if err := rows.Close(); err != nil {
 			t.Fatal(err)

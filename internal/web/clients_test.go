@@ -498,8 +498,9 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		return response.Code, response.Body.String()
 	}
 	code, body := list(t, "?sort=displayName&order=desc")
-	if code != http.StatusOK || strings.Index(body, ">Cy<") > strings.Index(body, ">Bea<") ||
-		strings.Index(body, ">Bea<") > strings.Index(body, ">Ada<") ||
+	if code != http.StatusOK || strings.Index(body, ">Cy<") < 0 ||
+		strings.Index(body, ">Cy<") >= strings.Index(body, ">Bea<") ||
+		strings.Index(body, ">Bea<") >= strings.Index(body, ">Ada<") ||
 		!strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("sorted list = %d: %s", code, body)
 	}

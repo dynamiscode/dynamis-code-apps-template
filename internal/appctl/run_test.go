@@ -45,9 +45,13 @@ func TestRunRejectsUnsafeConfigurationAndRedirects(t *testing.T) {
 	}
 
 	followed := false
+	var redirectRequests int
+	var redirectAuth string
 	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { followed = true }))
 	t.Cleanup(target.Close)
 	redirect := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		redirectRequests++
+		redirectAuth = request.Header.Get("Authorization")
 		http.Redirect(writer, request, target.URL, http.StatusFound)
 	}))
 	t.Cleanup(redirect.Close)
@@ -63,8 +67,8 @@ func TestRunRejectsUnsafeConfigurationAndRedirects(t *testing.T) {
 			}
 			return ""
 		}, &stdout, &stderr)
-	if exit != 1 || followed || strings.Contains(stderr.String(), secret) {
-		t.Fatalf("redirect exit=%d followed=%v stderr=%q", exit, followed, stderr.String())
+	if exit != 1 || followed || redirectRequests != 1 || redirectAuth != "Bearer "+secret || strings.Contains(stderr.String(), secret) {
+		t.Fatalf("redirect exit=%d followed=%v requests=%d authenticated=%t stderr=%q", exit, followed, redirectRequests, redirectAuth == "Bearer "+secret, stderr.String())
 	}
 }
 

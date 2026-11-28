@@ -110,7 +110,7 @@
 			}
 		}
 	};
-	const decodeChallenge = (value) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "==="), (c) => c.charCodeAt(0));
+	const decodeChallenge = (value) => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 	const encodeCredential = (value) => { let binary = ""; new Uint8Array(value).forEach((byte) => binary += String.fromCharCode(byte)); return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 
 	// passkeyLogin: signs in with the passkey offered by the page's challenge,
@@ -488,7 +488,9 @@
 
 	// 0 means the server would reject it; 1..4 grow with length and variety.
 	const passwordStrength = (value) => {
-		if (typeof value !== "string" || value.length < MIN_PASSWORD) return 0;
+		if (typeof value !== "string") return 0;
+		const bytes = new TextEncoder().encode(value).length;
+		if (bytes < MIN_PASSWORD || bytes > 1024) return 0;
 		if (/^(.)\1+$/.test(value)) return 1;
 		const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(value)).length;
 		let score = 1;
@@ -831,6 +833,7 @@
 		function validateField(el) {
 			if (el.dataset.trim !== undefined && el.value !== el.value.trim()) el.value = el.value.trim();
 			checkMatch(el);
+			if (el.dataset.strength !== undefined) el.setCustomValidity(el.value && !passwordStrength(el.value) ? msg("password-length") : "");
 			const ok = el.checkValidity();
 			setFieldError(el, ok ? "" : el.validationMessage);
 			return ok;

@@ -418,6 +418,13 @@ func TestLoadFromRequiresPostgresURLWithoutLeakingValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("LoadFrom() error = nil, want validation error")
 	}
+	_, err = LoadFrom(env(map[string]string{
+		"DATABASE_DRIVER": "postgres", "DATABASE_URL": secret,
+		"DATABASE_MAX_OPEN_CONNS": "1", "DATABASE_MAX_IDLE_CONNS": "2",
+	}))
+	if err == nil {
+		t.Fatal("invalid PostgreSQL pool accepted")
+	}
 	if strings.Contains(err.Error(), secret) {
 		t.Fatalf("error leaked DATABASE_URL: %v", err)
 	}
@@ -550,6 +557,7 @@ func TestLoadFromValidatesOptionalSMTP(t *testing.T) {
 		{"SMTP_HOST": "smtp.example.com"},
 		{"SMTP_HOST": "smtp.example.com", "SMTP_FROM": "no-reply@example.com"},
 		{"SMTP_HOST": "smtp.example.com", "APP_PUBLIC_URL": "https://app.example.com", "SMTP_FROM": "no-reply@example.com", "SMTP_USERNAME": "mailer"},
+		{"SMTP_HOST": "smtp.example.com", "APP_PUBLIC_URL": "https://app.example.com", "SMTP_FROM": "invalid", "SMTP_USERNAME": "mailer", "SMTP_PASSWORD": secret},
 		{"APP_PUBLIC_URL": "http://169.254.169.254"},
 	} {
 		if _, err := LoadFrom(env(values)); err == nil {

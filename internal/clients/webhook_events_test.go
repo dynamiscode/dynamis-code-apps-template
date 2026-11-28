@@ -374,6 +374,9 @@ func checkValueWritesEmitClientUpdated(t *testing.T, f fixture, driver config.Da
 	if after.Version != cleared.Version {
 		t.Fatalf("version after failed value write = %d, want %d", after.Version, cleared.Version)
 	}
+	if got, ok := valueOf(t, f, f.viewer, created.ID, tier.ID); ok {
+		t.Fatalf("value after failed write = %q, want unset", got)
+	}
 	requireOutbox(t, f, driver, "client.created", "client.updated", "client.updated")
 }
 

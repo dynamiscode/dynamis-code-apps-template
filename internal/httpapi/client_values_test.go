@@ -58,7 +58,7 @@ func TestClientValuesSetListAndClearOverREST(t *testing.T) {
 		} `json:"values"`
 	}
 	if listed.Code != http.StatusOK || json.Unmarshal(listed.Body.Bytes(), &values) != nil ||
-		len(values.Values) != 1 || values.Values[0].FieldID != field.ID || values.Values[0].Label != "Source" ||
+		len(values.Values) != 1 || values.Values[0].FieldID != field.ID || values.Values[0].Label != "Source" || values.Values[0].Type != "text" ||
 		values.Values[0].Value == nil || *values.Values[0].Value != "Friend" {
 		t.Fatalf("list values = %d %s", listed.Code, listed.Body.String())
 	}
@@ -68,8 +68,8 @@ func TestClientValuesSetListAndClearOverREST(t *testing.T) {
 		t.Fatalf("clear value = %d headers %v %s", cleared.Code, cleared.Header(), cleared.Body.String())
 	}
 	listed = serveAuthorized(handler, http.MethodGet, clientBase+"/"+client.ID+"/values", "", token, nil)
-	if err := json.Unmarshal(listed.Body.Bytes(), &values); err != nil || len(values.Values) != 1 || values.Values[0].Value != nil {
-		t.Fatalf("list after clear = %s, %v", listed.Body.String(), err)
+	if err := json.Unmarshal(listed.Body.Bytes(), &values); listed.Code != http.StatusOK || err != nil || len(values.Values) != 1 || values.Values[0].Value != nil {
+		t.Fatalf("list after clear = %d %s, %v", listed.Code, listed.Body.String(), err)
 	}
 
 	var integerClientKey, integerFieldKey int64
@@ -134,9 +134,22 @@ func TestClientValuesReadOnlyTokenReadsButCannotWrite(t *testing.T) {
 	}
 
 	valuePath := clientBase + "/" + client.ID + "/values/" + field.ID
+	if set := serveAuthorized(handler, http.MethodPut, valuePath, `{"value":"Original"}`, token, map[string]string{"If-Match": `"v1"`}); set.Code != http.StatusOK {
+		t.Fatalf("seed value = %d %s", set.Code, set.Body.String())
+	}
 	if listed := serveAuthorized(handler, http.MethodGet, clientBase+"/"+client.ID+"/values", "", readOnly.Secret, nil); listed.Code != http.StatusOK {
 		t.Fatalf("read-only list = %d %s", listed.Code, listed.Body.String())
 	}
-	assertProblem(t, serveAuthorized(handler, http.MethodPut, valuePath, `{"value":"Blocked"}`, readOnly.Secret, map[string]string{"If-Match": `"v1"`}), http.StatusForbidden, "insufficient-scope")
-	assertProblem(t, serveAuthorized(handler, http.MethodDelete, valuePath, "", readOnly.Secret, map[string]string{"If-Match": `"v1"`}), http.StatusForbidden, "insufficient-scope")
+	assertProblem(t, serveAuthorized(handler, http.MethodPut, valuePath, `{"value":"Blocked"}`, readOnly.Secret, map[string]string{"If-Match": `"v2"`}), http.StatusForbidden, "insufficient-scope")
+	assertProblem(t, serveAuthorized(handler, http.MethodDelete, valuePath, "", readOnly.Secret, map[string]string{"If-Match": `"v2"`}), http.StatusForbidden, "insufficient-scope")
+	listed := serveAuthorized(handler, http.MethodGet, clientBase+"/"+client.ID+"/values", "", token, nil)
+	var values struct {
+		Values []struct {
+			FieldID string  `json:"fieldId"`
+			Value   *string `json:"value"`
+		} `json:"values"`
+	}
+	if err := json.Unmarshal(listed.Body.Bytes(), &values); listed.Code != http.StatusOK || err != nil || len(values.Values) != 1 || values.Values[0].FieldID != field.ID || values.Values[0].Value == nil || *values.Values[0].Value != "Original" {
+		t.Fatalf("values after denied writes = %d %s, %v", listed.Code, listed.Body.String(), err)
+	}
 }

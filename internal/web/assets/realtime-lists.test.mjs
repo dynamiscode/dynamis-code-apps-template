@@ -190,6 +190,7 @@ test("client refresh waits for focus and dirty input to clear", async () => {
   live.fireDocument("focusout");
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(live.ajaxCalls.length, 1, "blurred unchanged forms may refresh");
+  live.afterSwap(live.requests[0]);
 
   live.setEditing(true);
   fire(source, "resync");
@@ -199,7 +200,7 @@ test("client refresh waits for focus and dirty input to clear", async () => {
   live.setEditing(false);
   live.fireDocument("change");
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(live.ajaxCalls.length, 1, "refresh may resume after dirty input clears");
+  assert.equal(live.ajaxCalls.length, 2, "refresh resumes after dirty input clears");
 });
 
 test("refreshes arriving during an in-flight response schedule one follow-up", () => {

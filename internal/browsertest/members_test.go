@@ -285,6 +285,8 @@ func TestMembersActionsAndPermissions(t *testing.T) {
 	checkInRow(t, noJS, "transferred@example.com", "Transfer ownership to this member?")
 	clickInRow(t, noJS, "transferred@example.com", "Transfer ownership")
 	eventually(t, noJS, `/settings\/members/.test(location.pathname)`, "transfer did not stay on members settings")
+	eventually(t, noJS, rowTextCheck("transferred@example.com", "Owner"), "no-JS transfer did not make the selected member owner")
+	eventually(t, noJS, rowTextCheck(fixtureOwnerEmail, "Admin"), "no-JS transfer did not make the former owner an admin")
 
 	if status := navigateStatus(t, removed, membersPath); status != 404 {
 		t.Fatalf("removed member members page status %d, want 404", status)

@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -111,19 +112,21 @@ func TestPostgresMigrationFailureRollsBack(t *testing.T) {
 		t.Fatalf("Open() error = %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	_, _ = db.Exec("DROP TABLE IF EXISTS interrupted")
 
 	err = migrateFS(context.Background(), db, config.Postgres, fstest.MapFS{
 		"migrations/000099_interrupted.sql": {Data: []byte(
-			"CREATE TABLE interrupted (id TEXT); INSERT INTO missing_table VALUES (1);",
+			"CREATE TABLE interrupted (id TEXT); INSERT INTO interrupted (missing_column) VALUES (1);",
 		)},
 	})
 	if err == nil {
 		t.Fatal("migrateFS() error = nil, want failure")
 	}
+	if !strings.Contains(err.Error(), "missing_column") {
+		t.Fatalf("migrateFS() error = %v, want missing_column error after table creation", err)
+	}
 	var count int
 	if err := db.QueryRow(
-		"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'interrupted'",
+		"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'interrupted'",
 	).Scan(&count); err != nil {
 		t.Fatalf("query interrupted table: %v", err)
 	}

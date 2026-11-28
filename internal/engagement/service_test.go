@@ -83,6 +83,10 @@ func TestStagesStartEmptyAndRetainCreationOrder(t *testing.T) {
 	if err := svc.ArchiveStage(ctx, member, boot.WorkspaceID, stages[0].ID, identity.AuditContext{}); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("member archive = %v", err)
 	}
+	stages, err = svc.ListStages(ctx, owner, boot.WorkspaceID)
+	if err != nil || len(stages) != 2 || stages[0].Name != "New" || stages[0].Archived || stages[1].Name != "Closed" || stages[1].Archived {
+		t.Fatalf("member changed stages: %+v, %v", stages, err)
+	}
 	var adminID identity.UserID
 	if err := db.QueryRowContext(ctx, `INSERT INTO users (email, created_at) VALUES (?, ?) RETURNING id`, "admin@example.com", time.Now().UTC().Format(time.RFC3339Nano)).Scan(&adminID); err != nil {
 		t.Fatal(err)
@@ -263,6 +267,9 @@ func TestCreateEngagementRequiresOpenStageAndClient(t *testing.T) {
 	}
 	if err := svc.SetNotes(ctx, otherOwner, other, created.ID, "Denied", nil, identity.AuditContext{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("foreign notes: %v", err)
+	}
+	if got, err := svc.Get(ctx, owner, boot.WorkspaceID, created.ID); err != nil || got.Name != "Évaluation" || got.Notes != "Other person" {
+		t.Fatalf("denied edits changed engagement: %+v, %v", got, err)
 	}
 	for _, invalid := range []string{string([]byte{0xff}), strings.Repeat("x", 5001)} {
 		if err := svc.SetNotes(ctx, owner, boot.WorkspaceID, created.ID, invalid, nil, identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {

@@ -32,6 +32,15 @@ func testRemoveItemsUpgrade(t *testing.T, cfg config.Database) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
+	if cfg.Driver == config.Postgres {
+		var tables int
+		if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema()`).Scan(&tables); err != nil {
+			t.Fatal(err)
+		}
+		if tables != 0 {
+			t.Fatal("upgrade test requires an empty database")
+		}
+	}
 	legacy := fstest.MapFS{}
 	entries, err := fs.ReadDir(migrationFiles, "migrations")
 	if err != nil {

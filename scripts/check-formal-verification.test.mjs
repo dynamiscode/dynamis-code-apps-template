@@ -17,7 +17,9 @@ test("reports covered changes without treating them as proof of drift", () => {
     git(root, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "commit", "-qm", "baseline");
     const sync = git(root, "rev-parse", "HEAD").trim();
     writeSkill(root, `Sync commit: \`${sync}\`\nSee \`internal/example.go\`.\n`);
-    assert.equal(run(root).stderr, "");
+    const unchanged = run(root);
+    assert.equal(unchanged.status, 0, unchanged.stderr);
+    assert.equal(unchanged.stderr, "");
     writeFileSync(path.join(root, "internal/example.go"), "package changed\n");
     const result = run(root);
     assert.equal(result.status, 0);

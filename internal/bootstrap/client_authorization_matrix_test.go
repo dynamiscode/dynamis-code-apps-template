@@ -145,6 +145,9 @@ func serveMatrixMCP(handler http.Handler, actor matrixActor, req matrixRequest, 
 			return matrixStatusOnly(http.StatusInternalServerError, response.Body.String())
 		}
 	}
+	if len(result.InputRequests) > 0 {
+		return matrixStatusOnly(http.StatusInternalServerError, "approval still required")
+	}
 	if !result.IsError {
 		success := httptest.NewRecorder()
 		success.Header().Set("Content-Type", "application/json")
@@ -188,12 +191,12 @@ type matrixMCPResult struct {
 
 func decodeMatrixMCP(response *httptest.ResponseRecorder) (matrixMCPResult, bool) {
 	var reply struct {
-		Result matrixMCPResult `json:"result"`
+		Result *matrixMCPResult `json:"result"`
 	}
-	if json.Unmarshal(response.Body.Bytes(), &reply) != nil {
+	if json.Unmarshal(response.Body.Bytes(), &reply) != nil || reply.Result == nil {
 		return matrixMCPResult{}, false
 	}
-	return reply.Result, true
+	return *reply.Result, true
 }
 
 // matrixConfirm echoes the server's request state and accepts the approval, the
@@ -760,6 +763,43 @@ func matrixProblem(t *testing.T, response *httptest.ResponseRecorder) string {
 	return string(normalized)
 }
 
+func matrixRecords(t *testing.T, f matrixFixture) string {
+	t.Helper()
+	var snapshot bytes.Buffer
+	for _, table := range []string{"clients", "client_fields", "client_field_options", "client_events", "client_timeline_entries"} {
+		rows, err := f.app.DB.Query("SELECT * FROM " + table + " ORDER BY id")
+		if err != nil {
+			t.Fatal(err)
+		}
+		columns, err := rows.Columns()
+		if err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		for rows.Next() {
+			values := make([]any, len(columns))
+			dest := make([]any, len(columns))
+			for i := range values {
+				dest[i] = &values[i]
+			}
+			if err := rows.Scan(dest...); err != nil {
+				rows.Close()
+				t.Fatal(err)
+			}
+			if err := json.NewEncoder(&snapshot).Encode(values); err != nil {
+				rows.Close()
+				t.Fatal(err)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		rows.Close()
+	}
+	return snapshot.String()
+}
+
 func TestClientAuthorizationMatrix(t *testing.T) {
 	t.Parallel()
 	// denied is the code an out-of-role caller gets: 403 on REST, web, and MCP,
@@ -815,6 +855,11 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 				t.Run(surface.name+"/"+row.action+"/"+string(role), func(t *testing.T) {
 					t.Parallel()
 					f := newClientAuthorizationFixture(t)
+					var before string
+					deniedWrite := !slices.Contains(row.allow, role) && row.rest(f.a).method != http.MethodGet
+					if deniedWrite {
+						before = matrixRecords(t, f)
+					}
 					response := surface.call(f, f.actors[role], row)
 					if slices.Contains(row.allow, role) {
 						if want := surface.allowed(row); response.Code != want {
@@ -824,6 +869,9 @@ func TestClientAuthorizationMatrix(t *testing.T) {
 					}
 					if response.Code != surface.denied {
 						t.Fatalf("%s %s as %s = %d, want %d: %s", surface.name, row.action, role, response.Code, surface.denied, response.Body.String())
+					}
+					if deniedWrite && matrixRecords(t, f) != before {
+						t.Fatalf("%s %s as %s changed persisted client data despite refusal", surface.name, row.action, role)
 					}
 				})
 			}
@@ -869,6 +917,7 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 				namesRecord := row.rest(foreign).path != row.rest(missing).path || row.web(foreign).path != row.web(missing).path ||
 					row.mcp(foreign).body != row.mcp(missing).body
 				if namesRecord {
+					before := matrixRecords(t, f)
 					foreignResponse := call(foreign)
 					missingResponse := call(missing)
 					if !refusedCode(surface, foreignResponse.Code) || !refusedCode(surface, missingResponse.Code) {
@@ -878,8 +927,20 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 						t.Fatalf("foreign %s = %d %s, missing = %d %s; want identical",
 							row.action, foreignResponse.Code, foreignResponse.Body.String(), missingResponse.Code, missingResponse.Body.String())
 					}
+					if row.rest(foreign).method != http.MethodGet && matrixRecords(t, f) != before {
+						t.Fatalf("foreign or missing %s changed persisted client data despite refusal", row.action)
+					}
 				} else if strings.HasPrefix(row.action, "list ") {
 					listed := call(foreign)
+					want := row.restOK
+					if surface == "web" {
+						want = row.webOK
+					} else if surface == "appctl" {
+						want = 0
+					}
+					if listed.Code != want {
+						t.Fatalf("B admin %s = %d, want %d: %s", row.action, listed.Code, want, listed.Body.String())
+					}
 					for _, key := range []string{f.a.client.String(), f.a.archivedClient.String(), f.a.textField.String(), f.a.choiceField.String(), f.a.option.String()} {
 						if strings.Contains(listed.Body.String(), key) {
 							t.Fatalf("B admin %s lists workspace A record %s: %s", row.action, key, listed.Body.String())
@@ -895,9 +956,13 @@ func TestClientAuthorizationIsolatesWorkspaces(t *testing.T) {
 					wantOwn = 4 // exit status for not found, per docs/cli.md
 				}
 				ownWorkspace := f.a
+				beforeOwn := matrixRecords(t, f)
 				ownResponse := call(ownWorkspace)
 				if ownResponse.Code != wantOwn {
 					t.Fatalf("B admin on workspace A %s = %d, want %d: %s", row.action, ownResponse.Code, wantOwn, ownResponse.Body.String())
+				}
+				if row.rest(ownWorkspace).method != http.MethodGet && matrixRecords(t, f) != beforeOwn {
+					t.Fatalf("workspace A %s changed persisted client data despite refusal", row.action)
 				}
 				if surface == "mcp" && namesRecord {
 					missingResponse := call(missing)

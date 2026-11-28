@@ -2,6 +2,7 @@ package clients
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"example.com/dynamis-code/apps-template/internal/identity"
@@ -26,6 +27,25 @@ func forgedPrincipal(actor identity.Principal) identity.Principal {
 // for every mutating Clients action, that a caller whose stored role lacks the
 // action is refused even when the principal it presents claims every permission.
 func TestServiceDeniesActionsOutsideStoredRole(t *testing.T) {
+	names := []string{
+		"create client", "edit client", "set value", "clear value", "archive client",
+		"unarchive client", "delete client", "define field", "archive field", "restore field",
+		"delete field", "add option", "delete option",
+	}
+	for index, name := range names {
+		for _, role := range []string{"viewer", "member"} {
+			if role == "member" && index < 6 {
+				continue
+			}
+			t.Run(role+"/"+name, func(t *testing.T) {
+				assertDeniedActionUnchanged(t, index, role)
+			})
+		}
+	}
+}
+
+func assertDeniedActionUnchanged(t *testing.T, index int, role string) {
+	t.Helper()
 	f := newFixture(t)
 	audit := identity.AuditContext{}
 	client, err := f.service.Create(f.ctx, f.owner, f.workspaceID, Input{DisplayName: "Acme"}, audit)
@@ -58,11 +78,13 @@ func TestServiceDeniesActionsOutsideStoredRole(t *testing.T) {
 	if _, err := f.service.ArchiveField(f.ctx, f.owner, f.workspaceID, retired.ID, audit); err != nil {
 		t.Fatal(err)
 	}
+	client, err = f.service.SetValue(f.ctx, f.owner, f.workspaceID, client.ID, client.Version, text.ID, "original", audit)
+	if err != nil {
+		t.Fatal(err)
+	}
 	name := "Renamed"
 	actions := []struct {
-		name string
-		// adminOnly marks actions that need WorkspaceUpdate. Member holds
-		// ResourcesWrite, so member is checked only on those.
+		name      string
 		adminOnly bool
 		call      func(actor identity.Principal) error
 	}{
@@ -116,20 +138,42 @@ func TestServiceDeniesActionsOutsideStoredRole(t *testing.T) {
 			return f.service.DeleteOption(f.ctx, a, f.workspaceID, choice.ID, option.ID, audit)
 		}},
 	}
-	for _, action := range actions {
-		t.Run("viewer/"+action.name, func(t *testing.T) {
-			if err := action.call(forgedPrincipal(f.viewer)); !errors.Is(err, identity.ErrForbidden) {
-				t.Fatalf("viewer %s with forged permissions error = %v, want ErrForbidden", action.name, err)
-			}
-		})
-		if !action.adminOnly {
-			continue
+	snapshot := func() any {
+		t.Helper()
+		clients, err := f.service.List(f.ctx, f.owner, f.workspaceID, ListInput{Limit: 100, Archived: ArchivedAll})
+		if err != nil {
+			t.Fatal(err)
 		}
-		t.Run("member/"+action.name, func(t *testing.T) {
-			if err := action.call(forgedPrincipal(f.member)); !errors.Is(err, identity.ErrForbidden) {
-				t.Fatalf("member %s with forged permissions error = %v, want ErrForbidden", action.name, err)
-			}
-		})
+		fields, err := f.service.ListFields(f.ctx, f.owner, f.workspaceID, ListFieldsInput{IncludeArchived: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		values, err := f.service.ListValues(f.ctx, f.owner, f.workspaceID, client.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		options, err := f.service.ListOptions(f.ctx, f.owner, f.workspaceID, choice.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return struct {
+			clients Page
+			fields  []Field
+			values  []FieldValue
+			options []Option
+		}{clients, fields, values, options}
+	}
+	before := snapshot()
+	actor := f.viewer
+	if role == "member" {
+		actor = f.member
+	}
+	action := actions[index]
+	if err := action.call(forgedPrincipal(actor)); !errors.Is(err, identity.ErrForbidden) {
+		t.Fatalf("%s %s with forged permissions error = %v, want ErrForbidden", role, action.name, err)
+	}
+	if after := snapshot(); !reflect.DeepEqual(before, after) {
+		t.Fatalf("%s %s changed workspace state: before = %#v, after = %#v", role, action.name, before, after)
 	}
 }
 
@@ -173,7 +217,7 @@ func assertWorkspaceIsolation(t *testing.T, f fixture) {
 	mustOK(err)
 	_, err = f.service.ArchiveField(f.ctx, f.owner, f.workspaceID, deletable.ID, audit)
 	mustOK(err)
-	_, err = f.service.SetValue(f.ctx, f.owner, f.workspaceID, active.ID, active.Version, text.ID, "Referral", audit)
+	active, err = f.service.SetValue(f.ctx, f.owner, f.workspaceID, active.ID, active.Version, text.ID, "Referral", audit)
 	mustOK(err)
 
 	type keys struct {
@@ -254,14 +298,38 @@ func assertWorkspaceIsolation(t *testing.T, f fixture) {
 		}
 		return k
 	}
+	snapshot := func() any {
+		t.Helper()
+		clients, err := f.service.List(f.ctx, f.owner, f.workspaceID, ListInput{Limit: 100, Archived: ArchivedAll})
+		mustOK(err)
+		fields, err := f.service.ListFields(f.ctx, f.owner, f.workspaceID, ListFieldsInput{IncludeArchived: true})
+		mustOK(err)
+		values, err := f.service.ListValues(f.ctx, f.owner, f.workspaceID, active.ID)
+		mustOK(err)
+		options, err := f.service.ListOptions(f.ctx, f.owner, f.workspaceID, choice.ID)
+		mustOK(err)
+		return struct {
+			clients Page
+			fields  []Field
+			values  []FieldValue
+			options []Option
+		}{clients, fields, values, options}
+	}
+	before := snapshot()
 	for _, action := range actions {
 		foreign := action.call(action.foreign)
 		absent := action.call(missing(action.foreign))
-		if foreign == nil || absent == nil {
-			t.Fatalf("%s from workspace B: foreign = %v, missing = %v; want refusals", action.name, foreign, absent)
+		want := ErrNotFound
+		switch action.name {
+		case "set value", "clear value", "archive field", "restore field", "delete field",
+			"list options", "add option", "delete option":
+			want = ErrFieldNotFound
 		}
-		if foreign.Error() != absent.Error() || errors.Is(foreign, identity.ErrForbidden) {
-			t.Fatalf("%s from workspace B: foreign = %v, missing = %v; want the same not-found answer", action.name, foreign, absent)
+		if !errors.Is(foreign, want) || !errors.Is(absent, want) {
+			t.Fatalf("%s from workspace B: foreign = %v, missing = %v; want %v", action.name, foreign, absent, want)
+		}
+		if after := snapshot(); !reflect.DeepEqual(before, after) {
+			t.Fatalf("%s from workspace B changed workspace A: before = %#v, after = %#v", action.name, before, after)
 		}
 	}
 }

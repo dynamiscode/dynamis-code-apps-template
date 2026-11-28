@@ -82,7 +82,9 @@ test('checks real shared helper and component calls', () => {
   assert.equal(violations(views.replace('return "list-view-option border border-base-300 rounded-field"', 'return "link"')).length, 0);
   const buttons = readFileSync(new URL('internal/web/settings_pages.templ', root), 'utf8');
   assert.equal(violations(buttons).length, 0);
-  assert.equal(violations(buttons.replace('Class: "btn btn-primary"', 'Class: "link"')).length, 0);
+  const variant = buttons.replace('class="btn btn-primary"', 'class="link"');
+  assert.notEqual(variant, buttons);
+  assert.equal(violations(variant).length, 0);
 });
 
 test('repository demo and accessibility exceptions accept their real controls', () => {

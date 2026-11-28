@@ -49,12 +49,12 @@ func TestClientFieldDefineArchiveRestoreOverREST(t *testing.T) {
 		t.Fatalf("archive = %d %s", archived.Code, archived.Body.String())
 	}
 	forms := serveAuthorized(handler, http.MethodGet, base, "", token, nil)
-	if strings.Contains(forms.Body.String(), field.ID) {
-		t.Fatalf("archived field listed for forms: %s", forms.Body.String())
+	if forms.Code != http.StatusOK || strings.Contains(forms.Body.String(), field.ID) {
+		t.Fatalf("forms list = %d %s, want archived field absent", forms.Code, forms.Body.String())
 	}
 	management := serveAuthorized(handler, http.MethodGet, base+"?includeArchived=true", "", token, nil)
-	if !strings.Contains(management.Body.String(), field.ID) {
-		t.Fatalf("archived field missing from management list: %s", management.Body.String())
+	if management.Code != http.StatusOK || !strings.Contains(management.Body.String(), field.ID) {
+		t.Fatalf("management list = %d %s, want archived field present", management.Code, management.Body.String())
 	}
 
 	restored := serveAuthorized(handler, http.MethodPost, base+"/"+field.ID+"/restore", "", token, nil)
@@ -143,4 +143,8 @@ func TestClientFieldWritesRefuseMembers(t *testing.T) {
 	response = serveAuthorized(handler, http.MethodPost, "/api/v1/workspaces/"+workspaceID+"/client-fields",
 		`{"label":"Blocked","type":"text"}`, demotedToken.Secret, nil)
 	assertProblem(t, response, http.StatusForbidden, "insufficient-scope")
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM client_fields WHERE workspace_id = ?", parsed).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("fields after denied creates = %d, %v", count, err)
+	}
 }

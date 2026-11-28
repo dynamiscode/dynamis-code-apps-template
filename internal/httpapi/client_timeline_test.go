@@ -69,8 +69,8 @@ func TestClientTimelineREST(t *testing.T) {
 	}
 	var defaultPage []json.RawMessage
 	response := serveAuthorized(h, http.MethodGet, path, "", token, nil)
-	if err := json.Unmarshal(response.Body.Bytes(), &defaultPage); err != nil || len(defaultPage) != 50 {
-		t.Fatalf("default page: %d entries, %v", len(defaultPage), err)
+	if err := json.Unmarshal(response.Body.Bytes(), &defaultPage); response.Code != http.StatusOK || err != nil || len(defaultPage) != 50 {
+		t.Fatalf("default page: status %d, %d entries, %v", response.Code, len(defaultPage), err)
 	}
 	for _, query := range []string{"?limit=101", "?page=0", "?limit=1&limit=2", "?unknown=1"} {
 		assertProblem(t, serveAuthorized(h, http.MethodGet, path+query, "", token, nil), http.StatusBadRequest, "invalid-request")
@@ -139,4 +139,9 @@ func TestClientTimelineREST(t *testing.T) {
 		t.Fatalf("read-only list: %d %s", r.Code, r.Body.String())
 	}
 	assertProblem(t, serveAuthorized(h, http.MethodPost, path, `{"type":"note","text":"x"}`, readOnly.Secret, nil), http.StatusForbidden, "insufficient-scope")
+	afterDenied := serveAuthorized(h, http.MethodGet, path+"?limit=100", "", token, nil)
+	var remaining []json.RawMessage
+	if err := json.Unmarshal(afterDenied.Body.Bytes(), &remaining); afterDenied.Code != http.StatusOK || err != nil || len(remaining) != 51 {
+		t.Fatalf("timeline after denied write = %d %s, %v", afterDenied.Code, afterDenied.Body.String(), err)
+	}
 }

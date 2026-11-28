@@ -4,10 +4,12 @@ package browsertest
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 )
@@ -46,6 +48,27 @@ func TestFormUXPatterns(t *testing.T) {
 	typeInto("#email", "  "+email+"  ")
 	typeInto("#password", "short")
 	check(js(`document.querySelector(".strength meter").value === 0`), "form-field-input: a short password scores 0")
+	for _, tc := range []struct {
+		value string
+		valid bool
+	}{
+		{"ééééé", false},
+		{"éééééé", true},
+		{"😀😀😀", true},
+		{strings.Repeat("a", 1024), true},
+		{strings.Repeat("a", 1025), false},
+		{strings.Repeat("é", 512), true},
+		{strings.Repeat("é", 513), false},
+	} {
+		eval[any](t, tab, fmt.Sprintf(`(() => { for (const id of ["password", "password-confirmation"]) { const el = document.getElementById(id); el.value = %s; el.dispatchEvent(new Event("input", { bubbles: true })); } })()`, jsString(tc.value)))
+		click(nextStep)
+		check(js(`!document.querySelectorAll("fieldset[data-step]")[1].hidden`) == tc.valid, "form-field-input: UTF-8 password length controls wizard")
+		if tc.valid {
+			click(`form[data-wizard] .wizard-nav button:first-child`)
+		} else {
+			check(js(`document.querySelector("#password").getAttribute("aria-invalid") === "true" && document.activeElement.id === "password" && document.querySelector("#password-error").textContent.includes("12 to 1024 UTF-8 bytes")`), "form-field-input: invalid password has focused accessible error")
+		}
+	}
 	typeInto("#password", password)
 	check(js(`document.querySelector(".strength meter").value >= 1`), "form-field-input: a valid password scores above 0")
 	check(js(`(() => { const b = document.querySelector("#password + .reveal"); return b.getAttribute("aria-pressed") === "false" && b.getAttribute("aria-controls") === "password"; })()`), "form-field-input: reveal has accessible initial state")
@@ -64,7 +87,6 @@ func TestFormUXPatterns(t *testing.T) {
 	typeInto("#workspace", "UX")
 	click(`form[data-wizard] button[type="submit"]`)
 	eventually(t, tab, fmt.Sprintf(`!location.pathname.endsWith("/setup")`), "setup did not finish")
-	check(true, "form-wizard: the owner account is created from the last step")
 
 	// form-field-input: a full-page error takes focus.
 	call(t, tab, network.ClearBrowserCookies, cdp.Empty{})
@@ -112,7 +134,6 @@ func TestFormUXPatterns(t *testing.T) {
 	// async-feedback: the audit table loads after the page.
 	run(t, tab, chromedp.Navigate(base+workspace+"/settings/audit"))
 	eventually(t, tab, `!document.querySelector("[data-lazy-src]") && document.querySelector("#audit-table") !== null`, "lazy audit table")
-	check(true, "async-feedback: the audit table loads lazily")
 
 	// form-field-input: smart default token expiry; keyboard: Escape closes a menu.
 	run(t, tab, chromedp.Navigate(base+workspace+"/settings/tokens"))
@@ -170,4 +191,18 @@ func TestFormUXPatterns(t *testing.T) {
 	click("form.client-value-clear button")
 	eventually(t, tab, `!document.querySelector("form.client-value-clear")`, "cleared value did not reload")
 	check(js(`document.querySelector('select[id^="value-"]').selectedOptions[0].disabled`), "clients: Clear removes the saved value")
+
+	call(t, tab, emulation.SetScriptExecutionDisabled, emulation.SetScriptExecutionDisabledParams{Value: true})
+	run(t, tab, chromedp.Navigate(base+"/account"))
+	waitVisible(t, tab, "#new-password")
+	fill(t, tab, "#current-password", password)
+	fill(t, tab, "#new-password", "ééééé")
+	fill(t, tab, "#password-confirmation", "ééééé")
+	click(`form[action="/account/password"] button[type="submit"]`)
+	waitVisible(t, tab, `[role="alert"]`)
+	fill(t, tab, "#current-password", password)
+	fill(t, tab, "#new-password", "éééééé")
+	fill(t, tab, "#password-confirmation", "éééééé")
+	click(`form[action="/account/password"] button[type="submit"]`)
+	eventually(t, tab, `location.pathname === "/account" && location.search.includes("saved=1")`, "no-JavaScript Unicode password change did not succeed")
 }

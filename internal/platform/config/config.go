@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"os"
 	"regexp"
@@ -493,7 +494,7 @@ func loadMail(lookup LookupEnv, publicURL string) (Mail, error) {
 		port = value
 	}
 	from = strings.TrimSpace(from)
-	if from == "" || strings.ContainsAny(from, "\r\n") {
+	if _, err := mail.ParseAddress(from); err != nil || strings.ContainsAny(from, "\r\n") {
 		return Mail{}, fmt.Errorf("SMTP_FROM must be a valid address")
 	}
 	if usernameSet && strings.TrimSpace(username) == "" {

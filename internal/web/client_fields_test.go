@@ -123,6 +123,10 @@ func TestClientFieldFormsRefuseViewersAndMembers(t *testing.T) {
 	if memberPost.Code != http.StatusForbidden {
 		t.Fatalf("member define = %d, want 403", memberPost.Code)
 	}
+	after := request(env.routes, http.MethodGet, env.fieldsPath(), nil, env.cookies, nil)
+	if after.Code != http.StatusOK || strings.Contains(after.Body.String(), "Blocked") {
+		t.Fatalf("denied field creation changed the fields page: %d %s", after.Code, after.Body.String())
+	}
 }
 
 // addWebMember signs in a Member of the test workspace and returns its cookies

@@ -90,8 +90,9 @@ func TestEmailJobDeliveryAndRetries(t *testing.T) {
 }
 
 type emailTestSender struct {
-	err   error
-	calls int
+	err          error
+	calls        int
+	wrongMessage bool
 }
 
 func TestQueuedEmailRetriesAndExhausts(t *testing.T) {
@@ -146,12 +147,15 @@ func TestQueuedEmailRetriesAndExhausts(t *testing.T) {
 	if sender.calls != MaxAttempts {
 		t.Fatalf("calls = %d", sender.calls)
 	}
+	if sender.wrongMessage {
+		t.Fatal("an attempt sent the wrong message")
+	}
 }
 
 func (s *emailTestSender) Send(_ context.Context, recipient, subject, body string) error {
 	s.calls++
 	if recipient != "staff@example.com" || subject != "New request" || body != "Open record" {
-		return errors.New("wrong message")
+		s.wrongMessage = true
 	}
 	return s.err
 }
@@ -171,6 +175,9 @@ func TestEmailJobOutcomes(t *testing.T) {
 	}
 	if got := EvaluateJobOutcome(MaxAttempts, MaxAttempts, err, now); got.Status != JobFailed || !got.Exhausted {
 		t.Fatalf("exhaustion = %+v", got)
+	}
+	if sender.wrongMessage {
+		t.Fatal("an attempt sent the wrong message")
 	}
 }
 

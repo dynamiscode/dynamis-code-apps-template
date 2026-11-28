@@ -89,9 +89,10 @@ func TestPostgresEngagementNameUpgrade(t *testing.T) {
 		if err := db.QueryRowContext(ctx, `SELECT name, notes, workspace_id, client_id, stage_id FROM engagements WHERE id = $1`, r.engagement).Scan(&got, &notes, &gotWorkspace, &gotClient, &gotStage); err != nil {
 			t.Fatal(err)
 		}
-		want := r.name + " — " + id.EncodeKey(id.TypeEngagement, r.engagement)
-		if got != want || notes != r.notes || gotWorkspace != workspace || gotClient != r.client || gotStage != stage {
-			t.Errorf("engagement %d = (%q, %q, %d, %d, %d), want (%q, %q, %d, %d, %d)", r.engagement, got, notes, gotWorkspace, gotClient, gotStage, want, r.notes, workspace, r.client, stage)
+		suffix, ok := strings.CutPrefix(got, r.name+" — ")
+		decoded, err := id.DecodeKey(id.TypeEngagement, suffix)
+		if !ok || err != nil || decoded != r.engagement || notes != r.notes || gotWorkspace != workspace || gotClient != r.client || gotStage != stage {
+			t.Errorf("engagement %d = (%q, %q, %d, %d, %d), decoded key = %d, error = %v; want notes %q and keys (%d, %d, %d)", r.engagement, got, notes, gotWorkspace, gotClient, gotStage, decoded, err, r.notes, workspace, r.client, stage)
 		}
 	}
 }

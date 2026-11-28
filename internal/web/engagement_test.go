@@ -318,7 +318,7 @@ func TestStageFiltersPreserveVisibleReordering(t *testing.T) {
 	page := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
 	body := page.Body.String()
 	first, last := strings.Index(body, ">First stage</strong>"), strings.Index(body, ">Last stage</strong>")
-	if page.Code != http.StatusOK || last < 0 || first < last || strings.Contains(body, ">Archived stage</strong>") {
+	if page.Code != http.StatusOK || first < 0 || last < 0 || first < last || strings.Contains(body, ">Archived stage</strong>") {
 		t.Fatalf("active order: %d %s", page.Code, body)
 	}
 	if err := env.auth.UpdateWorkspaceLocale(context.Background(), owner, "es", identity.AuditContext{}); err != nil {

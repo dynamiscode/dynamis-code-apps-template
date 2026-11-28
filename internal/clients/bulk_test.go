@@ -24,6 +24,9 @@ func TestBulkArchiveIsAllOrNothing(t *testing.T) {
 	if err := f.service.BulkArchive(f.ctx, f.viewer, f.workspaceID, []ClientID{first.ID}, identity.AuditContext{}, true); !errors.Is(err, identity.ErrForbidden) {
 		t.Fatalf("viewer bulk archive error = %v, want ErrForbidden", err)
 	}
+	if client, err := f.service.Get(f.ctx, f.member, f.workspaceID, first.ID); err != nil || client.ArchivedAt != nil || client.Version != first.Version {
+		t.Fatalf("client after refused viewer bulk archive = %+v, %v; want unchanged", client, err)
+	}
 	if err := f.service.BulkArchive(f.ctx, f.member, f.workspaceID, []ClientID{first.ID, second.ID, missing}, identity.AuditContext{}, true); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("bulk archive with a missing client error = %v, want ErrNotFound", err)
 	}

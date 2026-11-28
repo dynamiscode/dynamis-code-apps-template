@@ -5,22 +5,23 @@ import { createRequire } from "node:module";
 const { wireEngagementDialog } = createRequire(import.meta.url)("./alpine-components.js");
 
 test("engagement dialog opens once and restores focus after closing", () => {
-	const handlers = {};
 	let shown = 0, closed = 0, focused = 0;
+	const cancel = new EventTarget();
 	const form = { dataset: {} };
-	const cancel = { addEventListener: (type, fn) => { handlers.cancelClick = fn; } };
-	const dialog = { dataset: { engagementDiscardMessage: "Unsaved changes" }, querySelector: (selector) => selector === "form" ? form : cancel, showModal: () => shown++, close: () => closed++, addEventListener: (type, fn) => { handlers[type] = fn; } };
+	const dialog = Object.assign(new EventTarget(), { dataset: {}, querySelector: (selector) => selector === "form" ? form : cancel, showModal: () => shown++, close: () => closed++ });
 	const trigger = { focus: () => focused++ };
 	const root = { querySelector: (selector) => ({ "[data-engagement-dialog]": dialog, "[data-engagement-create]": trigger })[selector] };
 	wireEngagementDialog(root);
 	wireEngagementDialog(root);
-	handlers.cancelClick({ preventDefault() {} });
-	handlers.close();
+	cancel.dispatchEvent(new Event("click", { cancelable: true }));
+	dialog.dispatchEvent(new Event("close"));
 	assert.deepEqual([shown, closed, focused], [1, 1, 1]);
-	handlers.click({ target: {} });
+	const childClick = new Event("click");
+	Object.defineProperty(childClick, "target", { value: {} });
+	dialog.dispatchEvent(childClick);
 	assert.equal(closed, 1);
-	handlers.click({ target: dialog });
-	handlers.close();
+	dialog.dispatchEvent(new Event("click"));
+	dialog.dispatchEvent(new Event("close"));
 	assert.deepEqual([closed, focused], [2, 2]);
 });
 

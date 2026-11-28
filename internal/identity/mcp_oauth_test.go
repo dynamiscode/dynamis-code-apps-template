@@ -8,10 +8,12 @@ import (
 	"time"
 )
 
+// RFC 7636 Appendix B S256 example.
 const (
-	testCodeVerifier = "verifier-with-enough-entropy-0123456789abcdef"
-	testRedirectURI  = "https://client.example/callback"
-	testResource     = "https://app.example.com/mcp"
+	testCodeVerifier  = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+	testCodeChallenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+	testRedirectURI   = "https://client.example/callback"
+	testResource      = "https://app.example.com/mcp"
 )
 
 type oauthFixture struct {
@@ -45,7 +47,7 @@ func newOAuthFixture(t *testing.T) (oauthFixture, func(time.Time)) {
 func (f oauthFixture) approve(t *testing.T, scopes []Permission) string {
 	t.Helper()
 	code, err := f.service.ApproveOAuthConsent(context.Background(), f.session.Session, f.workspaceID,
-		f.client.ClientID, scopes, testRedirectURI, pkceChallenge(testCodeVerifier), testResource, AuditContext{})
+		f.client.ClientID, scopes, testRedirectURI, testCodeChallenge, testResource, AuditContext{})
 	if err != nil {
 		t.Fatalf("ApproveOAuthConsent() error = %v", err)
 	}

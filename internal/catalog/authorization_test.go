@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -66,14 +67,36 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 			if _, err := currency.NewService(db, auth).ListCurrencies(ctx, principal, owner.WorkspaceID); err != nil {
 				t.Fatal(err)
 			}
+			before, err := service.List(ctx, actor, owner.WorkspaceID, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			currencies, err := currency.NewService(db, auth).ListCurrencies(ctx, actor, owner.WorkspaceID)
+			if err != nil {
+				t.Fatal(err)
+			}
 			writable := role == identity.Owner || role == identity.Admin
 			check := func(name string, err error) {
 				t.Helper()
 				if writable && err != nil || !writable && !errors.Is(err, identity.ErrForbidden) {
-					t.Errorf("%s: %v", name, err)
+					t.Fatalf("%s: %v", name, err)
+				}
+				if !writable {
+					after, err := service.List(ctx, actor, owner.WorkspaceID, true)
+					if err != nil || !reflect.DeepEqual(after, before) {
+						t.Fatalf("%s changed catalog: %+v, %v", name, after, err)
+					}
+					afterCurrencies, err := currency.NewService(db, auth).ListCurrencies(ctx, actor, owner.WorkspaceID)
+					if err != nil || !reflect.DeepEqual(afterCurrencies, currencies) {
+						t.Fatalf("%s changed currencies: %+v, %v", name, afterCurrencies, err)
+					}
 				}
 			}
-			check("configure currencies", currency.NewService(db, auth).SetCurrencies(ctx, principal, owner.WorkspaceID, []currency.Currency{{Code: "USD", Decimals: 2, Default: true}}))
+			requestedCurrencies := []currency.Currency{{Code: "USD", Decimals: 2, Default: true}}
+			if !writable {
+				requestedCurrencies = append(requestedCurrencies, currency.Currency{Code: "EUR", Decimals: 2})
+			}
+			check("configure currencies", currency.NewService(db, auth).SetCurrencies(ctx, principal, owner.WorkspaceID, requestedCurrencies))
 			_, err = service.Create(ctx, principal, owner.WorkspaceID, "New", nil, testPrices())
 			check("create", err)
 			check("edit", service.Update(ctx, principal, owner.WorkspaceID, entry.ID, "Edited", nil, entry.Revision))
@@ -135,7 +158,7 @@ func TestCatalogAuthorizationAndIsolation(t *testing.T) {
 	found := false
 	for _, e := range list {
 		if e.ID == entry.ID {
-			found = e.Name == "Private" && !e.Archived && len(e.Prices) == 2 && e.Prices[1].ID == row.ID
+			found = e.Name == "Private" && !e.Archived && len(e.Prices) == 2 && e.Prices[1].ID == row.ID && e.Prices[1].Variant == "Private"
 		}
 	}
 	if !found {

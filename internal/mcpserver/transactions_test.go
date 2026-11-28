@@ -310,6 +310,10 @@ func TestTransactionsToolsCreateAndList(t *testing.T) {
 	if err == nil {
 		t.Fatal("read-only token created transactions entry")
 	}
+	var createdCount int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM transactions_entries WHERE workspace_id = ? AND description = ?", state.workspaceKey, "Entry").Scan(&createdCount); err != nil || createdCount != 0 {
+		t.Fatalf("denied entries = %d, %v", createdCount, err)
+	}
 }
 
 func TestTransactionsMethodManagement(t *testing.T) {
@@ -366,6 +370,10 @@ func TestTransactionsMethodManagement(t *testing.T) {
 	refused := callTool(t, member, "transactions_method_create_v1", map[string]any{"workspaceId": state.workspaceID, "name": "Member method"})
 	if !refused.IsError {
 		t.Fatal("member created method")
+	}
+	var methodCount int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM transactions_payment_methods WHERE workspace_id = ? AND display_name = ?", state.workspaceKey, "Member method").Scan(&methodCount); err != nil || methodCount != 0 {
+		t.Fatalf("denied methods = %d, %v", methodCount, err)
 	}
 	refused = callTool(t, owner, "transactions_create_v1", map[string]any{"workspaceId": state.workspaceID, "description": "Entry", "direction": "in", "amountMinor": 125, "currency": "USD", "paymentMethod": method.ID})
 	if !refused.IsError {
@@ -537,6 +545,10 @@ func TestTransactionsMethodScopesAndLastEnabled(t *testing.T) {
 	if err == nil {
 		t.Fatal("read-only token created method")
 	}
+	var methodCount int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM transactions_payment_methods WHERE workspace_id = ? AND display_name = ?", state.workspaceKey, "Forbidden").Scan(&methodCount); err != nil || methodCount != 0 {
+		t.Fatalf("denied methods = %d, %v", methodCount, err)
+	}
 }
 
 func TestTransactionsCorrections(t *testing.T) {
@@ -607,7 +619,15 @@ func TestTransactionsCorrections(t *testing.T) {
 		t.Fatal(err)
 	}
 	readSession := connectClient(t, handler, readToken.Secret, false)
-	if _, err := readSession.CallTool(context.Background(), &mcp.CallToolParams{Name: "transactions_void_v1", Arguments: args}); err == nil {
+	if _, err := readSession.CallTool(context.Background(), &mcp.CallToolParams{Name: "transactions_void_v1", Arguments: map[string]any{"workspaceId": state.workspaceID, "entryId": replacementEntry.ID}}); err == nil {
 		t.Fatal("read-only token invoked void")
+	}
+	replacementKey, err := transactions.ParseEntryID(string(replacementEntry.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var voidedCount int
+	if err := state.db.QueryRow("SELECT COUNT(*) FROM transactions_entries WHERE id = ? AND voided_at IS NOT NULL", replacementKey).Scan(&voidedCount); err != nil || voidedCount != 0 {
+		t.Fatalf("denied void changed replacement: count %d, %v", voidedCount, err)
 	}
 }

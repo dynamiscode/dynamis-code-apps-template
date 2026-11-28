@@ -1,6 +1,7 @@
 GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
+ACTIONCHECK_TEST ?= go test ./scripts/actioncheck/...
 
 .PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke profile-preflight test-profile-preflight verify js-check test-unit test-postgres logger-injection commit-msg-hook
 
@@ -32,12 +33,13 @@ web-conformance:
 	./scripts/check-web-conformance.sh
 	node --test scripts/check-js-actions.test.mjs
 	node scripts/check-js-actions.mjs
-	go test ./scripts/actioncheck/...
+	$(ACTIONCHECK_TEST)
 	go run ./scripts/actioncheck/cmd
 
 test-unit:
 	node --test internal/web/assets/*.test.mjs
 	node --test scripts/pr-security-inventory.test.mjs
+	node --test scripts/check-action-links.test.mjs
 
 test-postgres:
 	set -e; \
@@ -130,7 +132,7 @@ accessibility-smoke:
 	./scripts/accessibility-smoke.sh
 
 browser-smoke:
-	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke ./cmd/preview
+	go test -tags browser -count=1 ./internal/browsertest/... ./cmd/browsersmoke ./cmd/preview ./cmd/screenshot
 
 profile-preflight:
 	sh scripts/profile-preflight.sh $(BASE)
@@ -141,7 +143,7 @@ test-profile-preflight:
 template-smoke:
 	set -eu; work="$$(mktemp -d /tmp/dynamis-code-template-smoke.XXXXXX)"; \
 	go run ./cmd/template-init -output "$$work/app" -name "Smoke App" -module example.com/smoke/app -repository https://github.com/smoke/app -security-url https://github.com/smoke/app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity,Agent -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
-	(cd "$$work/app" && ./scripts/check-doc-links.sh && make web-conformance && go test ./...); \
+	(cd "$$work/app" && ./scripts/check-doc-links.sh && make web-conformance ACTIONCHECK_TEST=true && go test ./...); \
 	go run ./cmd/template-init -output "$$work/core-app" -name "Smoke Core App" -module example.com/smoke/core-app -repository https://github.com/smoke/core-app -security-url https://github.com/smoke/core-app/security/advisories/new -maintainer @smoke/maintainers -profiles Core,Identity -source https://example.com/dynamis-code/template -commit 0000000000000000000000000000000000000000; \
 	(cd "$$work/core-app" && ./scripts/check-doc-links.sh && make web-conformance)
 
@@ -151,4 +153,4 @@ template-smoke:
 # webmcp-smoke, template-smoke, and the Postgres job. See docs/development.md.
 ci-local: lint test-unit race deps-check generate-check templ-check css-check build secret-check
 
-verify: lint test race deps-check workflow-check generate-check templ-check css-check build template-smoke
+verify: lint test-unit race deps-check workflow-check generate-check templ-check css-check build template-smoke

@@ -14,7 +14,7 @@ begins. Changes require restart.
 | `MULTI_WORKSPACE_ENABLED` | boolean; `false` is single workspace mode, `true` is multi | `false` | No | No |
 | `BOOTSTRAP_ADMIN_EMAIL` | email | none | With other admin variables | No |
 | `BOOTSTRAP_ADMIN_WORKSPACE` | workspace name, 1-120 characters | none | With other admin variables | No |
-| `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 characters | none | With other admin variables | Yes |
+| `BOOTSTRAP_ADMIN_PASSWORD` | password, 12-1024 UTF-8 bytes | none | With other admin variables | Yes |
 | `BOOTSTRAP_ADMIN_WORKSPACE_LOCALE` | `en` or `es` | `en` | No | No |
 | `BOOTSTRAP_SETUP_TOKEN` | optional exact setup secret, max 1,024 UTF-16 code units | none | No | Yes |
 | `OIDC_ENABLED` | boolean | `false` | No | No |

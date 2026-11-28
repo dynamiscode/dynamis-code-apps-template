@@ -22,7 +22,7 @@ func TestClientsListRendersRowsWithoutJavaScript(t *testing.T) {
 	page := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil)
 	body := page.Body.String()
 	fragment := env.listPath() + "?part=results"
-	if page.Code != http.StatusOK || !strings.Contains(body, "list-row-link") ||
+	if page.Code != http.StatusOK || !strings.Contains(body, "list-row-link") || !strings.Contains(body, "Ada") ||
 		strings.Contains(body, "data-lazy-src") || strings.Contains(body, "list-skeleton") {
 		t.Fatalf("list page = %d: %s", page.Code, body)
 	}
@@ -30,7 +30,7 @@ func TestClientsListRendersRowsWithoutJavaScript(t *testing.T) {
 	results := request(env.routes, http.MethodGet, fragment, nil, env.cookies, map[string]string{"HX-Request": "true"})
 	rows := results.Body.String()
 	if results.Code != http.StatusOK || !strings.HasPrefix(rows, `<div id="list-results"`) ||
-		!strings.Contains(rows, "list-row-link") || strings.Contains(rows, "<html") {
+		!strings.Contains(rows, "list-row-link") || !strings.Contains(rows, "Ada") || strings.Contains(rows, "<html") {
 		t.Fatalf("results fragment = %d: %s", results.Code, rows)
 	}
 
@@ -118,7 +118,7 @@ func TestClientColumnOrderIsSavedAndRendered(t *testing.T) {
 	}
 	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	at := func(column string) int { return strings.Index(body, `<th scope="col" data-column="`+column+`"`) }
-	if !(at("displayName") < at("updatedAt") && at("updatedAt") < at("phone") && at("phone") < at("email")) {
+	if !(at("displayName") >= 0 && at("displayName") < at("updatedAt") && at("updatedAt") < at("phone") && at("phone") < at("email")) {
 		t.Fatalf("columns are not in the saved order: %s", body)
 	}
 }

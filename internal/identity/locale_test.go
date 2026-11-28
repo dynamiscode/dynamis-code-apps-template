@@ -62,6 +62,9 @@ func TestLocalePersistenceAndWorkspaceFallback(t *testing.T) {
 	if err := service.UpdateWorkspaceLocale(ctx, viewer, "en", AuditContext{}); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("viewer workspace locale error = %v", err)
 	}
+	if got, err := service.GetWorkspaceLocale(ctx, bootstrap.WorkspaceID); err != nil || got != "es" {
+		t.Fatalf("workspace locale after rejected updates = %q, %v; want es", got, err)
+	}
 	var audits int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE event_type IN ('user.locale.updated', 'workspace.locale.updated')`).Scan(&audits); err != nil {
 		t.Fatal(err)

@@ -209,6 +209,35 @@ and `make fuzz-smoke` for the source security gates, plus the full suite with
 `POSTGRES_TEST_URL` for data or release changes. CI also runs CodeQL for Go and
 JavaScript/TypeScript.
 
+### Test and CI practices
+
+Before adding a test, identify the observable behavior, a credible mistake,
+and an expected result derived independently from the implementation. Prefer
+small, fast, reliable tests with precise failures. Use integration or browser
+tests for interactions that isolated tests cannot establish.
+
+Assertions and fakes must observe the actual behavior. Do not compute expected
+results with the production function under test, discard results when checking
+correctness, or use a fake that hides repeated events. Check persisted effects
+as well as errors at authorization boundaries. Distinguish temporary
+scaffolding from durable contract checks.
+
+Before removing or moving a test, compare every input and asserted outcome with
+the retained coverage. For consequential overlaps, introduce a representative
+fault in an isolated copy and confirm the retained test fails. Preserve
+security, database-engine, migration, accessibility, and generated-profile
+coverage. Never delete or weaken a failing test merely to pass.
+
+Before changing CI selection, inventory the cases, subtests, build tags,
+environment prerequisites, and required checks. Fail rather than silently skip
+required CI prerequisites. Keep isolated databases for destructive migration
+tests. A race-enabled parent does not automatically race-enable a subprocess.
+
+For CI performance, compare equivalent runs and report wall time separately
+from runner time. Measure the critical path and fixture setup before changing
+test placement. A test running in two jobs may protect different environments;
+preserve each distinct contract while removing repeated work.
+
 ### Verification checklist
 
 Pull request CI checks migration history. It rejects changes to migrations at

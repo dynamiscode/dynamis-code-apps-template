@@ -778,7 +778,7 @@ func TestCatalogDetailUsesEntryAsOnlyMainHeading(t *testing.T) {
 	if strings.Count(detail, "<h1") != 1 || !strings.Contains(detail, "<h1>Consultation</h1>") || !strings.Contains(detail, ">Price options</h2>") {
 		t.Fatal("detail must have one entry heading followed by the price section")
 	}
-	if strings.Index(detail, "<main") > strings.Index(detail, "<h1") {
+	if strings.Index(detail, "<main") < 0 || strings.Index(detail, "<main") > strings.Index(detail, "<h1") {
 		t.Fatal("main heading must be inside page content")
 	}
 }
@@ -794,7 +794,7 @@ func TestWorkspacePagesUseOneContentHeading(t *testing.T) {
 	for path, title := range map[string]string{base: "Example", base + "/catalog": "Catalog", base + "/settings/general": "General workspace settings", base + "/settings/members": "Members"} {
 		response := request(routes, http.MethodGet, path, nil, cookies, nil)
 		body := response.Body.String()
-		if response.Code != http.StatusOK || strings.Count(body, "<h1") != 1 || !strings.Contains(body, "<h1>"+title+"</h1>") || strings.Index(body, "<main") > strings.Index(body, "<h1") {
+		if response.Code != http.StatusOK || strings.Count(body, "<h1") != 1 || !strings.Contains(body, "<h1>"+title+"</h1>") || strings.Index(body, "<main") < 0 || strings.Index(body, "<main") > strings.Index(body, "<h1") {
 			t.Errorf("%s must have a single content heading %q (status %d)", path, title, response.Code)
 		}
 	}
@@ -816,11 +816,11 @@ func TestCatalogInlineFieldsAndListSorting(t *testing.T) {
 	}
 	sorted := request(routes, http.MethodGet, path+"?sort=name&direction=asc", nil, cookies, nil)
 	body := sorted.Body.String()
-	if !strings.Contains(body, `aria-sort="ascending"`) || strings.Index(body, "Alpha") >= strings.Index(body, "Zulu") || !strings.Contains(body, "<table") {
+	if !strings.Contains(body, `aria-sort="ascending"`) || strings.Index(body, "Alpha") < 0 || strings.Index(body, "Alpha") >= strings.Index(body, "Zulu") || !strings.Contains(body, "<table") {
 		t.Fatalf("sorted catalog table missing or out of order: %s", body)
 	}
 	desc := request(routes, http.MethodGet, path+"?sort=duration&direction=desc", nil, cookies, nil).Body.String()
-	if !strings.Contains(desc, `aria-sort="descending"`) || strings.Index(desc, "Alpha") >= strings.Index(desc, "Zulu") {
+	if !strings.Contains(desc, `aria-sort="descending"`) || strings.Index(desc, "Alpha") < 0 || strings.Index(desc, "Alpha") >= strings.Index(desc, "Zulu") {
 		t.Fatalf("duration sort missing or out of order: %s", desc)
 	}
 	links := catalogDetailLinks(t, body)

@@ -183,14 +183,14 @@ func TestPermanentDeleteBumpsEachClearedClientAndRecordsOneAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cleared := 0
+	cleared := map[ClientID]int{}
 	for _, change := range page.Changes {
 		if change.Action == "updated" && change.ClientVersion == ada.Version+1 && (change.ClientID == ada.ID || change.ClientID == ben.ID) {
-			cleared++
+			cleared[change.ClientID]++
 		}
 	}
-	if cleared != 2 {
-		t.Fatalf("deletion change entries = %d, want one per cleared client (2)", cleared)
+	if cleared[ada.ID] != 1 || cleared[ben.ID] != 1 {
+		t.Fatalf("deletion change entries = %v, want one per cleared client", cleared)
 	}
 
 	var events int

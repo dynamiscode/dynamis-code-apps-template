@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"html"
 	"net/http"
 	"net/url"
 	"strings"
@@ -115,7 +114,7 @@ func TestTransactionsFiltersAndClientHistory(t *testing.T) {
 		}
 	}
 	history := request(routes, http.MethodGet, clientPath, nil, cookies, nil)
-	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), "First matching expense") || strings.Contains(history.Body.String(), "Second receipt") || !strings.Contains(history.Body.String(), html.EscapeString(transactions.FormatAmount(731, "USD", "en"))) || !strings.Contains(history.Body.String(), transactionsPath+"?client_id="+first.ID.String()+"#transactions-entries-heading") {
+	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), "First matching expense") || strings.Contains(history.Body.String(), "Second receipt") || !strings.Contains(history.Body.String(), "USD 7.31") || !strings.Contains(history.Body.String(), transactionsPath+"?client_id="+first.ID.String()+"#transactions-entries-heading") {
 		t.Fatalf("client history: %d %s", history.Code, history.Body)
 	}
 	history = request(routes, http.MethodGet, clientPath+"?transactions_page=2&timeline_page=3&return=page%3D4", nil, cookies, nil)
@@ -154,9 +153,10 @@ func TestTransactionsFiltersAndClientHistory(t *testing.T) {
 		}
 		roleCookies := []*http.Cookie{{Name: "session", Value: roleSession.Secret}, {Name: "csrf", Value: roleSession.CSRFSecret}}
 		got := request(routes, http.MethodGet, clientPath, nil, roleCookies, nil)
-		visible := strings.Contains(got.Body.String(), "First matching expense") || strings.Contains(got.Body.String(), html.EscapeString(transactions.FormatAmount(731, "USD", "en"))) || strings.Contains(got.Body.String(), "client-transactions-heading")
-		if got.Code != http.StatusOK || visible != (role == identity.Member) {
-			t.Fatalf("%s history: %d %s", role, got.Code, got.Body)
+		for _, marker := range []string{"First matching expense", "USD 7.31", "client-transactions-heading"} {
+			if got.Code != http.StatusOK || strings.Contains(got.Body.String(), marker) != (role == identity.Member) {
+				t.Fatalf("%s history marker %q: %d %s", role, marker, got.Code, got.Body)
+			}
 		}
 		if role == identity.Viewer {
 			if denied := request(routes, http.MethodGet, transactionsPath, nil, roleCookies, nil); denied.Code != http.StatusForbidden {

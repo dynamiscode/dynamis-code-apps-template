@@ -1220,7 +1220,7 @@ func TestAuditHistoryUsesProfileLocaleAndThemes(t *testing.T) {
 		}, identity.AuditContext{}); err != nil {
 			t.Fatal(err)
 		}
-		response := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil)
+		response := request(handler, http.MethodGet, path, nil, cookies, nil)
 		body := response.Body.String()
 		spanish := hasHTMLRootLang(body, "es")
 		localized := response.Header().Get("Content-Language") == "es"
@@ -1240,7 +1240,7 @@ func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, locale := range []string{"en", "es"} {
+	for locale, want := range map[string]string{"en": "No audit events.", "es": "No hay eventos de auditoría."} {
 		data := viewmodel.PageData{Locale: locale, Catalog: catalog}
 		var output strings.Builder
 		if err := auditTable(data).Render(context.Background(), &output); err != nil {
@@ -1248,7 +1248,7 @@ func TestAuditTableRendersEmptyStateInBothLocales(t *testing.T) {
 		}
 		html := output.String()
 		container := strings.Contains(html, `<div id="audit-table">`)
-		emptyState := strings.Contains(html, data.T("audit.none"))
+		emptyState := strings.Contains(html, want)
 		if !container || !emptyState {
 			t.Errorf("empty audit table locale=%q: container=%t empty_state=%t", locale, container, emptyState)
 		}

@@ -257,9 +257,8 @@ func TestClientTimestampFiltersUseRFC3339AndStoredPrecision(t *testing.T) {
 	}
 }
 
-// TestListCursorBindsSortAndFilters refuses a cursor from another sort or filter
-// set, so a page cannot silently resume a different list.
-func TestListCursorBindsSortAndFilters(t *testing.T) {
+// TestNumberedPagesPreserveSortAndFilters checks consecutive pages of one query.
+func TestNumberedPagesPreserveSortAndFilters(t *testing.T) {
 	f := newFixture(t)
 	score := defineTypedField(t, f, FieldTypeNumber)
 	vip := defineTypedField(t, f, FieldTypeYesNo)
@@ -278,13 +277,13 @@ func TestListCursorBindsSortAndFilters(t *testing.T) {
 	page, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{
 		Limit: 1, Sort: SortInput{Field: score.ID.String()}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")},
 	})
-	if err != nil || len(page.Clients) != 1 || page.Total < 2 {
+	if err != nil || len(page.Clients) != 1 || page.Clients[0].DisplayName != "Ada" || page.Total != 3 {
 		t.Fatalf("first page = %+v, %v", page, err)
 	}
 	next, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{
 		Page: 2, Limit: 1, Sort: SortInput{Field: score.ID.String()}, Filters: []FilterInput{flt(vip.ID.String(), OpEquals, "true")},
 	})
-	if err != nil || len(next.Clients) != 1 || next.Clients[0].ID == page.Clients[0].ID {
+	if err != nil || len(next.Clients) != 1 || next.Clients[0].DisplayName != "Bea" || next.Total != 3 {
 		t.Fatalf("same query second page = %+v, %v", next, err)
 	}
 }

@@ -71,6 +71,7 @@ func TestPostmarkDomainsFailsClearlyPastPageCap(t *testing.T) {
 
 func TestPostmarkClientDoesNotForwardTokensOnRedirect(t *testing.T) {
 	var leaked []string
+	var requests []string
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if tok := r.Header.Get("X-Postmark-Server-Token") + r.Header.Get("X-Postmark-Account-Token"); tok != "" {
 			leaked = append(leaked, r.URL.Path)
@@ -79,12 +80,20 @@ func TestPostmarkClientDoesNotForwardTokensOnRedirect(t *testing.T) {
 	}))
 	defer target.Close()
 	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.Path+" "+r.Header.Get("X-Postmark-Server-Token")+" "+r.Header.Get("X-Postmark-Account-Token"))
 		http.Redirect(w, r, target.URL+r.URL.Path, http.StatusFound)
 	}))
 	defer redirector.Close()
 
-	_ = PostmarkServerCheck(context.Background(), redirector.URL, "pm_server_secret")
-	_, _ = PostmarkDomains(context.Background(), redirector.URL, "pm_account_secret")
+	if err := PostmarkServerCheck(context.Background(), redirector.URL, "pm_server_secret"); err == nil {
+		t.Error("server check accepted redirect")
+	}
+	if _, err := PostmarkDomains(context.Background(), redirector.URL, "pm_account_secret"); err == nil {
+		t.Error("domains check accepted redirect")
+	}
+	if len(requests) != 2 || requests[0] != "/server pm_server_secret " || requests[1] != "/domains  pm_account_secret" {
+		t.Fatalf("redirect requests = %v, want both authenticated checks", requests)
+	}
 	if len(leaked) != 0 {
 		t.Fatalf("tokens were forwarded to redirect target on %v", leaked)
 	}
@@ -109,7 +118,7 @@ func TestPostmarkServerCheckSendsNothingAndRejectsBadToken(t *testing.T) {
 	if err == nil || strings.Contains(err.Error(), "pm_server_bad") {
 		t.Fatalf("bad token error = %v, want rejection without secret", err)
 	}
-	if len(gotPaths) != 2 || gotPaths[0] != "GET /server" {
+	if len(gotPaths) != 2 || gotPaths[0] != "GET /server" || gotPaths[1] != "GET /server" {
 		t.Fatalf("calls = %v, want only GET /server", gotPaths)
 	}
 }

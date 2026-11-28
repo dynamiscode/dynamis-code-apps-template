@@ -14,15 +14,18 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+bin="${BROWSER_SMOKE_BIN_DIR:-$work/bin}"
+if [ -z "${BROWSER_SMOKE_BIN_DIR:-}" ]; then
+  mkdir -p "$bin"
+  go build -o "$bin/" ./cmd/server ./cmd/bootstrap-admin ./cmd/browsersmoke
+fi
 BOOTSTRAP_ADMIN_PASSWORD=a11y-password-123 DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" \
-  go run ./cmd/bootstrap-admin -email a11y@example.com -workspace Accessibility >/dev/null
-# Build first so $pid is the server itself; killing `go run` leaves its child running.
-go build -o "$work/server" ./cmd/server
-go build -o "$work/browsersmoke" ./cmd/browsersmoke
+  "$bin/bootstrap-admin" -email a11y@example.com -workspace Accessibility >/dev/null
+# Run the built server directly so cleanup can kill it without leaving a go run child.
 MULTI_WORKSPACE_ENABLED=true MCP_OAUTH_ENABLED=true APP_PUBLIC_URL="http://127.0.0.1:$port" \
   HTTP_SECURE=false HTTP_REQUESTS_PER_MINUTE=10000 HTTP_AUTH_REQUESTS_PER_MINUTE=1000 \
   DATABASE_DRIVER=sqlite SQLITE_PATH="$work/app.db" HTTP_ADDRESS="127.0.0.1:$port" \
-  "$work/server" >"$work/server.log" 2>&1 &
+  "$bin/server" >"$work/server.log" 2>&1 &
 pid=$!
 
 attempt=0
@@ -37,5 +40,5 @@ done
 
 for locale in en es; do
   A11Y_BASE_URL="http://127.0.0.1:$port" A11Y_EMAIL=a11y@example.com \
-    A11Y_PASSWORD=a11y-password-123 A11Y_LOCALE="$locale" "$work/browsersmoke" -mode accessibility
+    A11Y_PASSWORD=a11y-password-123 A11Y_LOCALE="$locale" "$bin/browsersmoke" -mode accessibility
 done

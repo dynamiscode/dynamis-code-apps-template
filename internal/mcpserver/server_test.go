@@ -216,9 +216,15 @@ func callTool(t *testing.T, session *mcp.ClientSession, name string, arguments a
 
 func decodeOutput[T any](t *testing.T, result *mcp.CallToolResult) T {
 	t.Helper()
+	if result.IsError {
+		t.Fatalf("tool returned an error: %s", contentText(result))
+	}
 	var output T
 	encoded, err := json.Marshal(result.StructuredContent)
-	if err != nil || json.Unmarshal(encoded, &output) != nil {
+	if err != nil {
+		t.Fatalf("encode structured output %T: %v", result.StructuredContent, err)
+	}
+	if err := json.Unmarshal(encoded, &output); err != nil {
 		t.Fatalf("decode structured output %T: %v", result.StructuredContent, err)
 	}
 	return output

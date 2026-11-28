@@ -225,7 +225,28 @@ func (s *Service) MFALoginOptions(ctx context.Context, token string) (MFALoginCh
 		return MFALoginChallenge{}, err
 	}
 	methods := make([]string, 0, 3)
+	var passkeyJSON json.RawMessage
 	if challenge.webauthnJSON != "" {
+		var session webauthnlib.SessionData
+		if err := json.Unmarshal([]byte(challenge.webauthnJSON), &session); err != nil {
+			return MFALoginChallenge{}, err
+		}
+		challengeBytes, err := base64.RawURLEncoding.DecodeString(session.Challenge)
+		if err != nil {
+			return MFALoginChallenge{}, err
+		}
+		options := protocol.CredentialAssertion{Response: protocol.PublicKeyCredentialRequestOptions{
+			Challenge: challengeBytes, RelyingPartyID: session.RelyingPartyID, UserVerification: session.UserVerification,
+		}}
+		for _, credentialID := range session.AllowedCredentialIDs {
+			options.Response.AllowedCredentials = append(options.Response.AllowedCredentials, protocol.CredentialDescriptor{
+				Type: protocol.PublicKeyCredentialType, CredentialID: credentialID,
+			})
+		}
+		passkeyJSON, err = json.Marshal(options)
+		if err != nil {
+			return MFALoginChallenge{}, err
+		}
 		methods = append(methods, "passkey")
 	}
 	if status.TOTPEnabled {
@@ -234,7 +255,7 @@ func (s *Service) MFALoginOptions(ctx context.Context, token string) (MFALoginCh
 	if status.RecoveryRemain > 0 {
 		methods = append(methods, "recovery")
 	}
-	return MFALoginChallenge{Token: token, UserID: challenge.UserID, Methods: methods, PasskeyJSON: json.RawMessage(challenge.webauthnJSON), ExpiresAt: challenge.expiresAt}, nil
+	return MFALoginChallenge{Token: token, UserID: challenge.UserID, Methods: methods, PasskeyJSON: passkeyJSON, ExpiresAt: challenge.expiresAt}, nil
 }
 
 func (s *Service) BeginTOTPEnrollment(ctx context.Context, userID UserID, sessionID, password string, audit AuditContext) (TOTPEnrollment, error) {

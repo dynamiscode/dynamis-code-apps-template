@@ -61,10 +61,12 @@ test("fails closed on unavailable, incomplete or unfinished data", () => {
     f.data["repos/acme/app/code-scanning/alerts?state=open&ref=refs%2Fpull%2F12%2Fmerge&per_page=100"] = [[]];
     f.data["repos/acme/app/check-runs/7/annotations?per_page=100"] = [[]];
     assert.equal(f.invoke().status, 2);
-    f.data["repos/acme/app/check-runs/7/annotations?per_page=100"] = [[annotation]];
+    f.data["repos/acme/app/commits/head/check-runs?per_page=100"][0].check_runs[0].output.annotations_count = 0;
+    assert.equal(f.invoke().status, 0);
     f.data["repos/acme/app/commits/head/check-runs?per_page=100"][0].check_runs[0].status = "in_progress";
     const unfinished = f.invoke();
     assert.equal(unfinished.status, 1, unfinished.stderr);
+    assert.deepEqual(JSON.parse(unfinished.stdout).incomplete_checks, [{ id: 7, name: "CodeQL (Go)", status: "in_progress" }]);
   } finally { rmSync(f.dir, { recursive: true, force: true }); }
 });
 

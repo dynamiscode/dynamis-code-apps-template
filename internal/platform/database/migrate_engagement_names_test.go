@@ -69,9 +69,10 @@ func TestSQLiteEngagementNameMigrationPreservesSnapshot(t *testing.T) {
 		if err := db.QueryRow(`SELECT name, notes FROM engagements WHERE id = ?`, key).Scan(&got, &notes); err != nil {
 			t.Fatal(err)
 		}
-		want := name + " — " + id.EncodeKey(id.TypeEngagement, key)
-		if got != want || notes != "keep" {
-			t.Fatalf("engagement %d = (%q, %q), want (%q, keep)", key, got, notes, want)
+		suffix, ok := strings.CutPrefix(got, name+" — ")
+		decoded, err := id.DecodeKey(id.TypeEngagement, suffix)
+		if !ok || err != nil || decoded != key || notes != "keep" {
+			t.Fatalf("engagement %d = (%q, %q), decoded key = %d, error = %v", key, got, notes, decoded, err)
 		}
 	}
 }

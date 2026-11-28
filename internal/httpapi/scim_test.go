@@ -63,8 +63,11 @@ func TestSCIMRESTContract(t *testing.T) {
 		t.Fatalf("SCIM groups metadata = %d, %s", groups.Code, groups.Body.String())
 	}
 	updated := serveSCIM(handler, http.MethodPatch, base+"/Users/"+user.ID, `{"Operations":[{"op":"Replace","path":"active","value":false}]}`, token.Secret, map[string]string{"If-Match": `"v1"`})
-	if updated.Code != http.StatusOK || strings.Contains(updated.Body.String(), `"active":true`) {
-		t.Fatalf("SCIM deactivate = %d, %s", updated.Code, updated.Body.String())
+	var updatedUser struct {
+		Active *bool `json:"active"`
+	}
+	if err := json.Unmarshal(updated.Body.Bytes(), &updatedUser); updated.Code != http.StatusOK || err != nil || updatedUser.Active == nil || *updatedUser.Active {
+		t.Fatalf("SCIM deactivate = %d, %s, %v", updated.Code, updated.Body.String(), err)
 	}
 }
 

@@ -108,11 +108,11 @@ func TestActionQueue(t *testing.T) {
 		}
 	}
 	first, err := svc.ListActionQueue(ctx, owner, boot.WorkspaceID, ActionQueueOptions{Page: 1, Limit: 1})
-	if err != nil || !first.HasMore || first.Entries[0].EngagementID != ids[0] {
+	if err != nil || !first.HasMore || len(first.Entries) != 1 || first.Entries[0].EngagementID != ids[0] {
 		t.Fatalf("first: %+v %v", first, err)
 	}
 	second, err := svc.ListActionQueue(ctx, owner, boot.WorkspaceID, ActionQueueOptions{Page: 2, Limit: 1})
-	if err != nil || second.HasMore || second.Entries[0].EngagementID != ids[1] {
+	if err != nil || second.HasMore || len(second.Entries) != 1 || second.Entries[0].EngagementID != ids[1] {
 		t.Fatalf("second: %+v %v", second, err)
 	}
 	if err := svc.RescheduleNextAction(ctx, owner, boot.WorkspaceID, ids[0], 1, "2030-02-30", identity.AuditContext{}); !errors.Is(err, ErrInvalidInput) {
@@ -132,7 +132,7 @@ func TestActionQueue(t *testing.T) {
 		t.Fatal(err)
 	}
 	p, err := svc.ListActionQueue(ctx, owner, boot.WorkspaceID, ActionQueueOptions{Filter: ActionQueueCompleted, OwnerID: &boot.UserID, Page: 1, Limit: 10})
-	if err != nil || len(p.Entries) != 1 || p.Entries[0].HistoryID == 0 || p.Entries[0].CompletedAt == "" {
+	if err != nil || len(p.Entries) != 1 || p.Entries[0].EngagementID != ids[4] || p.Entries[0].HistoryID == 0 || p.Entries[0].CompletedAt == "" {
 		t.Fatalf("completed: %+v %v", p, err)
 	}
 	if _, err := db.ExecContext(ctx, `UPDATE engagement_action_history SET owner_id = NULL WHERE id = ?`, p.Entries[0].HistoryID); err != nil {

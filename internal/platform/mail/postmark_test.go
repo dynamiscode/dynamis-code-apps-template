@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -51,8 +52,23 @@ func TestPostmarkSendReportsRejectionWithoutSecrets(t *testing.T) {
 }
 
 func TestPostmarkSendRejectsHeaderInjection(t *testing.T) {
-	sender, _ := NewPostmark("http://unused.invalid", "pm_server_fake", "mailer@example.com", "")
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		_, _ = io.WriteString(w, `{"ErrorCode":0,"Message":"OK"}`)
+	}))
+	defer server.Close()
+	sender, err := NewPostmark(server.URL, "pm_server_fake", "mailer@example.com", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := sender.Send(context.Background(), "a@example.com", "Hi", "Body"); err != nil {
+		t.Fatalf("valid Send() error = %v", err)
+	}
 	if err := sender.Send(context.Background(), "a@example.com\r\nBcc: x@example.com", "Hi", "Body"); err == nil {
 		t.Fatal("Send() accepted a header injection")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("requests = %d, want only the valid message", got)
 	}
 }

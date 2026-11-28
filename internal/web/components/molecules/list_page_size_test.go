@@ -34,6 +34,18 @@ func TestListPageSizePreservesMenuHTML(t *testing.T) {
 		if err := ListPageSize(data, limit, sizes).Render(t.Context(), &got); err != nil {
 			t.Fatal(err)
 		}
+		for _, expected := range []string{
+			`aria-label="Rows per page: 20"`,
+			`href="/clients?limit=10"`,
+			`href="/clients?limit=20"`,
+			`href="/clients?limit=0"`,
+			`aria-current="true"`,
+			`>All</a>`,
+		} {
+			if !strings.Contains(got.String(), expected) {
+				t.Errorf("live=%t menu missing %q: %s", live, expected, got.String())
+			}
+		}
 		if err := original.Render(t.Context(), &want); err != nil {
 			t.Fatal(err)
 		}

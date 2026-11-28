@@ -27,7 +27,8 @@ function load(onSend) {
   }
   class FakeDOMParser {
     parseFromString(source) {
-      return { querySelector: (selector) => selector === '[role="alert"]' && source.includes('role="alert"') ? { textContent: "Error de prueba seguro." } : null };
+      const alert = source.match(/<p role="alert">([^<]*)<\/p>/);
+      return { querySelector: (selector) => selector === '[role="alert"]' && alert ? { textContent: alert[1] } : null };
     }
   }
   return new Function("window", "document", "XMLHttpRequest", "FormData", "DOMParser", `${code}; return window;`)(window, document, FakeXHR, FormData, FakeDOMParser);
@@ -71,7 +72,7 @@ function respond(xhr, outcome) {
     return;
   }
   xhr.status = outcome === "http" ? 422 : 200;
-  xhr.responseText = outcome === "http" ? '<p role="alert">Error de prueba seguro.</p>' : "";
+  xhr.responseText = outcome === "http" ? '<p role="alert">Archivo demasiado grande.</p>' : "";
   xhr.emit("load");
 }
 
@@ -134,7 +135,7 @@ for (const outcomes of paths()) {
       assert.equal(u.phase, success ? "SUCCESS" : "ERROR", label);
       assert.deepEqual(window.location.assigned, success ? ["/w/files"] : [], label);
       if (!success) {
-        if (outcomes[0] === "http") assert.equal(f.status.textContent, "Error de prueba seguro.", label);
+        if (outcomes[0] === "http") assert.equal(f.status.textContent, "Archivo demasiado grande.", label);
         const before = calls.length;
         const retry = u.handleSubmit({ preventDefault() {} });
         assert.equal(calls.length, before + 1, `${label}: retry did not start a new upload`);

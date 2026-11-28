@@ -518,6 +518,14 @@ func TestClientFieldLifecycleSurvivesRefresh(t *testing.T) {
 		click(t, tab, fmt.Sprintf(`form:has(#%s) button[type="submit"]`, inputID))
 		eventually(t, tab, fmt.Sprintf(`[...document.querySelectorAll(".client-field-option-list li")].some((li) => li.textContent.includes(%s))`, jsString(label)), "option "+label+" not added")
 	}
+	path := eval[string](t, tab, "location.pathname")
+	navigate(t, tab, path)
+	for _, label := range []string{"First", "Second", "Third"} {
+		eventually(t, tab, fmt.Sprintf(`(() => {
+			const card = [...document.querySelectorAll(".client-field-card")].find((c) => c.textContent.includes("Browser multi-select"));
+			return card && [...card.querySelectorAll(".client-field-option-list li")].some((li) => li.textContent.includes(%s));
+		})()`, jsString(label)), "option "+label+" missing after refresh")
+	}
 	clickByText(t, tab, "Back to clients")
 	eventually(t, tab, `/\/clients$/.test(location.pathname)`, "back link did not return to clients")
 }

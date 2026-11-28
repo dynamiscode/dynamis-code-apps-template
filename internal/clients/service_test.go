@@ -167,7 +167,7 @@ func TestListPagesNewestFirstAndRefusesBadPages(t *testing.T) {
 		ids = append(ids, created.ID)
 	}
 	first, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: 1, Limit: 2})
-	if err != nil || len(first.Clients) != 2 || first.Clients[0].ID != ids[2] || first.Total != 3 {
+	if err != nil || len(first.Clients) != 2 || first.Clients[0].ID != ids[2] || first.Clients[1].ID != ids[1] || first.Total != 3 {
 		t.Fatalf("first page = %+v, %v", first, err)
 	}
 	next, err := f.service.List(f.ctx, f.viewer, f.workspaceID, ListInput{Page: 2, Limit: 2})

@@ -77,6 +77,16 @@ func TestTransactionsCommandsUseREST(t *testing.T) {
 			if r.Method != methods[calls-4] || r.URL.Path != paths[calls-4] {
 				t.Errorf("category request = %s %s", r.Method, r.URL.Path)
 			}
+			if calls == 5 || calls == 6 {
+				var body map[string]any
+				want := "Rent"
+				if calls == 6 {
+					want = "Office"
+				}
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["name"] != want {
+					t.Errorf("category body = %v, %v; want name %q", body, err, want)
+				}
+			}
 			_, _ = w.Write([]byte(`{}`))
 		case 8, 9:
 			if r.URL.Path != "/api/v1/workspaces/23456789/transactions/methods" || (calls == 8 && r.Method != http.MethodPost) || (calls == 9 && r.Method != http.MethodPut) {

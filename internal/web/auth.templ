@@ -114,18 +114,15 @@ templ authSetup(data viewmodel.PageData) {
 					Label:     data.T("common.password"),
 					Type:      "password",
 					Required:  true,
-					MinLength: "12",
-					MaxLength: "1024",
-					Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
+					Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true, "aria-describedby": "password-help"},
 				})
+				<p id="password-help">{ data.T("ui.password_length") }</p>
 				@atoms.PlainInput(atoms.InputProps{
 					ID:        "password-confirmation",
 					Name:      "password_confirmation",
 					Label:     data.T("setup.confirm_password"),
 					Type:      "password",
 					Required:  true,
-					MinLength: "12",
-					MaxLength: "1024",
 					Attrs:     templ.Attributes{"autocomplete": "new-password", "data-match": "password"},
 				})
 			</fieldset>
@@ -173,18 +170,15 @@ templ authPasswordReset(data viewmodel.PageData) {
 						Label:     data.T("account.new_password"),
 						Type:      "password",
 						Required:  true,
-						MinLength: "12",
-						MaxLength: "1024",
-						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
+						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true, "aria-describedby": "reset-password-help"},
 					})
+					<p id="reset-password-help">{ data.T("ui.password_length") }</p>
 					@atoms.PlainInput(atoms.InputProps{
 						ID:        "reset-password-confirmation",
 						Name:      "password_confirmation",
 						Label:     data.T("account.confirm_password"),
 						Type:      "password",
 						Required:  true,
-						MinLength: "12",
-						MaxLength: "1024",
 						Attrs:     templ.Attributes{"autocomplete": "new-password", "data-match": "reset-password"},
 					})
 					@molecules.SubmitButtonStyled(data.T("account.reset_password"), "w-full", nil)

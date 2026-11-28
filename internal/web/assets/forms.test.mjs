@@ -34,12 +34,18 @@ test("password meter: a score above 0 only for passwords the server accepts", ()
       const value = Array.from({ length }, (_, i) => pool[i % pool.length]).join("");
       const score = forms.passwordStrength(value);
       assert.ok(score >= 0 && score <= 4, `${value}: score ${score}`);
-      assert.equal(score > 0, length >= forms.MIN_PASSWORD, `${value}: score ${score} at length ${length}`);
+      assert.equal(score > 0, length >= 12, `${value}: score ${score} at length ${length}`);
       if (pool.length > 1) assert.ok(score >= previous, `${value}: score fell from ${previous} to ${score}`);
       previous = score;
     }
   }
   for (const c of ["a", "Z", "1", "!"]) assert.ok(forms.passwordStrength(c.repeat(40)) <= 1, `repeated ${c}`);
+  for (const [value, accepted] of [
+    ["é".repeat(5), false], ["é".repeat(6), true],
+    ["😀".repeat(2), false], ["😀".repeat(3), true], ["a".repeat(1024), true],
+    ["a".repeat(1025), false], ["é".repeat(512), true], ["é".repeat(513), false],
+    ["😀".repeat(256), true], ["😀".repeat(257), false],
+  ]) assert.equal(forms.passwordStrength(value) > 0, accepted, JSON.stringify(value));
 });
 
 test("authenticator mask agrees with the server for every short input", () => {
@@ -53,6 +59,11 @@ test("authenticator mask agrees with the server for every short input", () => {
     if (/^\d{6}$/.test(server)) assert.equal(masked, server, JSON.stringify(s));
   }
   assert.ok(count > 400000);
+  for (const input of ["123 456", "123-456", "1a2 3-456"]) {
+    let value = "";
+    for (const char of input) value = forms.maskDigits(value + char, 6);
+    assert.equal(value, "123456", input);
+  }
 });
 
 test("recovery mask equals the server normalizer for every short input", () => {
@@ -146,10 +157,9 @@ test("wizard: never skips a step and moves forward only from a valid step", () =
       for (const direction of ["next", "back", "other"]) {
         for (const valid of [false, true]) {
           const to = forms.wizardMove(step, total, direction, valid);
-          assert.ok(to >= 0 && to < total);
-          assert.ok(Math.abs(to - step) <= 1);
-          if (to > step) assert.ok(direction === "next" && valid);
-          if (to < step) assert.equal(direction, "back");
+          const expected = direction === "next" && valid ? Math.min(step + 1, total - 1)
+            : direction === "back" ? Math.max(step - 1, 0) : step;
+          assert.equal(to, expected, JSON.stringify({ step, total, direction, valid }));
         }
       }
     }

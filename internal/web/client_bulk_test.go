@@ -61,8 +61,12 @@ func TestClientBulkBarAndEndpoint(t *testing.T) {
 	denied := request(env.routes, http.MethodPost, env.listPath()+"/bulk", url.Values{
 		"csrf": {env.viewerCSRF}, "return": {env.listPath()}, "action": {"archive"}, "client_id": {ids[0]},
 	}, env.viewerCookies, nil)
-	if denied.Code == http.StatusSeeOther {
-		t.Fatalf("viewer bulk archive = %d, want a refusal", denied.Code)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("viewer bulk archive = %d, want 403", denied.Code)
+	}
+	afterDenied := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil)
+	if afterDenied.Code != http.StatusOK || !strings.Contains(afterDenied.Body.String(), "Ada") || !strings.Contains(afterDenied.Body.String(), "Bea") {
+		t.Fatalf("denied bulk archive changed the active list: %d %s", afterDenied.Code, afterDenied.Body.String())
 	}
 	archived := request(env.routes, http.MethodPost, env.listPath()+"/bulk", selected, env.cookies, nil)
 	if archived.Code != http.StatusSeeOther || archived.Header().Get("Location") != env.listPath() {

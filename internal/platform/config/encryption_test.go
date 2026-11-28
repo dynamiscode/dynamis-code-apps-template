@@ -44,9 +44,9 @@ func TestLoadFromSelectsEncryptionKeysWithoutLeakingThem(t *testing.T) {
 		})
 	}
 
-	secret := strings.Repeat("ab", 32)
+	secret := strings.Repeat("ab", 31)
 	for _, name := range []string{"ENCRYPTION_KEY", "WEBHOOK_ENCRYPTION_KEY"} {
-		if _, err := LoadFrom(env(map[string]string{name: secret[:62]})); err == nil || strings.Contains(err.Error(), secret) {
+		if _, err := LoadFrom(env(map[string]string{name: secret})); err == nil || strings.Contains(err.Error(), secret) {
 			t.Fatalf("invalid %s result = %v", name, err)
 		}
 	}

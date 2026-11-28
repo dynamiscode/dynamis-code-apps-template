@@ -308,8 +308,8 @@ func TestResourceAndWorkspaceTimeZone(t *testing.T) {
 		t.Fatal(err)
 	}
 	resources, zone, err := s.List(ctx, actor, owner.WorkspaceID)
-	if err == nil && (len(resources) != 1 || len(resources[0].WorkingHours) != 2) {
-		t.Fatalf("hours: %+v", resources)
+	if err != nil || len(resources) != 1 || len(resources[0].WorkingHours) != 2 {
+		t.Fatalf("hours: %+v, %v", resources, err)
 	}
 	if err := s.SetWorkingHours(ctx, actor, owner.WorkspaceID, resource.ID, []WorkingHours{{Weekday: 2, Start: "10:00", End: "11:00"}}); err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestResourceAndWorkspaceTimeZone(t *testing.T) {
 	if err != nil || len(replaced) != 1 || len(replaced[0].WorkingHours) != 1 || replaced[0].WorkingHours[0].Weekday != 2 {
 		t.Fatalf("replacement: %+v, %v", replaced, err)
 	}
-	if err != nil || zone != "America/Bogota" || len(resources) != 1 || resources[0].Name != "Person" || resources[0].UserID == nil || *resources[0].UserID != owner.UserID {
+	if zone != "America/Bogota" || len(resources) != 1 || resources[0].Name != "Person" || resources[0].UserID == nil || *resources[0].UserID != owner.UserID {
 		t.Fatalf("list: %+v, %q, %v", resources, zone, err)
 	}
 }

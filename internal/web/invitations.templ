@@ -134,10 +134,9 @@ templ invitationView(data viewmodel.PageData) {
 							Name:      "password",
 							Type:      "password",
 							Required:  true,
-							MinLength: "12",
-							MaxLength: "1024",
-							Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true},
+							Attrs:     templ.Attributes{"autocomplete": "new-password", "data-strength": true, "aria-describedby": "invite-password-help"},
 						})
+						<p id="invite-password-help">{ data.T("ui.password_length") }</p>
 						@molecules.SubmitButton(data.T("invitations.create_account"), templ.Attributes{"name": "action", "value": "register"})
 					</form>
 				</section>

@@ -31,12 +31,12 @@ func TestCatalogArchiveAndDelete(t *testing.T) {
 		t.Fatalf("archive = %d %s", response.Code, response.Body.String())
 	}
 	active := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
-	if strings.Contains(active.Body.String(), "Consultation") {
-		t.Fatal("archived entry in default list")
+	if active.Code != http.StatusOK || strings.Contains(active.Body.String(), "Consultation") {
+		t.Fatalf("default list = %d %s, want archived entry absent", active.Code, active.Body.String())
 	}
 	all := serveAuthorized(handler, http.MethodGet, path+"?includeArchived=true", "", token, nil)
-	if !strings.Contains(all.Body.String(), "Consultation") {
-		t.Fatalf("archived list = %s", all.Body.String())
+	if all.Code != http.StatusOK || !strings.Contains(all.Body.String(), "Consultation") {
+		t.Fatalf("archived list = %d %s", all.Code, all.Body.String())
 	}
 	response = serveAuthorized(handler, http.MethodPost, entryPath+"/unarchive", "", token, nil)
 	if response.Code != http.StatusNoContent {
@@ -217,8 +217,8 @@ func TestCatalogEditREST(t *testing.T) {
 		t.Fatalf("fixed price: %d %s", response.Code, response.Body.String())
 	}
 	list := serveAuthorized(handler, http.MethodGet, path, "", token, nil)
-	if !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"name":"Updated"`) {
-		t.Fatal(list.Body.String())
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"name":"Updated"`) {
+		t.Fatalf("list = %d %s", list.Code, list.Body.String())
 	}
 	response = serveAuthorized(handler, http.MethodPut, pricePath, `{"mode":"fixed","amount":"-1","currency":"EUR","variant":"Visit"}`, token, nil)
 	if response.Code != http.StatusUnprocessableEntity {
@@ -264,8 +264,8 @@ func TestCatalogUpdateRevisionPreconditions(t *testing.T) {
 	}
 	assertProblem(t, update("Stale", `"v1"`), http.StatusPreconditionFailed, "precondition-failed")
 	list := serveAuthorized(handler, http.MethodGet, strings.TrimSuffix(path, "/"+entry.ID), "", token, nil)
-	if !strings.Contains(list.Body.String(), `"name":"Alpha"`) || !strings.Contains(list.Body.String(), `"revision":3`) {
-		t.Fatalf("list = %s", list.Body.String())
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"name":"Alpha"`) || !strings.Contains(list.Body.String(), `"revision":3`) {
+		t.Fatalf("list = %d %s", list.Code, list.Body.String())
 	}
 }
 
@@ -297,8 +297,8 @@ func TestCatalogPricesREST(t *testing.T) {
 	if response := serveAuthorized(handler, http.MethodPost, pricePath, `{"mode":"fixed","amount":0.1,"currency":"USD","variant":"Visit"}`, token, nil); response.Code != http.StatusBadRequest {
 		t.Fatalf("numeric amount = %d", response.Code)
 	}
-	if !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
-		t.Fatal(list.Body.String())
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"amount":"0.12"`) || !strings.Contains(list.Body.String(), `"mode":"manual"`) {
+		t.Fatalf("list = %d %s", list.Code, list.Body.String())
 	}
 }
 
