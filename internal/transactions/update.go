@@ -260,27 +260,6 @@ func (s *Service) update(ctx context.Context, actor identity.Principal, workspac
 		if entry.AmountMinor > remaining {
 			return Entry{}, &RefundLimitError{Remaining: remaining, Currency: entry.Currency}
 		}
-	} else {
-		result, err := tx.ExecContext(ctx, `UPDATE transactions_entries SET amount_minor = amount_minor WHERE workspace_id = $1 AND id = $2 AND revision = $3 AND voided_at IS NULL`, workspace, entryID, input.ExpectedRevision)
-		if err != nil {
-			return Entry{}, err
-		}
-		count, err := result.RowsAffected()
-		if err != nil {
-			return Entry{}, err
-		}
-		if count != 1 {
-			return Entry{}, ErrConflict
-		}
-		var countRefunds int64
-		var total sql.NullInt64
-		var incompatible bool
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*), SUM(amount_minor), COALESCE(MAX(CASE WHEN currency <> $3 THEN 1 ELSE 0 END), 0) <> 0 FROM transactions_entries WHERE workspace_id = $1 AND refund_of_entry_id = $2 AND voided_at IS NULL`, workspace, entryID, entry.Currency).Scan(&countRefunds, &total, &incompatible); err != nil {
-			return Entry{}, err
-		}
-		if countRefunds > 0 && (entry.Direction != "in" || incompatible || !total.Valid || total.Int64 > entry.AmountMinor) {
-			return Entry{}, ErrInvalidInput
-		}
 	}
 	var column string
 	var fieldValue, oldValue, newValue any
@@ -322,6 +301,18 @@ func (s *Service) update(ctx context.Context, actor identity.Principal, workspac
 	}
 	if count != 1 {
 		return Entry{}, ErrConflict
+	}
+	// The update locks the receipt; validate refunds before committing it.
+	if entry.RefundOfEntryID == 0 {
+		var countRefunds int64
+		var total sql.NullInt64
+		var incompatible bool
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*), SUM(amount_minor), COALESCE(MAX(CASE WHEN currency <> $3 THEN 1 ELSE 0 END), 0) <> 0 FROM transactions_entries WHERE workspace_id = $1 AND refund_of_entry_id = $2 AND voided_at IS NULL`, workspace, entryID, entry.Currency).Scan(&countRefunds, &total, &incompatible); err != nil {
+			return Entry{}, err
+		}
+		if countRefunds > 0 && (entry.Direction != "in" || incompatible || !total.Valid || total.Int64 > entry.AmountMinor) {
+			return Entry{}, ErrInvalidInput
+		}
 	}
 	entry.Revision++
 	metadata := map[string]any{"field": input.Field, "revision": entry.Revision, "changed": true}
