@@ -24,7 +24,7 @@ var reviewedTemplateScripts = map[string]map[string]string{
 	},
 	"internal/web/components/templates/head.templ": {
 		"8374d4789b13adab479e10c48e15a1c2b7f79206665d4f9e40ecfb6d8273efe6": "Loads the reviewed notes-editor.js asset; its contents are pinned in scripts/reviewed-browser-scripts.json",
-		"2c9c1055cca8f1b4851af30c9416489ba3a2ede4a4af047f69f133e1a9247740": "Empty script body carries localized data attributes",
+		"d0891fedd35de3513f48836c56a24ba25eca7423aa6b264d8a180b621d671b2a": "Empty script body carries localized data attributes",
 	},
 }
 
