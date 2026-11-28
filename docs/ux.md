@@ -39,6 +39,8 @@ these principles into journey-specific acceptance criteria.
 - Group related information; use progressive disclosure when it reduces work,
   not to hide essential status. Avoid repeating all edit forms for each list
   item. Choose the simplest familiar interaction that supports the task.
+- Separate unrelated actions with visible space; adjacent controls without a
+  gap should indicate an intentional group.
 - On detail pages, keep current work in the main column. Use a narrower
   sidebar for context that helps the task. On narrow screens, stack the
   main content first and offer a link to the supporting section.
@@ -53,6 +55,10 @@ these principles into journey-specific acceptance criteria.
 - Default lists to active records. Offer archived records through the list's
   filters instead of separate Active and Archived buttons. Preserve other
   search, filter, and sort settings when the archive filter changes.
+- For an empty list, center a descriptive, item-specific empty state with the
+  permitted create action. Hide search, columns, and the duplicate toolbar
+  create action. Show an archive filter only when archived records exist.
+  Keep filtered-no-results states distinct from a genuinely empty list.
 - In tables, make a linked value's full cell the link target. Highlight the
   cell and underline the text on hover or keyboard focus. Keep links distinct
   from buttons and do not make selection controls or row menus navigate.
@@ -61,15 +67,24 @@ these principles into journey-specific acceptance criteria.
   action as a labeled tile.
 - Use shared list search, filter chips, sorting, columns, and saved views where
   supported. Keep filter state across navigation and apply it before pagination.
+  Selecting a filter field opens its options without a page reload or request.
+  Keep the filter menu's open state transient; a reload starts it closed.
+  Show applied filters as wrapping pills: bold field and value, muted operator,
+  and a borderless remove control. The pill label is not an interactive link.
   Column visibility controls need a submit button when JavaScript is disabled.
   Use the shared Columns menu directly in the list toolbar. Update its
   results and preferences in place, with a form fallback without JavaScript.
+  During column dragging, show an opaque dragged item and an empty insertion
+  gap. Keep keyboard and no-JavaScript reordering available.
+  During stage dragging, highlight available groups and the current target,
+  and label empty groups as drop targets. Offer a visible Move stage menu on
+  touch devices, with keyboard and ordinary form alternatives.
   Do not add bulk selection to immutable history without a bulk action.
 - Keep list tables in the shared list layout, without an extra surrounding card.
   Keep responsive row cards where the shared table uses them.
-- Put list creation and its adjacent settings menu at the right of the search
-  and filter toolbar, as on Engagements. Match the primary action height.
-  Allow the action group to wrap without overlapping controls on narrow screens.
+- Put list creation and its adjacent settings menu beside the page title, not
+  in the search and filter toolbar. When space is insufficient, keep the
+  title and menu on the first row and move creation below.
   Keep a visible gap between adjacent buttons, inputs, and cards. Use the
   same spacing conventions as other list and settings pages.
   Creation dialogs close when users click the backdrop, with the ordinary

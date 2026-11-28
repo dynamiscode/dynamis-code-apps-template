@@ -506,14 +506,14 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				return templ_7745c5c3_Err
 			}
 			if i > 1 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<form method=\"post\" action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<form class=\"list-column-move\" method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templruntime.NewAttributeExpression(ListColumnOrderHref(data.CurrentPath, suffix)).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 88, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 88, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 				if templ_7745c5c3_Err != nil {
@@ -526,7 +526,7 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templruntime.NewAttributeExpression(ListColumnOrderHref(data.CurrentPath, suffix)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 88, Col: 138}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 88, Col: 163}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
@@ -577,14 +577,14 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				}
 			}
 			if i > 0 && i < len(data.ListColumns)-1 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<form method=\"post\" action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<form class=\"list-column-move\" method=\"post\" action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templruntime.NewAttributeExpression(ListColumnOrderHref(data.CurrentPath, suffix)).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 95, Col: 80}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 95, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 				if templ_7745c5c3_Err != nil {
@@ -597,7 +597,7 @@ func ListColumnsBody(data viewmodel.PageData, suffix string, oob bool) templ.Com
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templruntime.NewAttributeExpression(ListColumnOrderHref(data.CurrentPath, suffix)).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 95, Col: 138}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `components/molecules/list_columns_menu.templ`, Line: 95, Col: 163}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 				if templ_7745c5c3_Err != nil {

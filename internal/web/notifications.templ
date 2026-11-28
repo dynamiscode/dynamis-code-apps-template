@@ -23,7 +23,7 @@ templ notificationsPage(data viewmodel.PageData) {
 					data-notification-live
 					data-updated={ data.T("notifications.live_updated") }
 					data-disconnected={ data.T("notifications.live_disconnected") }></p>
-				<p><a class="btn btn-outline btn-sm" href="/notifications">{ data.T("notifications.refresh") }</a> <a class="btn btn-outline btn-sm" href="/account">{ data.T("notifications.manage_preferences") }</a></p>
+				<p class="flex flex-wrap gap-3"><a class="btn btn-outline btn-sm" href="/notifications">{ data.T("notifications.refresh") }</a> <a class="btn btn-outline btn-sm" href="/account">{ data.T("notifications.manage_preferences") }</a></p>
 				if len(data.Notifications) > 0 {
 					@atoms.List(atoms.ListProps{Class: "notification-list"}) {
 						for _, notification := range data.Notifications {

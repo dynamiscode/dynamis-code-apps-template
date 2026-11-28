@@ -45,6 +45,7 @@ type ListFieldLink struct {
 	LabelKey string
 	Label    string
 	Href     string
+	Step     ListFilterStep
 }
 
 // listOpOption is one condition choice in the second add step.

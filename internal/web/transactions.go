@@ -669,6 +669,15 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 			return
 		}
 	}
+	empty := !dateError && total == 0
+	if empty && (len(filterInput.Filters) > 0 || filter.Search != "") {
+		_, unfilteredTotal, listErr := h.transactions.ListPage(r.Context(), principal, workspace, transactions.ListFilter{Page: 1, Limit: 1})
+		if listErr != nil {
+			h.transactionsError(w, listErr)
+			return
+		}
+		empty = unfilteredTotal == 0
+	}
 	detailID := query.Get("details")
 	if draft.editID != "" {
 		detailID = draft.editID
@@ -952,10 +961,10 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 		errorMessage = fmt.Sprintf(errorMessage, draft.refundRemaining)
 	}
 	if data.ListFragment {
-		_ = transactionsResults(data, rows, sources, clientNames, draft, errorMessage, false, false, page, identity.CanWriteTransactions(principal), identity.CanVoidTransactions(principal), stableQuery, transactionsPicker{dateError: dateError}).Render(r.Context(), w)
+		_ = transactionsResults(data, rows, sources, clientNames, draft, errorMessage, false, false, page, identity.CanWriteTransactions(principal), identity.CanVoidTransactions(principal), stableQuery, transactionsPicker{dateError: dateError}, empty).Render(r.Context(), w)
 		return
 	}
-	_ = transactionsPage(data, rows, sources, clientNames, methods, filterMethods, categories, identity.CanManageTransactions(principal), identity.CanWriteCatalog(principal), picker, draft, errorKey, errorMessage, methodError, r.FormValue("id"), r.FormValue("name"), r.URL.Query().Get("saved") == "1", r.URL.Query().Get("method_saved") == "1", r.URL.Query().Get("category_saved") == "1", r.URL.Query().Get("voided") == "1", page, identity.CanWriteTransactions(principal), identity.CanVoidTransactions(principal), h.listPreferences != nil, stableQuery, transactionsPicker{choices: filterClients.Clients, selected: filterClient, search: strings.TrimSpace(r.URL.Query().Get("filter_search")), page: filterPage, total: filterClients.Total, focus: r.URL.Query().Get("filter_picker_action") == "search" || r.URL.Query().Get("filter_client_page") != "", dateError: dateError}).Render(r.Context(), w)
+	_ = transactionsPage(data, rows, sources, clientNames, methods, filterMethods, categories, identity.CanManageTransactions(principal), identity.CanWriteCatalog(principal), picker, draft, errorKey, errorMessage, methodError, r.FormValue("id"), r.FormValue("name"), r.URL.Query().Get("saved") == "1", r.URL.Query().Get("method_saved") == "1", r.URL.Query().Get("category_saved") == "1", r.URL.Query().Get("voided") == "1", page, identity.CanWriteTransactions(principal), identity.CanVoidTransactions(principal), h.listPreferences != nil, stableQuery, transactionsPicker{choices: filterClients.Clients, selected: filterClient, search: strings.TrimSpace(r.URL.Query().Get("filter_search")), page: filterPage, total: filterClients.Total, focus: r.URL.Query().Get("filter_picker_action") == "search" || r.URL.Query().Get("filter_client_page") != "", dateError: dateError}, empty).Render(r.Context(), w)
 }
 
 func transactionsVoidTime(value string) string {

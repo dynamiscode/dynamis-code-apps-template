@@ -36,7 +36,7 @@ func TestClientIntakeActionsHaveBoundaries(t *testing.T) {
 	if err := clientIntakeMenu(data).Render(context.Background(), &out); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`<summary class="btn btn-outline btn-xs"`, `class="btn btn-primary btn-sm" data-copy-target=`, `class="btn btn-outline btn-sm" href="/intake/example"`, `class="btn btn-outline btn-sm" href="/workspaces/1/intake"`} {
+	for _, want := range []string{`<summary>`, `class="btn btn-primary btn-sm" data-copy-target=`, `class="btn btn-outline btn-sm" href="/intake/example"`, `class="btn btn-outline btn-sm" href="/workspaces/1/intake"`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("missing bounded action %q", want)
 		}
@@ -81,18 +81,47 @@ func TestClientIntakeMenuStates(t *testing.T) {
 
 func TestClientManageMenuAuthorizationAndPlacement(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	owner := request(env.routes, http.MethodGet, env.listPath(), nil, env.cookies, nil).Body.String()
 	newClient := strings.Index(owner, `data-client-create`)
-	manage := strings.Index(owner, `>Manage</summary>`)
+	manage := strings.Index(owner, `aria-label="Manage"`)
 	if newClient < 0 || manage < newClient || !strings.Contains(owner, ">Manage form</a>") || !strings.Contains(owner, ">Manage custom fields</a>") {
 		t.Fatal("owner must have the management menu after New client")
 	}
-	toolbar := owner[strings.Index(owner, `<div class="list-create">`):]
-	if strings.Contains(strings.SplitN(toolbar, `<div id="list-filter-bar">`, 2)[0], `href="/workspaces/`+env.workspaceID.String()+`/engagements"`) {
-		t.Fatal("clients toolbar must not link to the bulleted list")
+	menuStart := strings.LastIndex(owner[:manage], "<summary")
+	menuEnd := strings.Index(owner[manage:], `id="client-results"`)
+	if menuStart < 0 || menuEnd < 0 {
+		t.Fatal("management menu must precede the client results")
+	}
+	menu := owner[menuStart : manage+menuEnd]
+	for _, want := range []string{
+		`btn-outline btn-square`, `&#8942;`, `menu dropdown-content`,
+		`href="/workspaces/` + env.workspaceID.String() + `/engagements/due"`,
+		`<summary>Share the form</summary>`,
+		`href="/workspaces/` + env.workspaceID.String() + `/intake"`,
+		`href="/workspaces/` + env.workspaceID.String() + `/client-fields"`,
+		`class="border border-base-300"`,
+	} {
+		if !strings.Contains(menu, want) {
+			t.Errorf("management menu missing %q", want)
+		}
+	}
+	if strings.Contains(menu, `href="/workspaces/`+env.workspaceID.String()+`/engagements"`) {
+		t.Fatal("clients menu must not link to the bulleted list")
 	}
 	viewer := request(env.routes, http.MethodGet, env.listPath(), nil, env.viewerCookies, nil).Body.String()
-	if strings.Contains(viewer, ">Manage form</a>") || strings.Contains(viewer, ">Manage custom fields</a>") {
+	if strings.Contains(viewer, ">Manage form</a>") || strings.Contains(viewer, ">Manage custom fields</a>") || strings.Contains(viewer, "<summary>Share the form</summary>") || !strings.Contains(viewer, `/engagements/due"`) {
 		t.Fatal("viewer must not see management actions")
+	}
+}
+
+func TestClientManageMenuWithoutIntake(t *testing.T) {
+	data := viewmodel.PageData{CurrentPath: "/workspaces/1/clients", FieldsPath: "/workspaces/1/client-fields", CanManageFields: true}
+	var out bytes.Buffer
+	if err := clientCreateMenu(data).Render(context.Background(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), `href="/workspaces/1/intake"`) || !strings.Contains(out.String(), `href="/workspaces/1/client-fields"`) {
+		t.Fatal("disabled intake must hide its action while preserving custom fields")
 	}
 }

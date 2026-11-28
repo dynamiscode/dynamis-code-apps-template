@@ -2,7 +2,8 @@ import { safeLinkURL, safeVisualSource } from "./notes-editor-safety.mjs";
 
 export function wireNotesEditor(root, create) {
 	const details = root;
-	const form = root.querySelector("[data-notes-form]");
+	const inline = root.hasAttribute("data-notes-inline");
+	const form = inline ? root.closest("form") : root.querySelector("[data-notes-form]");
 	const source = root.querySelector("[data-notes-source]");
 	const rich = root.querySelector("[data-notes-rich]");
 	const toolbar = root.querySelector("[data-notes-toolbar]");
@@ -16,7 +17,7 @@ export function wireNotesEditor(root, create) {
 	const linkError = root.querySelector("[data-notes-link-error]");
 	const linkApply = root.querySelector("[data-notes-link-apply]");
 	const linkCancel = root.querySelector("[data-notes-link-cancel]");
-	if (!form || !source || !rich || !toolbar || !warning || !cancel || !summary || !sourceMode || !link || !linkPanel || !linkURL || !linkError || !linkApply || !linkCancel) return;
+	if (!form || !source || !rich || !toolbar || !warning || (!inline && (!cancel || !summary)) || !sourceMode || !link || !linkPanel || !linkURL || !linkError || !linkApply || !linkCancel) return;
 	let editor;
 	let original;
 	let changed = false;
@@ -54,13 +55,13 @@ export function wireNotesEditor(root, create) {
 		}
 		link.disabled = !editor.state.can.setLink();
 	};
-	const open = () => {
+	const open = (focus = true) => {
 		original = source.value;
 		changed = false;
-		if (!safeVisualSource(original)) { useSource(true); source.focus(); return; }
+		if (!safeVisualSource(original)) { useSource(true); if (focus) source.focus(); return; }
 		try {
 			editor = create({ element: rich, markdown: original, ariaLabel: source.labels?.[0]?.textContent || "" });
-			if (editor.getMarkdown() !== original) { useSource(true); source.focus(); return; }
+			if (editor.getMarkdown() !== original) { useSource(true); if (focus) source.focus(); return; }
 			editor.subscribe("update", () => { changed = true; sync(); });
 			editor.subscribe("state", renderButtons);
 			source.hidden = true;
@@ -70,10 +71,10 @@ export function wireNotesEditor(root, create) {
 			toolbar.hidden = false;
 			warning.hidden = true;
 			renderButtons();
-			editor.focus();
+			if (focus) editor.focus();
 		} catch (_) {
 			useSource(true);
-			source.focus();
+			if (focus) source.focus();
 		}
 	};
 	const dismiss = (focus = true) => {
@@ -89,17 +90,17 @@ export function wireNotesEditor(root, create) {
 		details.open = false;
 		if (focus) summary.focus();
 	};
-	summary.addEventListener("click", () => { if (!details.open) queueMicrotask(open); });
-	cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
-	root.ownerDocument.addEventListener("click", (event) => {
-		if (details.open && !details.contains(event.target) && form.dataset.submitting !== "true") dismiss(false);
-	});
+	if (!inline) {
+		summary.addEventListener("click", () => { if (!details.open) queueMicrotask(open); });
+		cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+		root.ownerDocument.addEventListener("click", (event) => {
+			if (details.open && !details.contains(event.target) && form.dataset.submitting !== "true") dismiss(false);
+		});
+	}
 	root.addEventListener("keydown", (event) => {
-		if (event.key !== "Escape" || event.isComposing || !details.open) return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (!linkPanel.hidden) { closeLink(); editor?.focus(); return; }
-		dismiss();
+		if (event.key !== "Escape" || event.isComposing || (!inline && !details.open)) return;
+		if (!linkPanel.hidden) { event.preventDefault(); event.stopPropagation(); closeLink(); editor?.focus(); return; }
+		if (!inline) { event.preventDefault(); event.stopPropagation(); dismiss(); }
 	});
 	toolbar.addEventListener("mousedown", (event) => {
 		if (event.target.closest("[data-notes-format], [data-notes-link]")) event.preventDefault();
@@ -143,6 +144,7 @@ export function wireNotesEditor(root, create) {
 	form.addEventListener("submit", (event) => {
 		if (!editor) return;
 		sync();
+		if (inline && event.submitter?.formNoValidate) return;
 		let probe;
 		let stable = false;
 		try {
@@ -160,5 +162,6 @@ export function wireNotesEditor(root, create) {
 			source.focus();
 		}
 	});
-	if (details.open) open();
+	if (inline) open(false);
+	else if (details.open) open();
 }

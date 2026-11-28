@@ -244,7 +244,7 @@ func buildListFilterView(path string, query url.Values, fields []listFilterField
 	for _, field := range fields {
 		next := cloneClientQuery(base)
 		next.Set("filter_field", field.Key)
-		view.Fields = append(view.Fields, viewmodel.ListFieldLink{LabelKey: field.LabelKey, Label: field.Label, Href: path + "?" + next.Encode()})
+		view.Fields = append(view.Fields, viewmodel.ListFieldLink{LabelKey: field.LabelKey, Label: field.Label, Href: path + "?" + next.Encode(), Step: listFilterStep(field, viewmodel.ListFilterInput{})})
 	}
 	backQuery := cloneClientQuery(base)
 	backQuery.Set("filter_field", "")
@@ -256,26 +256,32 @@ func buildListFilterView(path string, query url.Values, fields []listFilterField
 	}
 	if input.AddField != "" {
 		field, _ := listFieldByKey(fields, input.AddField)
-		view.Step = &viewmodel.ListFilterStep{
-			FieldKey: field.Key, FieldLabelKey: field.LabelKey, FieldLabel: field.Label,
-			IsChoice: len(field.Choices) > 0, InputType: field.InputType,
-			Range: listFieldHasOp(field, viewmodel.ListOpBetween), ValueTo: input.AddValueTo,
-		}
-		if len(input.AddValues) > 0 && !view.Step.IsChoice {
-			view.Step.Value = input.AddValues[0]
-		}
-		for _, op := range field.Ops {
-			view.Step.Ops = append(view.Step.Ops, viewmodel.ListOpOption{Key: op.Key, LabelKey: op.LabelKey, Checked: op.Key == input.AddOp})
-		}
-		for _, choice := range field.Choices {
-			selected := false
-			for _, value := range input.AddValues {
-				selected = selected || value == choice.Value
-			}
-			view.Step.Choices = append(view.Step.Choices, viewmodel.ListChoiceOption{Value: choice.Value, LabelKey: choice.LabelKey, Label: choice.Label, Selected: selected})
-		}
+		step := listFilterStep(field, input)
+		view.Step = &step
 	}
 	return view
+}
+
+func listFilterStep(field listFilterField, input viewmodel.ListFilterInput) viewmodel.ListFilterStep {
+	step := viewmodel.ListFilterStep{
+		FieldKey: field.Key, FieldLabelKey: field.LabelKey, FieldLabel: field.Label,
+		IsChoice: len(field.Choices) > 0, InputType: field.InputType,
+		Range: listFieldHasOp(field, viewmodel.ListOpBetween), ValueTo: input.AddValueTo,
+	}
+	if len(input.AddValues) > 0 && !step.IsChoice {
+		step.Value = input.AddValues[0]
+	}
+	for index, op := range field.Ops {
+		step.Ops = append(step.Ops, viewmodel.ListOpOption{Key: op.Key, LabelKey: op.LabelKey, Checked: op.Key == input.AddOp || input.AddOp == "" && index == 0})
+	}
+	for _, choice := range field.Choices {
+		selected := false
+		for _, value := range input.AddValues {
+			selected = selected || value == choice.Value
+		}
+		step.Choices = append(step.Choices, viewmodel.ListChoiceOption{Value: choice.Value, LabelKey: choice.LabelKey, Label: choice.Label, Selected: selected})
+	}
+	return step
 }
 
 // listEditQuery reopens one condition in the add step. The condition is left out of the list, so

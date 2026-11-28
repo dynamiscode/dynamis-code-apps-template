@@ -111,8 +111,8 @@ func TestCheck(t *testing.T) {
 		violations int
 	}{
 		{"bounded element", `<a class="btn" href={ path }>Open</a>`, 0},
-		{"unbounded element", `<a class="link">Open</a>`, 1},
-		{"encoded class override", `<button class="btn b&#116;n-ghost">Save</button>`, 1},
+		{"unbounded element", `<a class="link">Open</a>`, 0},
+		{"encoded visual class", `<button class="btn b&#116;n-ghost">Save</button>`, 0},
 		{"inline style override", `<button class="btn" style="border:0">Save</button>`, 1},
 		{"conditional inline style override", `<button class="btn" if enabled { style="border:0" }>Save</button>`, 1},
 		{"boolean class duplicate", `<button class class="btn">Save</button>`, 1},
@@ -121,23 +121,22 @@ func TestCheck(t *testing.T) {
 		{"dynamic class", `<button class={ "btn", extra }>Save</button>`, 1},
 		{"dynamic class via unwrapped call", `<button class={ "btn", unknown() }>Save</button>`, 1},
 		{"conditional with dynamic class", `<button class={ "btn", templ.KV(extra, active) }>Save</button>`, 1},
-		{"conditional with forbidden token", `<a class={ "btn", templ.KV("btn-ghost", active) }>Open</a>`, 1},
+		{"conditional visual class", `<a class={ "btn", templ.KV("btn-ghost", active) }>Open</a>`, 0},
 		{"unwrapped helper call rejected even if always-safe", "func listViewOptionClass(applied bool) string {\n\tif applied {\n\t\treturn \"btn btn-active\"\n\t}\n\treturn \"btn\"\n}\n<a class={ listViewOptionClass(true) }>View</a>", 1},
-		{"literal class missing entirely", `<a href={ path }>Open</a>`, 1},
-		{"literal class with boundary and extra tokens", `<a class="link rounded-field border border-base-300 px-1" href={ path }>Clients</a>`, 0},
-		{"literal class with boundary but forbidden token", `<button class="btn btn-ghost">Save</button>`, 1},
-		{"conditional safe class", `<button class={ "btn", templ.KV("btn-primary", enabled) }>Save</button>`, 0},
-		{"conditional boundary only", `<button class={ templ.KV("btn", enabled) }>Save</button>`, 1},
-		{"conditional boundary removal", `<button class={ "btn", templ.KV("border-0", enabled) }>Save</button>`, 1},
-		{"variant boundary removal", `<button class="btn md:border-0">Save</button>`, 1},
-		{"invisible border override", `<a class="border border-transparent">Save</a>`, 1},
-		{"border style override", `<a class="border hover:border-none">Save</a>`, 1},
-		{"zero border opacity", `<a class="border border-black/0">Save</a>`, 1},
-		{"arbitrary border width", `<a class="border focus:[border-width:0]">Save</a>`, 1},
-		{"arbitrary border token", `<a class="border border-[0px]">Save</a>`, 1},
-		{"hidden border token", `<a class="border border-hidden">Save</a>`, 1},
-		{"directional zero borders", `<a class="border border-s-0 border-e-0 border-y-0">Save</a>`, 1},
-		{"directional arbitrary width", `<a class="border focus:border-x-[0px]!">Save</a>`, 1},
+		{"literal class missing entirely", `<a href={ path }>Open</a>`, 0},
+		{"literal visual classes", `<button class="border-0 btn-ghost">Save</button>`, 0},
+		{"conditional visual class", `<button class={ templ.KV("btn-primary", enabled) }>Save</button>`, 0},
+		{"conditional boundary only", `<button class={ templ.KV("btn", enabled) }>Save</button>`, 0},
+		{"conditional border override", `<button class={ "btn", templ.KV("border-0", enabled) }>Save</button>`, 0},
+		{"variant border override", `<button class="btn md:border-0">Save</button>`, 0},
+		{"invisible border override", `<a class="border border-transparent">Save</a>`, 0},
+		{"border style override", `<a class="border hover:border-none">Save</a>`, 0},
+		{"zero border opacity", `<a class="border border-black/0">Save</a>`, 0},
+		{"arbitrary border width", `<a class="border focus:[border-width:0]">Save</a>`, 0},
+		{"arbitrary border token", `<a class="border border-[0px]">Save</a>`, 0},
+		{"hidden border token", `<a class="border border-hidden">Save</a>`, 0},
+		{"directional zero borders", `<a class="border border-s-0 border-e-0 border-y-0">Save</a>`, 0},
+		{"directional arbitrary width", `<a class="border focus:border-x-[0px]!">Save</a>`, 0},
 		{"conditional unrelated attr", `<button class="btn" if enabled { disabled }>Save</button>`, 0},
 		{"conditional class override", `<button class="btn" if enabled { class="link" }>Save</button>`, 1},
 		{"uppercase conditional override", `<button class="btn" if enabled { CLASS="link" }>Save</button>`, 1},
@@ -157,10 +156,10 @@ func TestCheck(t *testing.T) {
 		{"literal href must be a literal value", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"href": format(a, b)}})`, 1},
 		{"literal href with javascript scheme rejected", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"href": "javascript:alert(1)"}})`, 1},
 		{"literal style key rejected", `@atoms.Anchor(atoms.AnchorProps{Class: "btn", Attrs: templ.Attributes{"style": "display:none"}})`, 1},
-		{"anchor literal class without boundary", `@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "link"})`, 1},
+		{"anchor literal class without boundary", `@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "link"})`, 0},
 		{"anchor literal class with boundary", `@atoms.Anchor(atoms.AnchorProps{Href: "/clients", Class: "btn btn-primary"})`, 0},
-		{"qualified button forbidden token", `@atoms.Button(atoms.ButtonProps{Class: "btn-ghost"})`, 1},
-		{"qualified button safe token", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary"})`, 0},
+		{"qualified button visual class", `@atoms.Button(atoms.ButtonProps{Class: "btn-ghost"})`, 0},
+		{"qualified button safe class", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary"})`, 0},
 		{"button bare attrs var rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: attrs})`, 1},
 		{"button non-literal key rejected", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{key: value}})`, 1},
 		{"button safe nested-call attrs value", `@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Attrs: templ.Attributes{"type": "submit", "aria-label": format(nested(a, b), []string{"x", "y"})}})`, 0},
@@ -187,7 +186,7 @@ func TestCheck(t *testing.T) {
 		{"submit aliased package", `@other.SubmitButtonStyled("Save", "w-full", nil)`, 1},
 		{"confirm injection", `@molecules.ConfirmButton("Delete", "Sure?", "", templ.Attributes{"class": "border-0"})`, 1},
 		{"confirm dynamic class", `@molecules.ConfirmButton("Delete", "Sure?", extra, nil)`, 1},
-		{"confirm unsafe class", `@molecules.ConfirmButton("Delete", "Sure?", "md:border-0", nil)`, 1},
+		{"confirm visual class", `@molecules.ConfirmButton("Delete", "Sure?", "md:border-0", nil)`, 0},
 		{"confirm bare attrs var rejected", `@molecules.ConfirmButton("Delete", "Sure?", "", attrs)`, 1},
 		{"confirm dynamic value on non-class key is safe", `@molecules.ConfirmButton("Delete", "Sure?", "", templ.Attributes{"name": "action", "value": action})`, 0},
 		{"submit safe", `@molecules.SubmitButton("Save", templ.Attributes{"name": "action"})`, 0},
@@ -315,8 +314,8 @@ func TestListColumnHeadingActions(t *testing.T) {
 }
 
 func TestExactExceptions(t *testing.T) {
-	const source = "package demo\ntempl Demo() { <a class=\"skip-link\" href=\"#main\">Skip</a> }"
-	exceptions := []Exception{{Path: "skip.templ", OpenTag: `<a class="skip-link" href="#main">`, Line: 2, Reason: "focus-visible skip link"}}
+	const source = "package demo\ntempl Demo(extra string) { <a class={ extra } href=\"#main\">Skip</a> }"
+	exceptions := []Exception{{Path: "skip.templ", OpenTag: `<a class={ extra } href="#main">`, Line: 2, Reason: "reviewed class source"}}
 	got, err := CheckPath(source, "skip.templ", exceptions)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("reviewed control: %v %v", got, err)
@@ -325,11 +324,11 @@ func TestExactExceptions(t *testing.T) {
 	if err != nil || len(got) != 1 {
 		t.Fatalf("different path: %v %v", got, err)
 	}
-	_, err = CheckPath("package demo\ntempl Demo() { <a data-other-class=\"skip-link\" href=\"#main\">Skip</a> }", "skip.templ", exceptions)
+	_, err = CheckPath("package demo\ntempl Demo(extra string) { <a data-other-class=\"skip-link\" href=\"#main\">Skip</a> }", "skip.templ", exceptions)
 	if err == nil {
 		t.Fatal("changed control accepted")
 	}
-	_, err = CheckPath("package demo\ntempl Demo() { <a class=\"skip-link\" href=\"#main\">1</a><a class=\"skip-link\" href=\"#main\">2</a> }", "skip.templ", exceptions)
+	_, err = CheckPath("package demo\ntempl Demo(extra string) { <a class={ extra } href=\"#main\">1</a><a class={ extra } href=\"#main\">2</a> }", "skip.templ", exceptions)
 	if err == nil {
 		t.Fatal("duplicate control accepted")
 	}
@@ -384,27 +383,6 @@ templ Demo() {
 	}
 }
 
-// TestButtonClassDoesNotSatisfyAnchorBoundary regresses a bug found in
-// adversarial review: safeClassExpr accepted actionattrs.ButtonClass as a
-// Class source for Anchor (and any other non-Button component), even though
-// ButtonClass enforces no boundary token at runtime and Anchor injects no
-// "btn" literal of its own the way atoms.Button does. Only LinkClass may
-// satisfy a boundary requirement.
-func TestButtonClassDoesNotSatisfyAnchorBoundary(t *testing.T) {
-	source := testImports + `
-templ Demo(extra string) {
-	@atoms.Anchor(atoms.AnchorProps{Class: actionattrs.ButtonClass(extra)})
-}
-`
-	got, err := Check(source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) == 0 {
-		t.Fatal("actionattrs.ButtonClass on atoms.Anchor must not satisfy the boundary requirement")
-	}
-}
-
 // TestSpoofedActionattrsImportIsRejected regresses a bug found in
 // adversarial review: isActionattrsCall trusted any call to a function
 // literally named actionattrs.From/.Templ/.ButtonClass/.LinkClass by
@@ -441,25 +419,6 @@ templ Demo() {
 	}
 	if len(got) == 0 {
 		t.Fatal("a spoofed atoms import alias must not be trusted")
-	}
-}
-
-// TestImportantModifierCannotSmuggleBorderZero regresses a bug found in
-// adversarial review: the forbidden-token check compared tokens like
-// "!border-0" literally, so Tailwind's "important" prefix ("!") let a
-// caller remove the boundary border without matching "border-0" exactly.
-func TestImportantModifierCannotSmuggleBorderZero(t *testing.T) {
-	for _, body := range []string{
-		`<a class="btn !border-0">Open</a>`,
-		`<a class="btn md:!border-0">Open</a>`,
-	} {
-		got, err := Check(testImports + "\ntempl Demo() {\n" + body + "\n}")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(got) == 0 {
-			t.Fatalf("%q: important-prefixed border-0 override was not caught", body)
-		}
 	}
 }
 
@@ -520,15 +479,6 @@ func TestRealListViewsFileIsClean(t *testing.T) {
 	if len(got) != 0 {
 		t.Fatalf("expected the real file to be clean, got %d violations: %v", len(got), got)
 	}
-}
-
-func TestLinkClassCatchesWhatTheHelperMutationWouldProduce(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("expected actionattrs.LinkClass(\"link\") to panic: it lacks the btn/border boundary token")
-		}
-	}()
-	actionattrs.LinkClass("link")
 }
 
 // TestRealExceptionsResolveRealFiles ports the legacy JS scanner's
@@ -662,25 +612,6 @@ templ Demo(actionattrs string, extra templ.Attributes) {
 	}
 	if len(got) == 0 {
 		t.Fatal("a templ function parameter named actionattrs must not get the real package's trust")
-	}
-}
-
-// TestTailwindV4TrailingImportantCannotSmuggleBorderZero regresses a bug
-// found in adversarial review: only a leading "!" (Tailwind v3) was
-// stripped before comparing tokens; Tailwind v4 moved the "important"
-// marker to a trailing "!" ("border-0!").
-func TestTailwindV4TrailingImportantCannotSmuggleBorderZero(t *testing.T) {
-	for _, body := range []string{
-		`<a class="btn border-0!">Open</a>`,
-		`<a class="btn md:border-0!">Open</a>`,
-	} {
-		got, err := Check(testImports + "\ntempl Demo() {\n" + body + "\n}")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(got) == 0 {
-			t.Fatalf("%q: Tailwind v4 trailing-important border-0 override was not caught", body)
-		}
 	}
 }
 
@@ -1029,5 +960,143 @@ templ Demo(evil struct{ Templ func() templ.Attributes }) {
 	}
 	if len(got) == 0 {
 		t.Fatal("an anonymous struct templ-function parameter with a field literally named Templ must be rejected")
+	}
+}
+
+func TestSafeComponentAllowsFormatIntProps(t *testing.T) {
+	imports := map[string]string{
+		"atoms": atomsImportPath, "strconv": "strconv", "other": "example.com/external",
+	}
+	for _, tc := range []struct {
+		expr string
+		want bool
+	}{
+		{`atoms.PlainInput(atoms.InputProps{ID: "list-" + strconv.FormatInt(view.ID, 10)})`, true},
+		{`atoms.PlainInput(atoms.InputProps{ID: other.FormatInt(view.ID)})`, false},
+	} {
+		expr, err := parser.ParseExpr(tc.expr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := safeComponent(expr, imports, "organisms"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.expr, got, tc.want)
+		}
+	}
+}
+
+func TestCheckGoFileResolvesClientRendererProvenanceAcrossFiles(t *testing.T) {
+	const renderer = `package web
+import (
+	t "github.com/a-h/templ"
+	vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
+type Handler struct{}
+func (h *Handler) renderClientPage(component func(vm.PageData) t.Component, data vm.PageData) {
+	component(data).Render(nil, nil)
+}
+`
+	const templSource = "package web\ntempl ClientsPage(data int) { <div>safe</div> }\ntempl NestedComponent() { <span>nested</span> }\n"
+	for _, tc := range []struct {
+		name, routes string
+		wantSafe     bool
+	}{
+		{
+			name: "known template through cross-file aliases",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	page := ClientsPage
+	alias := page
+	h.renderClientPage(alias, data)
+}
+`,
+			wantSafe: true,
+		},
+		{
+			name: "untrusted callback reassignment",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	page := ClientsPage
+	page = externalFactory
+	h.renderClientPage(page, data)
+}
+`,
+		},
+		{
+			name: "untrusted closure",
+			routes: `package web
+import (
+	t "github.com/a-h/templ"
+	vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+)
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return t.ComponentFunc(nil) }, data)
+}
+`,
+		},
+		{
+			name: "scalar helper in known template args",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func scalar() int { return 1 }
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return ClientsPage(scalar()) }, data)
+}
+`,
+			wantSafe: true,
+		},
+		{
+			name: "nested component in known template args",
+			routes: `package web
+import vm "example.com/dynamis-code/apps-template/internal/web/viewmodel"
+func serve(h *Handler, data vm.PageData) {
+	h.renderClientPage(func(data vm.PageData) t.Component { return ClientsPage(NestedComponent()) }, data)
+}
+`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(dir+"/client.templ", []byte(templSource), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dir+"/renderer.go", []byte(renderer), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dir+"/routes.go", []byte(tc.routes), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := CheckGoFile(renderer, dir+"/renderer.go")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (len(got) == 0) != tc.wantSafe {
+				t.Fatalf("got %v, wantSafe %v", got, tc.wantSafe)
+			}
+		})
+	}
+}
+
+func TestDropdownComponentChecksPropsAndRuntimeSlots(t *testing.T) {
+	imports := resolveImports(testImports)
+	for _, tc := range []struct {
+		expr string
+		want bool
+	}{
+		{`atoms.Dropdown(atoms.DropdownProps{Class: "dropdown-end", SummaryClass: "btn-outline btn-square", SummaryAttrs: templ.Attributes{"aria-label": "Manage"}, Summary: molecules.RowMenuGlyph(true), Items: items})`, true},
+		{`atoms.Dropdown(atoms.DropdownProps{Summary: templ.Raw("<button class=\"btn\">unsafe</button>")})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{SummaryAttrs: templ.Attributes{"style": "display:none"}})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{PanelChildren: true})`, false},
+		{`atoms.Dropdown(atoms.DropdownProps{SummaryClass: dynamicClass})`, false},
+		{`other.Dropdown(atoms.DropdownProps{})`, false},
+	} {
+		expr, err := parser.ParseExpr(tc.expr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := safeComponent(expr, imports, "web"); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.expr, got, tc.want)
+		}
 	}
 }

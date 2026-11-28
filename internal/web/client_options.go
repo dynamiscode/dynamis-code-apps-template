@@ -70,19 +70,20 @@ func (h *Handler) createClientFieldOption(writer http.ResponseWriter, request *h
 	}
 	workspaceID := identity.ParseWorkspaceIDOrZero(request.PathValue("workspaceId"))
 	fieldID := clients.ParseFieldIDOrZero(request.PathValue("fieldId"))
+	label := request.FormValue("label")
 	_, err := h.clients.AddOption(request.Context(), principal, workspaceID, fieldID,
-		request.FormValue("label"), auditContext(request))
+		label, auditContext(request))
 	switch {
 	case err == nil:
 		h.redirect(writer, request, h.clientFieldsPath(workspaceID))
 	case errors.Is(err, clients.ErrOptionLimit):
-		h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_option_limit", clients.FieldInput{})
+		h.renderClientFieldList(writer, request, http.StatusConflict, "", clients.FieldInput{}, clientOptionError{fieldID, label, "clients.error_option_limit"})
 	case errors.Is(err, clients.ErrFieldArchived):
-		h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_archived", clients.FieldInput{})
+		h.renderClientFieldList(writer, request, http.StatusConflict, "", clients.FieldInput{}, clientOptionError{fieldID, label, "clients.error_field_archived"})
 	case errors.Is(err, clients.ErrNotChoiceField):
-		h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "clients.error_not_choice", clients.FieldInput{})
+		h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "", clients.FieldInput{}, clientOptionError{fieldID, label, "clients.error_not_choice"})
 	case errors.Is(err, clients.ErrInvalidInput):
-		h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "clients.error_option_label", clients.FieldInput{})
+		h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "", clients.FieldInput{}, clientOptionError{fieldID, label, "clients.error_option_label"})
 	default:
 		h.clientError(writer, request, err)
 	}

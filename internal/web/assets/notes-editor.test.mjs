@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { wireNotesEditor } from "./notes-editor-core.mjs";
 
-function fixture(value, serialized = value, probeSerialized) {
+function fixture(value, serialized = value, probeSerialized, inline = false) {
 	const handlers = new Map();
 	const node = (name) => ({
 		hidden: false, dataset: {},
@@ -17,7 +17,8 @@ function fixture(value, serialized = value, probeSerialized) {
 	toolbar.querySelectorAll = () => [];
 	const doc = Object.assign(node("document"), { createElement: () => ({}) });
 	const elements = { "[data-notes-form]": form, "[data-notes-source]": source, "[data-notes-rich]": rich, "[data-notes-toolbar]": toolbar, "[data-notes-warning]": warning, "[data-notes-cancel]": cancel, summary, "[data-notes-source-mode]": sourceMode, "[data-notes-link]": link, "[data-notes-link-panel]": linkPanel, "[data-notes-link-url]": linkURL, "[data-notes-link-error]": linkError, "[data-notes-link-apply]": linkApply, "[data-notes-link-cancel]": linkCancel };
-	const root = Object.assign(node("root"), { open: true, dataset: { notesSaved: value }, ownerDocument: doc, querySelector: (selector) => elements[selector], hasAttribute: () => false, contains: () => false });
+	if (inline) { delete elements["[data-notes-form]"]; delete elements["[data-notes-cancel]"]; delete elements.summary; }
+	const root = Object.assign(node("root"), { open: !inline, dataset: { notesSaved: value }, ownerDocument: doc, querySelector: (selector) => elements[selector], closest: () => form, hasAttribute: (name) => inline && name === "data-notes-inline", contains: () => false });
 	let update, current = serialized, created = 0, linkedURL;
 	const create = () => {
 		created++;
@@ -141,4 +142,34 @@ test("link control rejects unsafe URLs and applies a valid URL to the selection"
 	f.handlers.get("linkApply:click")();
 	assert.equal(f.linkedURL(), "https://example.com/page");
 	assert.equal(f.linkPanel.hidden, true);
+});
+
+test("inline editor preserves the creation draft through outside clicks, Escape and picker submits", () => {
+	const f = fixture("hello", "hello", "unstable", true);
+	assert.equal(f.source.hidden, true);
+	assert.equal(f.source.focused, undefined);
+	f.change("**hello**");
+	assert.equal(f.source.value, "**hello**");
+	assert.equal(f.handlers.has("document:click"), false);
+	const escape = event();
+	escape.key = "Escape";
+	f.handlers.get("root:keydown")(escape);
+	assert.equal(escape.prevented, false);
+	const picker = { ...event(), submitter: { formNoValidate: true } };
+	f.handlers.get("form:submit")(picker);
+	assert.equal(picker.prevented, false);
+	assert.equal(f.source.value, "**hello**");
+	const submit = event();
+	f.handlers.get("form:submit")(submit);
+	assert.equal(submit.prevented, true);
+	assert.equal(f.source.value, "**hello**");
+	assert.equal(f.source.hidden, false);
+});
+
+test("inline unsupported markdown stays editable without stealing focus", () => {
+	const f = fixture("# heading", "# heading", undefined, true);
+	assert.equal(f.source.value, "# heading");
+	assert.equal(f.source.hidden, false);
+	assert.equal(f.source.focused, undefined);
+	assert.equal(f.warning.hidden, false);
 });

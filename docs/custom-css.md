@@ -15,13 +15,16 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .workspace-name | kept: navbar brand name truncation |
 | .sidebar-navigation .menu | kept: 44px targets and keyboard focus, plus text colors overriding global link styles while daisyUI supplies menu hover and active surfaces |
 | .dropdown-content, .modal-box | kept: shared token border distinguishes floating surfaces from matching dark backgrounds |
-| .entry-field, .entry-field-label, .entry-picker-* | kept: consistent label and value insets for native and daisyUI controls, theme-muted placeholders, decorative pencil, quiet selected values and progressive searchable picker panels; native selects keep their arrow and clickable labels without JavaScript |
+| .modal-box .btn-ghost:is(.btn-square, .btn-circle) | kept: icon close controls stay borderless despite workspace ghost-link borders; focus rings remain visible |
+| .modal-box .modal-action with a primary submit | kept: wrap action buttons and long labels within narrow dialogs without changing hidden controls, picker actions, or destructive confirmations |
+| .entry-field, .entry-field-label, .entry-picker-* | kept: borderless controls with visible invalid borders, consistent label and value insets for native and daisyUI controls, theme-muted placeholders, decorative pencil, quiet selected values and progressive searchable picker panels; native selects keep their arrow and clickable labels without JavaScript |
 | .inline-editor-pending | kept: floating unsaved-draft indicator remains visible after deselection without shifting the value |
 | @media min-width: 38.001rem | kept: responsive block (table<->card switch, form stacking) |
 | .client-controls | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls summary | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls summary:hover | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-controls[open] summary | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
+| .dashboard-workspace:has(#list-results), its drawer and results descendants | kept: constrain shared desktop list scrolling to available viewport space without stretching short tables; page remains scrollable when controls exceed the viewport |
 | .list-toolbar | kept: toolbar structural block (dropdown summaries are custom details controls) |
 | .list-toolbar .menu | kept: toolbar structural block (dropdown summaries are custom details controls) |
 | .list-toolbar > details and #list-filter-add > details | kept: toolbar disclosure positioning, including the out-of-band filter wrapper |
@@ -66,7 +69,7 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .brand-mark | kept: gradient logo pseudo-content |
 | .brand-mark::after | kept: gradient logo pseudo-content |
 | a | kept: global link color/tie to brand tokens |
-| .workspace-main :is(a.link, p > a:not(.btn, .detail-back)) | kept: inline navigation boundaries clone across wrapped text without changing anchor layout; quiet back links remain borderless |
+| .workspace-main :is(a.link:not(.breadcrumbs a), p > a:not(.btn, .detail-back)) | kept: inline navigation boundaries clone across wrapped text without changing anchor layout; breadcrumbs and quiet back links remain borderless |
 | .list-page-size-options a, .workspace-main a.btn-ghost | kept: shared list and workspace navigation retain visible boundaries |
 | main form:not(.inline) > :is(fieldset, input:not([type="hidden"]), select, textarea, .reveal-box, .strength, .wizard-nav) + button | kept: JS-created (utilities added in JS) |
 | main form .btn | kept: 44px touch height contract (a11y smoke asserts it) |
@@ -108,6 +111,7 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .workspace-main | kept: shell width + search-mark tint (color-mix with token vars) |
 | .workspace-heading | kept: page heading flex |
 | .workspace-heading h1 | kept: page heading flex |
+| .feature-list-heading, .feature-list-heading-actions | kept: responsive heading grid keeps the menu beside the title and moves creation below on narrow screens |
 | .eyebrow | kept: 11 use sites; one rule beats 6 utility classes x 11 |
 | main:has(> .account-page) | kept: account shell width override |
 | .notification-center | kept: notification layout remainders (heading flex, live status sizing) |
@@ -146,8 +150,8 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .file-upload-controls input | kept: structural layout remainder |
 | .file-upload-controls button | kept: structural layout remainder |
 | .upload-progress[hidden] | kept: JS hidden-state handling only (progress styling now daisyUI) |
-| .list-filter-chips | kept: filter chips strip + connector pseudo styling |
-| .list-filter-chips > li | kept: filter chips strip + connector pseudo styling |
+| .list-filter-chips, .list-filter-chips > li, .list-filter-chip-label | kept: wrapping filter pills and long unbroken labels within narrow list widths |
+| .list-filter-chip-operator, .list-filter-chip-remove | kept: muted operators and borderless, keyboard-focusable 44px remove targets |
 | code | kept: global wrap for code/IDs |
 | @media max-width: 38rem | kept: responsive block (table<->card switch, form stacking) |
 | @media prefers-reduced-motion: reduce | kept: responsive block (table<->card switch, form stacking) |
@@ -218,6 +222,12 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .list-column-handle | kept: column-switch menu (drag handles, grid list) |
 | .list-column-switch[draggable="true"] | kept: column-switch menu (drag handles, grid list) |
 | .list-column-switch[draggable="true"]:active | kept: column-switch menu (drag handles, grid list) |
+| .list-column-move | kept: visually hidden keyboard reorder forms revealed on focus; visible without JavaScript |
+| .list-column-switch.is-dragging, .list-column-placeholder, .list-column-drag-preview | kept: drag source, insertion gap and opaque theme-matched native drag image |
+| .stage-drag-gap, .stage-drag-preview, [data-stage-card] drag states | kept: draggable stage cards need a real insertion gap and opaque theme-matched native preview |
+| .is-stage-dragging [data-stage-group] and its drop-target and empty-group states | kept: drag-only target outlines and localized empty-group prompt |
+| .stage-move-menu-label | kept: expose the stage move menu label for touch and coarse pointers |
+| [data-stage-order-bound] [data-stage-reorder-fallback] | kept: pointer drag hides fallback forms until keyboard focus; touch and no-JavaScript users retain visible controls |
 | .list-column-order | kept: column-switch menu (drag handles, grid list) |
 | .list-action-icon | kept: row action menu block (menu-item styling overrides daisyUI btn on purpose) |
 | .list-column-switch form[aria-busy="true"] | kept: column-switch menu (drag handles, grid list) |
@@ -253,7 +263,6 @@ The `tokens.css` design token layer, global `:focus-visible` and
 | .workspace-main .client-match .select | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-match label | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
 | .client-field-prompt | kept: clients feature layout (dl grids, step sections, option lists; utilities would sprawl across three files for no gain) |
-| .list-filter-chip-edit:hover span, .list-filter-chip-edit:focus-visible span | kept: filter chips strip + connector pseudo styling |
 | .list-filter-chip-remove:hover, .list-filter-chip-remove:focus-visible | kept: filter chips strip + connector pseudo styling |
 | .list-filter-chips .list-filter-add | kept: filter chips strip + connector pseudo styling |
 | .list-filter-connector | kept: uppercase connector styling |

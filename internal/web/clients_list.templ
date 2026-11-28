@@ -19,6 +19,15 @@ templ clientList(data viewmodel.PageData) {
 		data-live-waiting={ data.T("ui.updates_waiting") }
 		aria-labelledby="clients-heading">
 		<h2 id="clients-heading" class="sr-only">{ data.T("clients.title") }</h2>
+		<div class="feature-list-heading">
+			@molecules.PageHeading(data.T("clients.title"), "")
+			<div class="feature-list-heading-actions">
+				@clientCreateMenu(data)
+			</div>
+		</div>
+		if !data.ClientListEmpty && !data.CanEditClients {
+			<p class="status-line">{ data.T("clients.read_only") }</p>
+		}
 		if data.ErrorKey != "" {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
 		}
@@ -26,11 +35,11 @@ templ clientList(data viewmodel.PageData) {
 			@clientListView(data)
 		</div>
 		if data.CanEditClients {
-			<dialog class="modal" aria-labelledby="client-create-title" data-client-dialog>
+			<dialog class="modal" aria-labelledby="client-create-title" data-client-dialog data-client-discard-message={ data.T("ui.unsaved") }>
 				<div class="modal-box w-full max-w-lg">
 					<div class="flex items-center justify-between gap-4">
 						<h2 id="client-create-title" class="text-xl font-bold">{ data.T("clients.new_client") }</h2>
-						<button class="btn btn-outline btn-sm btn-circle" type="button" data-client-close aria-label={ data.T("ui.close") }>×</button>
+						<button class="btn btn-ghost btn-sm btn-circle shrink-0" type="button" data-client-close aria-label={ data.T("ui.close") }>×</button>
 					</div>
 					<div id="client-create-content">@clientCreateContent(data, true)</div>
 				</div>
@@ -40,30 +49,26 @@ templ clientList(data viewmodel.PageData) {
 }
 
 templ clientListView(data viewmodel.PageData) {
-	<div class="list-toolbar">
-		if data.ListHasContent() {
+	if !data.ClientListEmpty {
+		<div class="list-toolbar">
 			@molecules.ListSearch(data, "clients.search", data.ListSearch)
-		}
-		if data.ListHasContent() || len(data.ListViews) > 0 {
 			@organisms.ListViewSwitcher(data)
-		}
-		@organisms.ListAddFilter(data)
-		@clientListTools(data)
-	</div>
-	@organisms.ListFilterBar(data)
+			@organisms.ListAddFilter(data)
+			@clientListTools(data)
+		</div>
+		@organisms.ListFilterBar(data)
+	} else {
+		@molecules.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
+	}
 	@clientResults(data)
 }
 
-// clientListTools are the client list's own controls on the toolbar: the columns, the bulk actions, the create
-// menu, and the live status.
+// clientListTools are the client list's toolbar controls: columns, bulk actions, and live status.
 templ clientListTools(data viewmodel.PageData) {
-	if data.ListHasContent() {
-		@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
-		if data.ListSelectable {
-			@clientBulkBar(data)
-		}
+	@molecules.ListColumnsMenu(data, data.ClientQuerySuffix)
+	if data.ListSelectable {
+		@clientBulkBar(data)
 	}
-	@clientCreateMenu(data)
 	@molecules.StatusLine(data.T("clients.live_fallback"), templ.Attributes{"aria-live": "polite", "id": "realtime-status"})
 }
 
@@ -85,11 +90,13 @@ templ clientNotice(data viewmodel.PageData) {
 templ clientResults(data viewmodel.PageData) {
 	<div id="list-results">
 		@clientBody(data)
-		@organisms.ListFooter(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes)) {
-			@molecules.ListPager(data)
+		if !data.ClientListEmpty {
+			@organisms.ListFooter(data, clientPageLimit(data.ClientQuery.Limit), listPageSizeOptions(clientPageLimit(data.ClientQuery.Limit), listPageSizes)) {
+				@molecules.ListPager(data)
+			}
 		}
 	</div>
-	if data.ListFragment {
+	if data.ListFragment && !data.ClientListEmpty {
 		@organisms.ListFilterBarOOB(data)
 		@molecules.ListColumnsBody(data, data.ClientQuerySuffix, true)
 	}
@@ -97,7 +104,10 @@ templ clientResults(data viewmodel.PageData) {
 
 // clientBody is the client list's rows: the table or cards, and the empty state.
 templ clientBody(data viewmodel.PageData) {
-	@clientNotice(data)
+	if data.ClientListEmpty {
+		@clientEmptyState(data)
+	} else {
+		@clientNotice(data)
 	if data.ClientQuery.Archived == "archived" {
 		@molecules.StatusLine(data.T("clients.viewing_archived"), nil)
 	}
@@ -137,19 +147,24 @@ templ clientBody(data viewmodel.PageData) {
 		} else if data.ClientQuery.Archived == "archived" {
 			@molecules.EmptyState(data.T("clients.no_archived"))
 		} else {
-			@molecules.EmptyStateCardBody(molecules.EmptyStateCardProps{ID: "client-empty-state", Title: data.T("clients.empty_title"), Description: data.T("clients.empty_description")}) { @clientEmptyCTA(data) }
+			@clientEmptyState(data)
 		}
 	}
+	}
+}
+
+templ clientEmptyState(data viewmodel.PageData) {
+	<section id="client-empty-state" class="flex min-h-64 flex-col items-center justify-center gap-4 px-4 text-center">
+		<h2 class="text-xl font-semibold">{ data.T("clients.empty_title") }</h2>
+		<p>{ data.T("clients.empty_description") }</p>
+		@clientEmptyCTA(data)
+	</section>
 }
 
 // clientEmptyCTA provides a create link that also works without JavaScript.
 templ clientEmptyCTA(data viewmodel.PageData) {
 	if data.CanEditClients {
-		<a class="btn btn-primary btn-sm" href={ templ.SafeURL(data.CurrentPath + "/new") } data-client-create>{ data.T("clients.new_client") }</a>
-	}
-	if data.CanManageFields && data.ClientQuery.Archived != "archived" {
-		<p class="mt-4">{ data.T("intake.description") }</p>
-		<a class="btn btn-outline btn-sm" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("intake.title") }</a>
+		<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") } data-client-create>{ data.T("clients.new_client") }</a>
 	}
 }
 
@@ -161,7 +176,7 @@ templ clientCreateContent(data viewmodel.PageData, modal bool) {
 }
 
 templ clientCreateForm(data viewmodel.PageData, action string, modal bool) {
-	<form class="create" action={ templ.SafeURL(action) } method="post" data-dirty-track data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) } { templ.Attributes{"hx-post": templ.KV(action, modal), "hx-target": templ.KV("#client-create-content", modal), "hx-swap": templ.KV("innerHTML", modal)}... }>
+	<form class="create space-y-3" action={ templ.SafeURL(action) } method="post" data-dirty-track data-unsaved-warning data-dirty-on-load?={ clientDraftHasInput(data.ClientDraft) } { templ.Attributes{"hx-post": templ.KV(action, modal), "hx-target": templ.KV("#client-create-content", modal), "hx-swap": templ.KV("innerHTML", modal)}... }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if modal {
 			<input type="hidden" name="client_modal" value="1"/>
@@ -169,25 +184,28 @@ templ clientCreateForm(data viewmodel.PageData, action string, modal bool) {
 		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-display-name", Label: data.T("clients.display_name"), Value: data.ClientDraft.DisplayName}) {
 			<input id="client-display-name" name="display_name" required maxlength="200" value={ data.ClientDraft.DisplayName } data-trim=""/>
 		}
-		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-email", Label: data.T("common.email")+" "+data.T("ui.optional"), Value: data.ClientDraft.Email}) {
-			<input id="client-email" name="email" type="email" maxlength="254" value={ data.ClientDraft.Email }/>
-		}
-		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-phone", Label: data.T("clients.phone")+" "+data.T("ui.optional"), Value: data.ClientDraft.Phone}) {
-			<input id="client-phone" name="phone" type="tel" maxlength="50" value={ data.ClientDraft.Phone }/>
-		}
-		@molecules.EntryField(molecules.EntryFieldProps{ID: "client-notes", Label: data.T("clients.notes")+" "+data.T("ui.optional"), Value: data.ClientDraft.Notes}) {
-			<textarea id="client-notes" name="notes" maxlength="5000">{ data.ClientDraft.Notes }</textarea>
-		}
-		<div class="actions">
+		<details data-client-advanced open?={ data.ErrorKey != "" || data.ClientDraft.Email != "" || data.ClientDraft.Phone != "" || data.ClientDraft.Notes != "" }>
+			<summary>{ data.T("ui.advanced") }</summary>
+			@molecules.EntryField(molecules.EntryFieldProps{ID: "client-email", Label: data.T("common.email")+" "+data.T("ui.optional"), Value: data.ClientDraft.Email}) {
+				<input id="client-email" name="email" type="email" maxlength="254" value={ data.ClientDraft.Email }/>
+			}
+			@molecules.EntryField(molecules.EntryFieldProps{ID: "client-phone", Label: data.T("clients.phone")+" "+data.T("ui.optional"), Value: data.ClientDraft.Phone}) {
+				<input id="client-phone" name="phone" type="tel" maxlength="50" value={ data.ClientDraft.Phone }/>
+			}
+			@molecules.EntryField(molecules.EntryFieldProps{ID: "client-notes", Label: data.T("clients.notes")+" "+data.T("ui.optional"), Value: data.ClientDraft.Notes}) {
+				<textarea id="client-notes" name="notes" maxlength="5000">{ data.ClientDraft.Notes }</textarea>
+			}
+		</details>
+		<div class="modal-action flex-wrap">
 			@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.create"), Attrs: templ.Attributes{"type": "submit"}})
 		</div>
 	</form>
 }
 
 templ clientIntakeMenu(data viewmodel.PageData) {
-	<details class="dropdown dropdown-end">
-		<summary class="btn btn-outline btn-xs">{ data.T("intake.share") }</summary>
-		<div class="dropdown-content z-50 flex w-80 max-w-[90vw] flex-col items-start gap-2 rounded-box bg-base-100 p-4 shadow-lg">
+	<details>
+		<summary>{ data.T("intake.share") }</summary>
+		<div class="flex w-full flex-col items-start gap-2 p-4">
 			if !data.IntakeActive {
 				<p>{ data.T("intake.disabled") }</p>
 			} else if !data.IntakeReady {
@@ -211,34 +229,35 @@ templ clientIntakeMenu(data viewmodel.PageData) {
 	</details>
 }
 
-// clientCreateMenu is the toolbar's "New client" action: a link to the create page.
-// Users who cannot write see a read-only note, and a pristine list renders no
-// second primary action because its empty-state card already offers this one.
+// The empty state supplies the only create action on a pristine list.
 templ clientCreateMenu(data viewmodel.PageData) {
-	<div class="list-create">
-		if data.CanManageFields && data.IntakeEnabled {
-			@clientIntakeMenu(data)
-		}
-		<a class="btn btn-xs" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due") }>{ data.T("engagement.due_list") }</a>
-		if !data.CanEditClients {
-			<p class="status-line">{ data.T("clients.read_only") }</p>
-		} else {
+	if !data.ClientListEmpty && data.CanEditClients {
+		<div class="list-create">
 			<a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") } data-client-create>{ data.T("clients.new_client") }</a>
-		}
-		if data.CanManageFields {
-			@clientManageMenu(data)
-		}
-	</div>
+		</div>
+	}
+	@clientManageMenu(data)
 }
 
 templ clientManageMenu(data viewmodel.PageData) {
-	<details class="dropdown dropdown-end">
-		<summary class="btn btn-outline">{ data.T("clients.manage_menu") }</summary>
-		<div class="dropdown-content z-50 grid w-80 max-w-[90vw] gap-2 rounded-box bg-base-100 p-4 shadow-lg">
+	{{
+		items := []atoms.DropdownItem{
+			{Label: data.T("engagement.due_list"), Attrs: templ.Attributes{"href": strings.TrimSuffix(data.CurrentPath, "/clients") + "/engagements/due"}},
+		}
+		if data.CanManageFields {
 			if data.IntakeEnabled {
-				<a class="btn btn-outline" href={ templ.SafeURL(strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake") }>{ data.T("clients.manage_form") }</a>
+				items = append(items, atoms.DropdownItem{Item: clientIntakeMenu(data)})
+				items = append(items, atoms.DropdownItem{Label: data.T("clients.manage_form"), Attrs: templ.Attributes{"href": strings.TrimSuffix(data.CurrentPath, "/clients") + "/intake"}})
 			}
-			<a class="btn btn-outline" href={ data.FieldsPath }>{ data.T("clients.fields_link") }</a>
-		</div>
-	</details>
+			items = append(items, atoms.DropdownItem{Label: data.T("clients.fields_link"), Attrs: templ.Attributes{"href": data.FieldsPath}})
+		}
+	}}
+	@atoms.Dropdown(atoms.DropdownProps{
+		Class: "dropdown-end",
+		SummaryClass: "btn-outline btn-square",
+		SummaryAttrs: templ.Attributes{"aria-label": data.T("clients.manage_menu")},
+		Summary: molecules.RowMenuGlyph(true),
+		ListClass: "z-50 w-80 max-w-[90vw] rounded-box bg-base-100 p-2 shadow-lg",
+		Items: items,
+	})
 }

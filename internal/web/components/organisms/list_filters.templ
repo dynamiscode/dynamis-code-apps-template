@@ -40,7 +40,7 @@ templ ListFilterBarOOB(data viewmodel.PageData) {
 templ ListFilterStrip(data viewmodel.PageData) {
 	if len(data.Filter.Chips) > 0 {
 		<div class="list-filter-strip">
-			<ul class="list-filter-chips badge" aria-label={ data.T("clients.active_filters") }>
+			<ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
 				for i, chip := range data.Filter.Chips {
 					if i > 0 {
 						<li class="list-filter-connector">
@@ -51,18 +51,9 @@ templ ListFilterStrip(data viewmodel.PageData) {
 							}
 						</li>
 					}
-					<li class="list-filter-chip badge gap-1 py-1 pl-3">
-						<a class="list-filter-chip-edit link rounded-field border border-base-300 px-1" href={ templ.SafeURL(chip.EditHref) } aria-label={ data.T("clients.filter_edit") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>
-							<span>
-								{ ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }&#32;{ data.T(chip.OpLabelKey) }&#32;
-								if chip.ValueKey != "" {
-									{ ListChipValue(data, chip) }
-								} else {
-									{ ListChipValue(data, chip) }
-								}
-							</span>
-						</a>
-						<a class="list-filter-chip-remove btn btn-xs" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
+					<li class="list-filter-chip">
+						<span class="list-filter-chip-label"><strong>{ ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }</strong>&#32;<span class="list-filter-chip-operator">{ data.T(chip.OpLabelKey) }</span>&#32;<strong>{ ListChipValue(data, chip) }</strong></span>
+						<a class="list-filter-chip-remove" href={ templ.SafeURL(chip.RemoveHref) } aria-label={ data.T("clients.filter_remove") + ": " + ListLabel(data, chip.FieldLabelKey, chip.FieldLabel) }>&times;</a>
 					</li>
 				}
 			</ul>
@@ -94,62 +85,72 @@ templ ListFilterStrip(data viewmodel.PageData) {
 // condition and value.
 templ ListFilterAddPanel(data viewmodel.PageData) {
 	if data.Filter.Step == nil {
-		if !data.Filter.CanAdd {
-			<p class="status-line">{ data.T("clients.filter_limit") }</p>
-		} else {
-			<p id="list-field-heading" class="client-field-prompt">{ data.T("clients.choose_field") }</p>
-			<ul class="client-field-choices" aria-labelledby="list-field-heading">
-				for _, field := range data.Filter.Fields {
-					<li><a class="border border-base-300" href={ templ.SafeURL(field.Href) }>{ ListLabel(data, field.LabelKey, field.Label) }</a></li>
-				}
-			</ul>
-		}
-		<div class="actions">
-			<a class="btn btn-xs" href={ templ.SafeURL(data.Filter.ClearHref) }>{ data.T("clients.clear_filters") }</a>
-		</div>
-	} else {
-		<form class="client-query client-add-step" method="get" action={ data.Filter.Path } data-dirty-track>
-			for _, field := range data.Filter.Preserved {
-				<input type="hidden" name={ field.Name } value={ field.Value }/>
+		<div data-filter-fields>
+			if !data.Filter.CanAdd {
+				<p class="status-line">{ data.T("clients.filter_limit") }</p>
+			} else {
+				<p id="list-field-heading" class="client-field-prompt">{ data.T("clients.choose_field") }</p>
+				<ul class="client-field-choices" aria-labelledby="list-field-heading">
+					for _, field := range data.Filter.Fields {
+						<li>
+							<a class="border border-base-300" href={ templ.SafeURL(field.Href) } data-filter-field={ field.Step.FieldKey }>{ ListLabel(data, field.LabelKey, field.Label) }</a>
+							<template>@listFilterStep(data, field.Step)</template>
+						</li>
+					}
+				</ul>
 			}
-			<input type="hidden" name="filter_field" value={ data.Filter.Step.FieldKey }/>
-			<p class="client-step-field">{ ListLabel(data, data.Filter.Step.FieldLabelKey, data.Filter.Step.FieldLabel) }</p>
-			<div class="client-step-section" role="radiogroup" aria-labelledby="list-condition-heading">
-				<p id="list-condition-heading" class="client-field-prompt">{ data.T("clients.filter_op") }</p>
+			<div class="actions">
+				<a class="btn btn-xs" href={ templ.SafeURL(data.Filter.ClearHref) }>{ data.T("clients.clear_filters") }</a>
+			</div>
+		</div>
+		<div data-filter-step></div>
+	} else {
+		@listFilterStep(data, *data.Filter.Step)
+	}
+}
+
+templ listFilterStep(data viewmodel.PageData, step viewmodel.ListFilterStep) {
+	<form class="client-query client-add-step" method="get" action={ data.Filter.Path } data-dirty-track>
+		for _, field := range data.Filter.Preserved {
+			<input type="hidden" name={ field.Name } value={ field.Value }/>
+		}
+		<input type="hidden" name="filter_field" value={ step.FieldKey }/>
+		<p class="client-step-field">{ ListLabel(data, step.FieldLabelKey, step.FieldLabel) }</p>
+		<div class="client-step-section" role="radiogroup" aria-labelledby="list-condition-heading">
+			<p id="list-condition-heading" class="client-field-prompt">{ data.T("clients.filter_op") }</p>
+			{{
+				opOptions := make([]atoms.RadioOption, 0, len(step.Ops))
+				for _, op := range step.Ops {
+					opOptions = append(opOptions, atoms.RadioOption{Label: data.T(op.LabelKey), Value: op.Key, Checked: op.Checked})
+				}
+			}}
+			@atoms.Radio(atoms.RadioProps{Name: "filter_op", Options: opOptions})
+		</div>
+		<div class="client-step-section" data-hide-for-operator="is_empty">
+			if step.IsChoice {
 				{{
-					opOptions := make([]atoms.RadioOption, 0, len(data.Filter.Step.Ops))
-					for _, op := range data.Filter.Step.Ops {
-						opOptions = append(opOptions, atoms.RadioOption{Label: data.T(op.LabelKey), Value: op.Key, Checked: op.Checked})
+					options := make([]atoms.SelectOption, 0, len(step.Choices))
+					for _, choice := range step.Choices {
+						options = append(options, atoms.SelectOption{
+							Label: ListLabel(data, choice.LabelKey, choice.Label),
+							Value: choice.Value,
+							Selected: choice.Selected,
+						})
 					}
 				}}
-				@atoms.Radio(atoms.RadioProps{Name: "filter_op", Options: opOptions})
-			</div>
-			<div class="client-step-section" data-hide-for-operator="is_empty">
-				if data.Filter.Step.IsChoice {
-					{{
-						options := make([]atoms.SelectOption, 0, len(data.Filter.Step.Choices))
-						for _, choice := range data.Filter.Step.Choices {
-							options = append(options, atoms.SelectOption{
-								Label:    ListLabel(data, choice.LabelKey, choice.Label),
-								Value:    choice.Value,
-								Selected: choice.Selected,
-							})
-						}
-					}}
-					@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
-				} else {
-					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.Value, MaxLength: "1024"})
-				}
-			</div>
-			if data.Filter.Step.Range {
-				<div class="client-step-section" data-show-for-operator="between">
-					@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(data.Filter.Step.InputType), Value: data.Filter.Step.ValueTo, MaxLength: "1024"})
-				</div>
+				@atoms.Select(atoms.SelectProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Options: options})
+			} else {
+				@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value", Label: data.T("clients.filter_value"), Name: "filter_value", Type: ListInputType(step.InputType), Value: step.Value, MaxLength: "1024"})
 			}
-			<div class="client-step-actions">
-				<a class="btn" href={ templ.SafeURL(data.Filter.BackHref) }>&lsaquo; { data.T("clients.back_to_fields") }</a>
-				<button class="btn btn-primary" type="submit">{ data.T("clients.filter_add") }</button>
+		</div>
+		if step.Range {
+			<div class="client-step-section" data-show-for-operator="between">
+				@atoms.PlainInput(atoms.InputProps{ID: "list-filter-value-to", Label: data.T("clients.filter_value_to"), Name: "filter_value_to", Type: ListInputType(step.InputType), Value: step.ValueTo, MaxLength: "1024"})
 			</div>
-		</form>
-	}
+		}
+		<div class="client-step-actions">
+			<a class="btn" href={ templ.SafeURL(data.Filter.BackHref) } data-filter-back>&lsaquo; { data.T("clients.back_to_fields") }</a>
+			<button class="btn btn-primary" type="submit">{ data.T("clients.filter_add") }</button>
+		</div>
+	</form>
 }

@@ -1036,14 +1036,14 @@ func transactionsInlineChoice(data viewmodel.PageData, row transactionsRow, draf
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\">✓</button><a class=\"btn btn-outline btn-square\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\">✓</button><a class=\"btn btn-ghost btn-square\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templruntime.NewAttributeExpression(templ.SafeURL(cancel)).ResolveURL(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `transactions_inline.templ`, Line: 117, Col: 184}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `transactions_inline.templ`, Line: 117, Col: 182}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 				if templ_7745c5c3_Err != nil {
@@ -1056,7 +1056,7 @@ func transactionsInlineChoice(data viewmodel.PageData, row transactionsRow, draf
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templruntime.NewAttributeExpression(data.T("common.cancel")).Resolve(ctx)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `transactions_inline.templ`, Line: 117, Col: 254}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `transactions_inline.templ`, Line: 117, Col: 252}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 				if templ_7745c5c3_Err != nil {

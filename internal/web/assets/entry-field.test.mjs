@@ -85,6 +85,13 @@ test("remote picker blocks stale choices, preserves reset value, and mirrors acc
 		assert.equal(trigger.getAttribute("aria-required"), "true");
 		assert.equal(trigger.getAttribute("aria-invalid"), "true");
 		assert.equal(trigger.getAttribute("aria-describedby"), "client-error");
+		assert.equal(control.getAttribute("aria-hidden"), "true");
+		control.value = "";
+		control.dispatchEvent(new Event("change"));
+		assert.equal(field.hasAttribute("data-entry-filled"), true, "an empty-valued selected option remains visible");
+		assert.equal(trigger.children[0].textContent, "No client");
+		control.value = "original";
+		control.dispatchEvent(new Event("change"));
 		control.removeAttribute("aria-invalid");
 		control.removeAttribute("aria-describedby");
 		observer();
@@ -132,6 +139,11 @@ test("remote picker blocks stale choices, preserves reset value, and mirrors acc
 		assert.equal(new URL(requests[4].url).searchParams.get("page"), "2");
 		await new Promise((resolve) => setTimeout(resolve, 275));
 		assert.equal(requests.length, 5, "closed search must not restart page 1");
+		requests[4].resolve({ ok: false });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		assert.equal(control.getAttribute("aria-hidden"), null);
+		assert.equal(trigger.hidden, true);
+		assert.equal(fallback.hidden, false);
 	} finally {
 		globalThis.fetch = oldFetch;
 		globalThis.MutationObserver = oldObserver;

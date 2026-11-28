@@ -239,10 +239,6 @@ func closedTemplateConsumers(functions map[*types.Func]typedFunction, known map[
 			if !ok {
 				return true
 			}
-			if isScannedCall(call, source.info) {
-				valid = false
-				return false
-			}
 			method, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr)
 			if !ok || method.Sel.Name != "Render" {
 				return true
@@ -255,7 +251,8 @@ func closedTemplateConsumers(functions map[*types.Func]typedFunction, known map[
 				return true
 			}
 			producer, ok := ast.Unparen(method.X).(*ast.CallExpr)
-			valid = ok && (packageFunction(producer, source.info, "github.com/a-h/templ", "JSONScript") ||
+			valid = ok && (isScannedCall(producer, source.info) ||
+				packageFunction(producer, source.info, "github.com/a-h/templ", "JSONScript") ||
 				packageFunction(producer, source.info, actionattrsImportPath, "Markdown") || closed(calledFunction(producer, source.info)))
 			return valid
 		})

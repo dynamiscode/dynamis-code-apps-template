@@ -67,6 +67,15 @@ func (s *Service) CreateStage(ctx context.Context, actor identity.Principal, wor
 	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, query), workspaceID, stage.Name, stage.Kind, workspaceID).Scan(&stage.ID); err != nil {
 		return Stage{}, err
 	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET position = -position WHERE workspace_id = ?`), workspaceID); err != nil {
+		return Stage{}, err
+	}
+	if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `WITH ordered AS MATERIALIZED (
+		SELECT id, ROW_NUMBER() OVER (ORDER BY CASE kind WHEN 'open' THEN 0 WHEN 'won' THEN 1 ELSE 2 END, -position) AS new_position
+		FROM engagement_stages WHERE workspace_id = ?
+	) UPDATE engagement_stages SET position = (SELECT new_position FROM ordered WHERE ordered.id = engagement_stages.id) WHERE workspace_id = ?`), workspaceID, workspaceID); err != nil {
+		return Stage{}, err
+	}
 	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement_stage.created", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "engagement_stage", TargetKey: int64(stage.ID), Action: "engagement_stage.create", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
 		return Stage{}, err
 	}
@@ -85,7 +94,7 @@ func (s *Service) ListStages(ctx context.Context, actor identity.Principal, work
 	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.ResourcesRead); err != nil {
 		return nil, identity.ErrForbidden
 	}
-	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT id, name, kind, archived_at IS NOT NULL FROM engagement_stages WHERE workspace_id = ? ORDER BY position`), workspaceID)
+	rows, err := tx.QueryContext(ctx, database.Rebind(s.driver, `SELECT id, name, kind, archived_at IS NOT NULL FROM engagement_stages WHERE workspace_id = ? ORDER BY CASE kind WHEN 'open' THEN 0 WHEN 'won' THEN 1 ELSE 2 END, position`), workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,51 +118,6 @@ func (s *Service) ListStages(ctx context.Context, actor identity.Principal, work
 		return nil, err
 	}
 	return stages, nil
-}
-
-func (s *Service) ReorderStages(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, ids []StageID, audit identity.AuditContext) error {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err := s.auth.AuthorizePrincipalInTx(ctx, tx, actor, workspaceID, identity.WorkspaceUpdate); err != nil {
-		return identity.ErrForbidden
-	}
-	var count int
-	if err := tx.QueryRowContext(ctx, database.Rebind(s.driver, `SELECT COUNT(*) FROM engagement_stages WHERE workspace_id = ?`), workspaceID).Scan(&count); err != nil {
-		return err
-	}
-	if len(ids) != count {
-		return ErrInvalidInput
-	}
-	seen := map[StageID]bool{}
-	for _, stageID := range ids {
-		if seen[stageID] {
-			return ErrInvalidInput
-		}
-		seen[stageID] = true
-		result, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET position = -position WHERE workspace_id = ? AND id = ?`), workspaceID, stageID)
-		if err != nil {
-			return err
-		}
-		n, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if n != 1 {
-			return ErrInvalidInput
-		}
-	}
-	for i, stageID := range ids {
-		if _, err := tx.ExecContext(ctx, database.Rebind(s.driver, `UPDATE engagement_stages SET position = ? WHERE workspace_id = ? AND id = ?`), i+1, workspaceID, stageID); err != nil {
-			return err
-		}
-	}
-	if err := s.auth.RecordAuditInTx(ctx, tx, identity.AuditEvent{EventType: "engagement_stage.reordered", ActorUserID: actor.UserID, AuthMethod: actor.AuthMethod, WorkspaceID: workspaceID, TargetType: "workspace", TargetKey: int64(workspaceID), Action: "engagement_stage.reorder", Outcome: "success", RequestID: audit.RequestID, SourceAddress: audit.SourceAddress, Metadata: "{}", CreatedAt: time.Now().UTC()}); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func (s *Service) ArchiveStage(ctx context.Context, actor identity.Principal, workspaceID identity.WorkspaceID, stageID StageID, audit identity.AuditContext) error {

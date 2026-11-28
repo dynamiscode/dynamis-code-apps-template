@@ -9,7 +9,14 @@ import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
 templ filesPage(data viewmodel.PageData, canUpload bool) {
 	@templates.DashboardShell(data, templates.DashboardHome) {
-		@molecules.PageHeading(data.T("files.files"), "")
+		<div class="feature-list-heading">
+			@molecules.PageHeading(data.T("files.files"), "")
+			if canUpload && data.ListHasContent() {
+				<div class="feature-list-heading-actions">
+					<div class="list-create"><a class="btn btn-primary" href="#file-upload-heading">{ data.T("files.upload") }</a></div>
+				</div>
+			}
+		</div>
 		<div class="files-page">
 			if data.ErrorKey != "" {
 				@molecules.ErrorAlert(data.T(data.ErrorKey))

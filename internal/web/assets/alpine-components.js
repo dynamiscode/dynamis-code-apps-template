@@ -199,6 +199,13 @@
 			document.querySelectorAll("[data-submit-button]").forEach((button) => {
 				button.hidden = true;
 			});
+			const closeRestoredFilter = () => {
+				document.querySelectorAll("#list-filter-add details.list-menu").forEach((menu) => {
+					if (menu.querySelector("[data-filter-fields]")) menu.open = false;
+				});
+			};
+			closeRestoredFilter();
+			window.addEventListener("pageshow", closeRestoredFilter, { once: true });
 			document.addEventListener("change", (event) => {
 				const select = event.target;
 				if (select && select.dataset && select.dataset.autosubmit && select.form) select.form.requestSubmit();
@@ -233,6 +240,36 @@
 			document.addEventListener("change", (event) => {
 				const input = event.target;
 				if (input && input.name === "filter_op" && input.form) syncCondition(input.form);
+			});
+
+			document.addEventListener("click", (event) => {
+				if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+				const field = event.target.closest("[data-filter-field]");
+				if (field) {
+					const panel = field.closest("#list-filter-add");
+					const fields = panel?.querySelector("[data-filter-fields]");
+					const step = panel?.querySelector("[data-filter-step]");
+					const override = Array.from(document.querySelectorAll("template[data-filter-override]"))
+						.find((template) => template.dataset.filterOverride === field.dataset.filterField);
+					const template = override || field.parentElement.querySelector("template");
+					if (!fields || !step || !template) return;
+					event.preventDefault();
+					step.replaceChildren(template.content.cloneNode(true));
+					step.filterField = field;
+					fields.hidden = true;
+					const form = step.querySelector("form.client-add-step");
+					if (form) syncCondition(form);
+					setTimeout(() => step.querySelector('input[name="filter_op"]:checked, input:not([type="hidden"]), select, button, a')?.focus(), 0);
+					return;
+				}
+				const back = event.target.closest("[data-filter-back]");
+				const step = back?.closest("[data-filter-step]");
+				const fields = step?.parentElement.querySelector("[data-filter-fields]");
+				if (!step || !fields) return;
+				event.preventDefault();
+				step.replaceChildren();
+				fields.hidden = false;
+				setTimeout(() => (step.filterField || fields.querySelector("[data-filter-field]"))?.focus(), 0);
 			});
 
 			document.addEventListener("click", (event) => {
@@ -321,7 +358,7 @@
 			window.addEventListener("resize", placeOpenMenus);
 			window.addEventListener("scroll", placeOpenMenus, true);
 			document.addEventListener("click", (event) => {
-				document.querySelectorAll(menuSelector).forEach((menu) => { if (menu.open && !menu.contains(event.target)) menu.open = false; });
+				document.querySelectorAll(menuSelector).forEach((menu) => { if (menu.open && !event.composedPath().includes(menu)) menu.open = false; });
 			});
 			document.addEventListener("keydown", (event) => {
 				if (event.key !== "Escape") return;
@@ -336,31 +373,73 @@
 				form.querySelector('input[name="order"]').value = [...list.querySelectorAll(":scope > li[data-column-key]")].map((row) => row.dataset.columnKey).join(",");
 				form.requestSubmit();
 			};
-			let draggedColumn = null;
+			let columnDrag = null;
+			const endColumnDrag = () => {
+				if (!columnDrag) return;
+				columnDrag.row.classList.remove("is-dragging");
+				columnDrag.placeholder.remove();
+				columnDrag.preview.remove();
+				columnDrag = null;
+			};
 			document.addEventListener("dragstart", (event) => {
-				const row = event.target.closest?.("li[data-column-key]");
-				if (!row || row.hasAttribute("data-locked")) {
+				const row = event.target.closest?.(".list-column-switches > li[data-column-key]");
+				if (!row) return;
+				if (row.hasAttribute("data-locked")) {
 					event.preventDefault();
 					return;
 				}
-				draggedColumn = row;
+				endColumnDrag();
+				const list = row.parentElement;
+				const rect = row.getBoundingClientRect();
+				const placeholder = document.createElement("li");
+				placeholder.className = "list-column-placeholder";
+				placeholder.setAttribute("aria-hidden", "true");
+				placeholder.style.height = rect.height + "px";
+				const preview = row.cloneNode(true);
+				preview.classList.add("list-column-drag-preview");
+				preview.setAttribute("aria-hidden", "true");
+				preview.setAttribute("inert", "");
+				preview.removeAttribute("id");
+				preview.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+				preview.style.width = rect.width + "px";
+				document.body.appendChild(preview);
+				const order = [...list.querySelectorAll(":scope > li[data-column-key]")].map((item) => item.dataset.columnKey).join(",");
+				columnDrag = { row, list, placeholder, preview, order };
 				event.dataTransfer.effectAllowed = "move";
 				event.dataTransfer.setData("text/plain", row.dataset.columnKey);
+				event.dataTransfer.setDragImage(preview, event.clientX - rect.left, event.clientY - rect.top);
+				requestAnimationFrame(() => {
+					if (columnDrag?.row !== row) return;
+					if (!placeholder.isConnected) list.insertBefore(placeholder, row);
+					row.classList.add("is-dragging");
+					preview.style.visibility = "hidden";
+				});
 			});
 			document.addEventListener("dragover", (event) => {
-				const row = event.target.closest?.("li[data-column-key]");
-				if (!draggedColumn || !row || row === draggedColumn || row.parentElement !== draggedColumn.parentElement) return;
+				if (!columnDrag || !columnDrag.list.isConnected || !columnDrag.list.contains(event.target)) return;
 				event.preventDefault();
+				event.dataTransfer.dropEffect = "move";
+				const row = event.target.closest?.("li[data-column-key]");
+				if (!row || row === columnDrag.row || row.parentElement !== columnDrag.list) return;
 				const rect = row.getBoundingClientRect();
-				const after = event.clientY > rect.top + rect.height / 2;
-				row.parentElement.insertBefore(draggedColumn, after ? row.nextElementSibling : row);
+				const after = row.hasAttribute("data-locked") || event.clientY > rect.top + rect.height / 2;
+				columnDrag.list.insertBefore(columnDrag.placeholder, after ? row.nextElementSibling : row);
 			});
 			document.addEventListener("drop", (event) => {
-				if (!draggedColumn) return;
+				if (!columnDrag || !columnDrag.list.isConnected || !columnDrag.list.contains(event.target)) return;
 				event.preventDefault();
-				const list = draggedColumn.parentElement;
-				draggedColumn = null;
-				saveColumnOrder(list);
+				const { row, list, placeholder, order } = columnDrag;
+				if (!placeholder.isConnected) list.insertBefore(placeholder, row);
+				list.insertBefore(row, placeholder);
+				endColumnDrag();
+				const nextOrder = [...list.querySelectorAll(":scope > li[data-column-key]")].map((item) => item.dataset.columnKey).join(",");
+				if (nextOrder !== order) saveColumnOrder(list);
+			});
+			document.addEventListener("keydown", (event) => {
+				if (event.key === "Escape") endColumnDrag();
+			});
+			document.addEventListener("htmx:after:settle", () => {
+				if (columnDrag && !columnDrag.list.isConnected) endColumnDrag();
 			});
 			// Bulk selection: select-all picks the rows on this page. The bar counts the chosen rows and enables its buttons only
 			// when at least one row is chosen. A results swap replaces the rows and the bar together, so the selection clears.
@@ -397,9 +476,7 @@
 			document.addEventListener("list:results-changed", syncBulk);
 			syncBulk();
 
-			document.addEventListener("dragend", () => {
-				draggedColumn = null;
-			});
+			document.addEventListener("dragend", endColumnDrag);
 		},
 	});
 
@@ -864,8 +941,22 @@
 				else if (el instanceof HTMLSelectElement && el.multiple) {
 					const selected = new Set(saved.get(entryKey(el)));
 					for (const option of el.options) option.selected = selected.has(option.value);
-				} else el.value = saved.get(entryKey(el));
+				} else {
+					const value = saved.get(entryKey(el));
+					if (el instanceof HTMLSelectElement && el.hasAttribute("data-draft-allow-missing") && value && ![...el.options].some((option) => option.value === value)) {
+						const option = document.createElement("option");
+						option.value = value;
+						option.textContent = value;
+						el.append(option);
+					}
+					el.value = value;
+					if (el.hasAttribute("data-draft-allow-missing") && value) {
+						const details = el.closest("details");
+						if (details) details.open = true;
+					}
+				}
 			}
+			updateDirty(form);
 			writeDraft(form, false);
 			if (!announce) return;
 			const note = document.createElement("p");
@@ -1281,6 +1372,7 @@
 		let connection = messages.connecting, waiting = false, refreshing = false, pending = false, activeContext = null, cancelledContext = null;
 		const current = () => document.querySelector("#" + listID);
 		const status = () => document.querySelector("#realtime-status");
+		const editing = (node) => document.querySelector("[data-client-archive-dialog]:modal") || window.dynamisForms?.isEditing(node);
 		const showStatus = () => { const node = status(); if (node) node.textContent = waiting ? (current()?.dataset.liveWaiting || connection) : connection; };
 		const events = new EventSource(list.dataset.events);
 		events.addEventListener("open", () => { connection = messages.connected; showStatus(); });
@@ -1288,7 +1380,7 @@
 		const refresh = () => {
 			const node = current();
 			if (!node) return;
-			if (window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(node)) === "defer") { waiting = true; showStatus(); return; }
+			if (window.dynamisForms?.refreshDecision(editing(node)) === "defer") { waiting = true; showStatus(); return; }
 			waiting = false; showStatus();
 			if (refreshing) { pending = true; return; }
 			refreshing = true;
@@ -1308,7 +1400,7 @@
 			const ctx = event.detail?.ctx;
 			if (ctx?.target?.id !== listID || ctx.request?.method?.toLowerCase() !== "get") return;
 			const node = current();
-			if (node && window.dynamisForms?.refreshDecision(window.dynamisForms.isEditing(node)) === "defer") { event.preventDefault(); waiting = true; cancelledContext = ctx; showStatus(); }
+			if (node && window.dynamisForms?.refreshDecision(editing(node)) === "defer") { event.preventDefault(); waiting = true; cancelledContext = ctx; showStatus(); }
 		});
 		document.addEventListener("htmx:after:swap", (event) => {
 			const ctx = event.detail?.ctx;
@@ -1333,6 +1425,7 @@
 		}, true);
 		for (const name of ["client.changed", "resync"]) { events.addEventListener(name, refresh); }
 		for (const name of ["focusout", "input", "change", "htmx:finally:request"]) { document.addEventListener(name, retryWaiting); }
+		document.addEventListener("close", retryWaiting, true);
 		events.addEventListener("close", () => events.close());
 	};
 
@@ -1669,35 +1762,76 @@
 	};
 	const wireClientDialog = (root) => {
 		const dialog = root.querySelector("[data-client-dialog]");
-		if (!dialog || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
-		dialog.dataset.bound = "true";
+		const dismiss = (dialog) => {
+			const form = dialog.querySelector("form");
+			if (form?.dataset.dirty === "true" && !window.confirm(dialog.dataset.clientDiscardMessage)) return;
+			dialog.close();
+		};
 		if (!root._clientDialogBound) {
 			root._clientDialogBound = true;
 			root.addEventListener("click", (event) => {
 				const current = root.querySelector("[data-client-dialog]");
 				const open = event.target.closest("[data-client-create]");
-				if (open && current) {
+				if (open && current && typeof current.showModal === "function") {
 					event.preventDefault();
 					root._clientDialogOpener = open;
+					const advanced = current.querySelector("details[data-client-advanced]");
+					if (advanced && [...advanced.querySelectorAll("input, textarea")].some((field) => field.value)) advanced.open = true;
 					current.showModal();
-					current.querySelector('input[name="display_name"]')?.focus();
 				} else if (current && event.target.closest("[data-client-close]")) {
-					current.close();
+					dismiss(current);
 				}
 			});
+			root.addEventListener("submit", (event) => {
+				const form = event.target;
+				const details = form.closest("[data-client-dialog], #client-new-page") && form.querySelector("details[data-client-advanced]");
+				if (details?.querySelector(":invalid")) details.open = true;
+			}, true);
 		}
-		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+		if (!dialog || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dismiss(dialog); });
+		dialog.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(dialog); });
 		dialog.addEventListener("close", () => root._clientDialogOpener?.focus());
 	};
 
+
+	const wireClientFieldDialog = (root) => {
+		const dialog = root.querySelector("[data-client-field-dialog]");
+		const open = root.querySelector("[data-client-field-create]");
+		const close = dialog?.querySelector("[data-client-field-close]");
+		if (!dialog || !open || !close || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		const form = dialog.querySelector("form");
+		const dismiss = () => {
+			if (form?.dataset.dirty === "true" && !window.confirm(dialog.dataset.clientFieldDiscardMessage)) return;
+			dialog.close();
+		};
+		open.hidden = false;
+		open.addEventListener("click", (event) => { event.preventDefault(); dialog.showModal(); });
+		close.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dismiss(); });
+		dialog.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(); });
+		dialog.addEventListener("close", () => open.focus());
+		if (dialog.hasAttribute("data-client-field-create-error")) {
+			dialog.showModal();
+			dialog.querySelector('[role="alert"], [aria-invalid="true"]')?.focus();
+		}
+	};
 
 	const wireEngagementDialog = (root) => {
 		const dialog = root.querySelector("[data-engagement-dialog]");
 		const cancel = dialog?.querySelector("[data-engagement-cancel]");
 		if (!dialog || !cancel || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
 		dialog.dataset.bound = "true";
-		cancel.addEventListener("click", (event) => { event.preventDefault(); dialog.close(); });
-		dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+		const dismiss = () => {
+			const form = dialog.querySelector("form");
+			if (form?.dataset.dirty === "true" && !window.confirm(dialog.dataset.engagementDiscardMessage)) return;
+			dialog.close();
+		};
+		cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) dismiss(); });
+		dialog.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(); });
 		dialog.addEventListener("close", () => root.querySelector("[data-engagement-create]")?.focus());
 		dialog.showModal();
 	};
@@ -1732,6 +1866,7 @@
 			};
 			summary.addEventListener("click", (event) => { event.preventDefault(); open(); });
 			cancel.addEventListener("click", (event) => { event.preventDefault(); dismiss(); });
+			dialog.addEventListener("click", (event) => { if (dialog.hasAttribute("data-detail-backdrop-close") && event.target === dialog) dismiss(); });
 			dialog.addEventListener("cancel", (event) => { event.preventDefault(); dismiss(); });
 			dialog.addEventListener("keydown", (event) => { if (event.key === "Escape") event.stopPropagation(); });
 			dialog.addEventListener("close", () => { details.open = false; summary.focus(); });
@@ -1975,7 +2110,7 @@
 			const control = label && Array.from(field.querySelectorAll("input:not([type=hidden]), select, textarea")).find((item) => item.id === label.htmlFor);
 			if (!control) continue;
 			field.dataset.entryBound = "true";
-			const update = () => field.toggleAttribute("data-entry-filled", control.value !== "");
+			const update = () => field.toggleAttribute("data-entry-filled", control.value !== "" || (control.matches("select") && control.selectedOptions.length > 0));
 			control.addEventListener("input", update);
 			control.addEventListener("change", update);
 			control.form?.addEventListener("reset", () => setTimeout(update, 0));
@@ -2050,6 +2185,7 @@
 			syncAccessibility();
 			new MutationObserver(syncAccessibility).observe(control, { attributes: true, attributeFilter: ["required", "aria-invalid", "aria-describedby"] });
 			control.tabIndex = -1;
+			control.setAttribute("aria-hidden", "true");
 			const render = () => {
 				selected.textContent = control.selectedOptions[0]?.textContent || "";
 				list.replaceChildren();
@@ -2140,6 +2276,7 @@
 						button.hidden = true;
 						if (fallback) fallback.hidden = false;
 						control.removeAttribute("tabindex");
+						control.removeAttribute("aria-hidden");
 						close(false);
 						if (restoreFocus) control.focus();
 					}
@@ -2361,6 +2498,161 @@
 		});
 	};
 
+	const wireClientArchiveDialog = (root) => {
+		const dialog = root.querySelector("[data-client-archive-dialog]");
+		if (!dialog || dialog.dataset.bound || typeof dialog.showModal !== "function") return;
+		dialog.dataset.bound = "true";
+		const name = dialog.querySelector("[data-client-archive-name]");
+		const cancel = dialog.querySelector("[data-client-archive-cancel]");
+		const confirm = dialog.querySelector("[data-client-archive-confirm]");
+		let pending;
+		root.addEventListener("click", (event) => {
+			const button = event.target.closest?.("button[data-client-archive]");
+			if (!button || button.disabled || !button.form) return;
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			pending = button;
+			name.textContent = button.dataset.clientName;
+			dialog.showModal();
+			cancel.focus();
+		}, true);
+		const closing = [];
+		const closeAndRestore = () => {
+			closing.push(pending);
+			pending = undefined;
+			dialog.close();
+		};
+		cancel.addEventListener("click", closeAndRestore);
+		dialog.addEventListener("cancel", () => closing.push(pending));
+		dialog.addEventListener("click", (event) => { if (event.target === dialog) closeAndRestore(); });
+		dialog.addEventListener("close", () => {
+			const trigger = closing.shift();
+			if (!trigger || dialog.open) return;
+			const menu = trigger.closest("details.list-menu");
+			if (menu) menu.open = true;
+			trigger.focus();
+		});
+		confirm.addEventListener("click", () => {
+			if (!pending || pending.form.dataset.submitting === "true") return;
+			const button = pending;
+			const form = button.form;
+			const input = root.createElement("input");
+			input.type = "hidden";
+			input.name = "confirm_archive";
+			input.value = "yes";
+			form.append(input);
+			form.addEventListener("formdata", () => input.remove(), { once: true });
+			closing.push(null);
+			pending = undefined;
+			dialog.close();
+			form.requestSubmit();
+		});
+	};
+
+	const wireStageOrder = (root) => {
+		root.querySelectorAll("[data-stage-order]").forEach((board) => {
+			if (board.dataset.stageOrderBound) return;
+			const form = board.querySelector("[data-stage-reorder-form]");
+			if (!form) return;
+			board.dataset.stageOrderBound = "true";
+			let drag = null;
+			const endDrag = () => {
+				if (!drag) return;
+				board.classList.remove("is-stage-dragging");
+				drag.target?.classList.remove("is-stage-drop-target");
+				drag.card.classList.remove("is-dragging");
+				drag.gap.remove();
+				drag.preview.remove();
+				drag = null;
+			};
+			board.addEventListener("dragstart", (event) => {
+				const card = event.target.closest?.('[data-stage-card][draggable="true"]');
+				const group = card?.parentElement;
+				if (!card || !group?.matches("[data-stage-group]") || !board.contains(card)) return;
+				endDrag();
+				const rect = card.getBoundingClientRect();
+				const gap = root.createElement(card.tagName);
+				gap.className = "stage-drag-gap";
+				gap.setAttribute("aria-hidden", "true");
+				gap.style.height = rect.height + "px";
+				const preview = card.cloneNode(true);
+				preview.classList.add("stage-drag-preview");
+				preview.setAttribute("aria-hidden", "true");
+				preview.setAttribute("inert", "");
+				preview.removeAttribute("id");
+				preview.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+				preview.style.width = rect.width + "px";
+				root.body.appendChild(preview);
+				drag = { card, group, gap, preview, next: card.nextElementSibling };
+				board.classList.add("is-stage-dragging");
+				event.dataTransfer.effectAllowed = "move";
+				event.dataTransfer.setData("text/plain", card.dataset.stageId);
+				event.dataTransfer.setDragImage(preview, event.clientX - rect.left, event.clientY - rect.top);
+				requestAnimationFrame(() => {
+					if (drag?.card !== card) return;
+					if (!gap.isConnected) group.insertBefore(gap, card);
+					card.classList.add("is-dragging");
+					preview.style.visibility = "hidden";
+				});
+			});
+			board.addEventListener("dragover", (event) => {
+				if (!drag) return;
+				const group = event.target.closest?.("[data-stage-group]");
+				if (!group || !board.contains(group)) {
+					drag.target?.classList.remove("is-stage-drop-target");
+					drag.target = null;
+					return;
+				}
+				if (drag.target !== group) {
+					drag.target?.classList.remove("is-stage-drop-target");
+					group.classList.add("is-stage-drop-target");
+					drag.target = group;
+				}
+				event.preventDefault();
+				event.dataTransfer.dropEffect = "move";
+				if (event.target === drag.gap) return;
+				const card = event.target.closest?.("[data-stage-card]");
+				if (card && card.parentElement === group && card !== drag.card) {
+					const rect = card.getBoundingClientRect();
+					group.insertBefore(drag.gap, event.clientY > rect.top + rect.height / 2 ? card.nextElementSibling : card);
+				} else if (!card) {
+					group.appendChild(drag.gap);
+				}
+			});
+			board.addEventListener("dragleave", (event) => {
+				if (!drag || board.contains(event.relatedTarget)) return;
+				drag.target?.classList.remove("is-stage-drop-target");
+				drag.target = null;
+			});
+			board.addEventListener("drop", (event) => {
+				if (!drag) return;
+				const group = event.target.closest?.("[data-stage-group]");
+				if (!group || !board.contains(group) || drag.gap.parentElement !== group) return;
+				event.preventDefault();
+				const { card, gap } = drag;
+				let next = gap.nextElementSibling;
+				if (next === card) next = card.nextElementSibling;
+				const unchanged = group === drag.group && next === drag.next;
+				const stageID = card.dataset.stageId;
+				const kind = group.dataset.stageGroup;
+				const beforeID = next?.dataset.stageId || "";
+				endDrag();
+				if (unchanged) return;
+				form.elements.namedItem("stage_id").value = stageID;
+				form.elements.namedItem("kind").value = kind;
+				form.elements.namedItem("before_id").value = beforeID;
+				form.requestSubmit();
+			});
+			board.addEventListener("dragend", endDrag);
+			root.addEventListener("keydown", (event) => {
+				if (event.key !== "Escape" || !drag) return;
+				event.preventDefault();
+				event.stopPropagation();
+				endDrag();
+			}, true);
+		});
+	};
+
 	// pageBehaviors: the per-page mount. Every shell body carries it; each
 	// wire function self-guards, so pages without a behavior pay nothing.
 	const pageBehaviors = () => ({
@@ -2370,9 +2662,12 @@
 			wireTransactionsDialog(document);
 			wireClientDialog(document);
 			wireClientDeleteDialog(document);
+			wireClientArchiveDialog(document);
+			wireClientFieldDialog(document);
 			wireDetailDialogs(document);
 			wireDetailSplit(document);
 			wireInlineTitles(document);
+			wireStageOrder(document);
 			wireEntryFields(document);
 			wireForms();
 			wireConfirmSelects(document);
@@ -2386,7 +2681,7 @@
 		},
 	});
 
-if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireTransactionsDialog, wireClientDialog, wireClientDeleteDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireEntryFields, wireEntryValidation, entryPickerSearchable, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink };
+if (typeof module !== "undefined" && module.exports) module.exports = { core, FileUploader, wireForms, wireRealtime, wireTimelineDialog, wireCatalogDialog, wireTransactionsDialog, wireClientDialog, wireClientDeleteDialog, wireClientArchiveDialog, wireClientFieldDialog, wireEngagementDialog, wireDetailDialogs, wireDetailSplit, wireInlineTitles, wireEntryFields, wireEntryValidation, entryPickerSearchable, wireConfirmSelects, engagementClientPicker, engagementNotesEditor, notificationsLive, passkeyLogin, passkeyEnroll, listScreen, pageBehaviors, copyIntakeLink, wireStageOrder };
 	if (typeof document === "undefined" || typeof window === "undefined") return;
 	// The pinned HTMX runtime dispatches this before reading or parsing the body.
 	// Keep downloads, EventSource, API data and external redirects out of swaps.

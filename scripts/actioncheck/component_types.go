@@ -148,7 +148,7 @@ func VerifyTypedComponentArguments(root string) error {
 					callee := calledFunction(producer, pkg.TypesInfo)
 					if callee != nil && !closedConsumer(callee) {
 						for _, argument := range producer.Args {
-							if !typedComponentArgumentSafe(argument, pkg.TypesInfo, component, known, true, closedConsumer, nil) {
+							if !typedComponentArgumentSafe(argument, pkg.TypesInfo, component, known, true, closedConsumer, nil, goOrigins.containerInputs) {
 								violations = append(violations, fmt.Errorf("%s: unverified Go component argument", pkg.Fset.Position(argument.Pos())))
 							}
 						}
@@ -212,7 +212,7 @@ func VerifyTypedComponentArguments(root string) error {
 					}
 					producer, ok := method.X.(*ast.CallExpr)
 					if ok && (isScannedCall(producer, pkg.TypesInfo) || packageFunction(producer, pkg.TypesInfo, "github.com/a-h/templ", "JSONScript")) {
-						if listRoot && isScannedCall(producer, pkg.TypesInfo) {
+						if listRoot && isScannedCall(producer, pkg.TypesInfo) && !isApprovedDropdownScannedSlot(object, producer, pkg.TypesInfo) {
 							violations = append(violations, fmt.Errorf("%s: buffered component slot on a streaming list path", pkg.Fset.Position(producer.Pos())))
 						}
 						return true
@@ -226,7 +226,7 @@ func VerifyTypedComponentArguments(root string) error {
 						return true
 					}
 					for index, arg := range producer.Args {
-						if !typedComponentArgumentSafe(arg, pkg.TypesInfo, component, known, true, closedConsumer, forwarded) {
+						if !typedComponentArgumentSafe(arg, pkg.TypesInfo, component, known, true, closedConsumer, forwarded, goOrigins.containerInputs) {
 							_, identifier := arg.(*ast.Ident)
 							if identifier && callee != nil && callee.Pkg() != nil && known[callee.Pkg().Path()][callee.Name()] && ignoresComponentFields(functions[callee], index, component) {
 								continue
@@ -250,6 +250,28 @@ func VerifyTypedComponentArguments(root string) error {
 type typedFunction struct {
 	declaration *ast.FuncDecl
 	info        *types.Info
+}
+
+func isApprovedDropdownScannedSlot(owner *types.Func, call *ast.CallExpr, info *types.Info) bool {
+	if owner == nil || owner.Pkg() == nil || owner.Pkg().Path() != atomsImportPath || owner.Name() != "Dropdown" || len(call.Args) != 1 {
+		return false
+	}
+	selector, ok := ast.Unparen(call.Args[0]).(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	selection := info.Selections[selector]
+	if selection == nil || selection.Kind() != types.FieldVal {
+		return false
+	}
+	switch field := selection.Obj().Name(); field {
+	case "Summary", "Panel":
+		return namedTypeIs(info.TypeOf(selector.X), atomsImportPath, "DropdownProps")
+	case "Item":
+		return namedTypeIs(info.TypeOf(selector.X), atomsImportPath, "DropdownItem")
+	default:
+		return false
+	}
 }
 
 func expectedListRoots(webDirectory string) (map[string]bool, error) {
@@ -379,13 +401,13 @@ func ignoresComponentFields(function typedFunction, index int, component *types.
 }
 
 func calledFunction(call *ast.CallExpr, info *types.Info) *types.Func {
-	var ident *ast.Ident
-	switch function := call.Fun.(type) {
-	case *ast.Ident:
-		ident = function
-	case *ast.SelectorExpr:
-		ident = function.Sel
+	if selector, ok := ast.Unparen(call.Fun).(*ast.SelectorExpr); ok {
+		if selection := info.Selections[selector]; selection != nil {
+			function, _ := selection.Obj().(*types.Func)
+			return function
+		}
 	}
+	ident := callIdentifier(call.Fun)
 	if ident == nil {
 		return nil
 	}
@@ -397,7 +419,9 @@ func isScannedCall(call *ast.CallExpr, info *types.Info) bool {
 	return packageFunction(call, info, actionattrsImportPath, "Scanned")
 }
 
-func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *types.Interface, known map[string]map[string]bool, containers bool, closedConsumer func(*types.Func) bool, forwarded func(ast.Expr) bool) bool {
+type componentOriginResolver func(ast.Expr, *types.Info) ([]renderOriginExpr, bool)
+
+func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *types.Interface, known map[string]map[string]bool, containers bool, closedConsumer func(*types.Func) bool, forwarded func(ast.Expr) bool, origins componentOriginResolver) bool {
 	safe := true
 	ast.Inspect(root, func(node ast.Node) bool {
 		if !safe {
@@ -413,13 +437,13 @@ func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *type
 			_, isMap := info.TypeOf(literal).Underlying().(*types.Map)
 			for _, element := range literal.Elts {
 				if field, ok := element.(*ast.KeyValueExpr); ok {
-					if isMap && !typedComponentArgumentSafe(field.Key, info, component, known, containers, closedConsumer, forwarded) {
+					if isMap && !typedComponentArgumentSafe(field.Key, info, component, known, containers, closedConsumer, forwarded, origins) {
 						safe = false
 						break
 					}
 					element = field.Value
 				}
-				if !typedComponentArgumentSafe(element, info, component, known, containers, closedConsumer, forwarded) {
+				if !typedComponentArgumentSafe(element, info, component, known, containers, closedConsumer, forwarded, origins) {
 					safe = false
 					break
 				}
@@ -440,6 +464,18 @@ func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *type
 		if !types.Implements(typ, component) {
 			_, opaqueInterface := typ.Underlying().(*types.Interface)
 			if containers && (opaqueInterface || containsComponent(typ, component, make(map[types.Type]bool))) {
+				if ident, ok := expression.(*ast.Ident); ok && origins != nil {
+					values, resolved := origins(ident, info)
+					if resolved {
+						for _, value := range values {
+							if !typedComponentArgumentSafe(value.expr, value.info, component, known, containers, closedConsumer, forwarded, origins) {
+								safe = false
+								break
+							}
+						}
+						return false
+					}
+				}
 				safe = false
 				return false
 			}
@@ -455,7 +491,7 @@ func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *type
 					return false
 				}
 				for _, argument := range call.Args {
-					if !typedComponentArgumentSafe(argument, info, component, known, containers, closedConsumer, forwarded) {
+					if !typedComponentArgumentSafe(argument, info, component, known, containers, closedConsumer, forwarded, origins) {
 						safe = false
 						break
 					}
@@ -477,7 +513,7 @@ func typedComponentArgumentSafe(root ast.Expr, info *types.Info, component *type
 			return false
 		}
 		for _, argument := range call.Args {
-			if !typedComponentArgumentSafe(argument, info, component, known, containers, closedConsumer, forwarded) {
+			if !typedComponentArgumentSafe(argument, info, component, known, containers, closedConsumer, forwarded, origins) {
 				safe = false
 				break
 			}

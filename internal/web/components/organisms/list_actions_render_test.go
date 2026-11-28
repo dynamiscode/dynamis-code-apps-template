@@ -40,3 +40,36 @@ func TestListActionsMenuPreservesDropdownHTML(t *testing.T) {
 		}
 	}
 }
+
+func TestListActionsMenuNamed(t *testing.T) {
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := viewmodel.PageData{Catalog: catalog, Locale: "en"}
+	actions := []ListAction{{Label: "Open", Href: "/clients"}}
+	for _, tc := range []struct {
+		label string
+		want  string
+	}{
+		{label: `Client "Ada" actions`, want: `Client &#34;Ada&#34; actions`},
+		{label: "", want: data.T("ui.row_actions")},
+	} {
+		var got strings.Builder
+		if err := ListActionsMenuNamed(data, actions, true, tc.label).Render(t.Context(), &got); err != nil {
+			t.Fatal(err)
+		}
+		for _, attr := range []string{"aria-label", "title"} {
+			if !strings.Contains(got.String(), attr+`="`+tc.want+`"`) {
+				t.Errorf("label %q: missing %s in %s", tc.label, attr, got.String())
+			}
+		}
+	}
+	var empty strings.Builder
+	if err := ListActionsMenuNamed(data, nil, true, "Client actions").Render(t.Context(), &empty); err != nil {
+		t.Fatal(err)
+	}
+	if empty.Len() != 0 {
+		t.Errorf("empty actions rendered %q", empty.String())
+	}
+}

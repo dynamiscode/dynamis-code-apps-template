@@ -111,6 +111,35 @@ func TestWorkspaceSidebarNavigationPermissions(t *testing.T) {
 	}
 }
 
+func TestEngagementSidebarCurrentPage(t *testing.T) {
+	_, _, workspaceID, _ := testWeb(t, 10)
+	catalog, err := i18n.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := "/workspaces/" + workspaceID.String()
+	for _, tc := range []struct {
+		path, current string
+	}{
+		{base + "/engagements", "/engagements"},
+		{base + "/engagements/board", "/engagements"},
+		{base + "/engagement-stages", "/engagements"},
+		{base + "/engagement-stages/example", "/engagements"},
+		{base + "/clients", "/clients"},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			data := viewmodel.PageData{Catalog: catalog, Locale: "en", Workspace: identity.WorkspaceSummary{ID: workspaceID}, NavPage: "clients", CurrentPath: tc.path, ClientsEnabled: true, EngagementEnabled: true}
+			var body bytes.Buffer
+			if err := organisms.WorkspaceNav(data).Render(context.Background(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if strings.Count(body.String(), `aria-current="page"`) != 1 || !strings.Contains(body.String(), `aria-current="page" href="`+base+tc.current+`"`) {
+				t.Errorf("incorrect sidebar current page: %s", body.String())
+			}
+		})
+	}
+}
+
 func TestNavigationComponentsEscapeInput(t *testing.T) {
 	_, _, workspaceID, _ := testWeb(t, 10)
 	catalog, err := i18n.New()

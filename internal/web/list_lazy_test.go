@@ -50,6 +50,7 @@ func TestClientsListRendersRowsWithoutJavaScript(t *testing.T) {
 // holds as filter_field and filter_value, is carried by the search form. Clearing the search must keep it.
 func TestSearchKeepsAConditionAddedFromTheMenu(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	page := request(env.routes, http.MethodGet, env.listPath()+"?all=1&q=ix&filter_field=displayName&filter_op=equals&filter_value=he", nil, env.cookies, nil)
 	body := page.Body.String()
 	if page.Code != http.StatusOK || !strings.Contains(body, `name="filter" value="displayName:equals:he"`) {
@@ -60,8 +61,9 @@ func TestSearchKeepsAConditionAddedFromTheMenu(t *testing.T) {
 // TestLiveResultsRefreshTheControlsThatCarryTheSearch checks the filter controls retain the search.
 func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	fragment := request(env.routes, http.MethodGet, env.listPath()+"?part=results&q=ix", nil, env.cookies, map[string]string{"HX-Request": "true"}).Body.String()
-	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`, `<div id="list-filter-add" hx-swap-oob="true">`, `filter_field=archiveStatus&amp;q=ix`} {
+	for _, marker := range []string{`<div id="list-filter-bar" hx-swap-oob="true">`, `<div id="list-filter-add" hx-swap-oob="true">`, `filter_field=displayName&amp;q=ix`} {
 		if !strings.Contains(fragment, marker) {
 			t.Fatalf("results fragment lacks out-of-band %s", marker)
 		}
@@ -74,6 +76,7 @@ func TestLiveResultsRefreshTheControlsThatCarryTheSearch(t *testing.T) {
 
 func TestClientFilterSwapPreservesSearchAndFullPageFallback(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	path := env.listPath() + "?filter=archiveStatus:equals:archived&q=Ada"
 	fragment := request(env.routes, http.MethodGet, path, nil, env.cookies, map[string]string{"HX-Request": "true"})
 	body := fragment.Body.String()
@@ -132,6 +135,7 @@ func withAll(query string) string {
 // region with the switch list refreshed out of band, and that a plain form post still redirects to the list.
 func TestClientColumnChangeRefreshesInPlaceAndRedirectsForForms(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	form := url.Values{"csrf": {env.csrf}, "visible": {"true"}}
 	live := request(env.routes, http.MethodPost, env.listPath()+"/preferences/columns/phone?part=results", form, env.cookies, map[string]string{"HX-Request": "true"})
 	body := live.Body.String()
@@ -168,7 +172,7 @@ func TestArchivedClientsListOffersRestoreNotArchive(t *testing.T) {
 	if created.Code != http.StatusSeeOther || location == "" {
 		t.Fatalf("create = %d", created.Code)
 	}
-	archive := request(env.routes, http.MethodPost, location+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	archive := request(env.routes, http.MethodPost, location+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
 	if archive.Code != http.StatusSeeOther {
 		t.Fatalf("archive = %d", archive.Code)
 	}
@@ -186,7 +190,7 @@ func TestClientArchiveFilterPreservesQuery(t *testing.T) {
 	env := newClientsTestEnv(t)
 	env.seedClient(t, "Ada Active")
 	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada Archived"}}, env.cookies, nil)
-	result := request(env.routes, http.MethodPost, created.Header().Get("Location")+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	result := request(env.routes, http.MethodPost, created.Header().Get("Location")+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
 	if result.Code != http.StatusSeeOther {
 		t.Fatalf("archive = %d", result.Code)
 	}
@@ -200,6 +204,14 @@ func TestClientArchiveFilterPreservesQuery(t *testing.T) {
 
 func TestClientArchiveFilterAddStepAndValidation(t *testing.T) {
 	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada"}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d", created.Code)
+	}
+	archived := request(env.routes, http.MethodPost, created.Header().Get("Location")+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
+	if archived.Code != http.StatusSeeOther {
+		t.Fatalf("archive = %d", archived.Code)
+	}
 	step := request(env.routes, http.MethodGet, env.listPath()+"?filter_field=archiveStatus&q=Ada&sort=displayName", nil, env.cookies, nil)
 	for _, want := range []string{`name="filter_field" value="archiveStatus"`, `value="active"`, `value="archived"`, `name="q" value="Ada"`, `name="sort" value="displayName"`} {
 		if step.Code != http.StatusOK || !strings.Contains(step.Body.String(), want) {

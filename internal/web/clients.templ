@@ -14,8 +14,10 @@ import "strings"
 
 templ clientsPage(data viewmodel.PageData) {
 	@templates.DashboardShell(data, templates.DashboardHome) {
-		@molecules.PageHeading(data.T("clients.title"), "")
 		@clientList(data)
+		if data.CanEditClients {
+			@clientArchiveDialog(data)
+		}
 		if data.CanDeleteClients {
 			@clientDeleteDialog(data)
 		}
@@ -52,10 +54,20 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 				@molecules.PageHeading(data.Client.DisplayName, "")
 			</div>
 			if data.CanEditClients || data.CanManageFields {
-				{{ actionPath := data.CurrentPath + "/" + data.Client.ID.String(); actions := []organisms.ListAction{}; if data.CanManageFields { actions = append(actions, organisms.ListAction{Label: data.T("clients.fields_link"), Icon: "edit", Href: data.FieldsPath}) }; if data.CanEditClients { if data.Client.ArchivedAt == nil { actions = append(actions, organisms.ListAction{Label: data.T("clients.archive"), Icon: "archive", PostPath: actionPath + "/archive"}) } else { actions = append(actions, organisms.ListAction{Label: data.T("common.restore"), Icon: "unarchive", PostPath: actionPath + "/unarchive"}) }; if data.CanDeleteClients { actions = append(actions, organisms.ListAction{Label: data.T("clients.delete_client"), Icon: "delete", PostPath: actionPath + "/delete", Confirm: data.T("clients.delete_client_confirm"), Danger: true, ClientDeleteName: data.Client.DisplayName}) } } }}
-				<div class="absolute right-0 top-0 z-20 [&_.list-action-items]:right-0">@organisms.ListActionsMenu(data, actions, true)</div>
+				{{ actionPath := data.CurrentPath + "/" + data.Client.ID.String(); actions := []organisms.ListAction{}; if data.CanManageFields { actions = append(actions, organisms.ListAction{Label: data.T("clients.fields_link"), Icon: "edit", Href: data.FieldsPath}) }; if data.CanEditClients { if data.Client.ArchivedAt == nil { actions = append(actions, organisms.ListAction{Label: data.T("clients.archive"), Icon: "archive", PostPath: clientContextURL(actionPath + "/archive", data.ClientReturnQuery), ClientArchiveName: data.Client.DisplayName}) } else { actions = append(actions, organisms.ListAction{Label: data.T("common.restore"), Icon: "unarchive", PostPath: clientContextURL(actionPath + "/unarchive", data.ClientReturnQuery)}) }; if data.CanDeleteClients { actions = append(actions, organisms.ListAction{Label: data.T("clients.delete_client"), Icon: "delete", PostPath: actionPath + "/delete", Confirm: data.T("clients.delete_client_confirm"), Danger: true, ClientDeleteName: data.Client.DisplayName}) } } }}
+				<div class="absolute right-0 top-0 z-20 [&_.list-action-items]:right-0">@organisms.ListActionsMenuNamed(data, actions, true, data.T("clients.client_actions") + ": " + data.Client.DisplayName)</div>
 			}
 		</div>
+		if data.ErrorKey == "clients.archive_confirm" {
+			<section class="card my-4 p-6" aria-labelledby="client-archive-confirm">
+				<h2 id="client-archive-confirm">{ data.T("clients.archive_confirm") } { data.Client.DisplayName }</h2>
+				<form method="post" action={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/archive", data.ClientReturnQuery)) }>
+					<input type="hidden" name="csrf" value={ data.CSRF }/>
+					<button class="btn btn-primary" type="submit" name="confirm_archive" value="yes">{ data.T("clients.archive") }</button>
+					<a class="btn" href={ templ.SafeURL(clientDetailHref(data, data.Client.ID.String())) }>{ data.T("common.cancel") }</a>
+				</form>
+			</section>
+		}
 		if data.Client.PossibleDuplicate {
 			<div class="alert alert-warning my-4" role="status">{ data.T("clients.possible_duplicate") }</div>
 		}
@@ -64,7 +76,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 		if data.CanReadClientTransactions {
 			<section class="card my-4 p-6" aria-labelledby="client-transactions-heading">
 				<h2 id="client-transactions-heading" class="text-xl font-bold">{ data.T("transactions.client_history") }</h2>
-				<a class="link" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions?client_id="+data.Client.ID.String()+"#transactions-entries-heading") }>{ data.T("transactions.view_client_entries") }</a>
+				<a class="link border-0" href={ templ.SafeURL("/workspaces/"+data.Workspace.ID.String()+"/transactions?client_id="+data.Client.ID.String()+"#transactions-entries-heading") }>{ data.T("transactions.view_client_entries") }</a>
 				if len(data.ClientTransactions) == 0 {
 					<p>{ data.T("transactions.history_empty") }</p>
 				} else {
@@ -105,8 +117,8 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 			<section class="card my-4 p-6" aria-labelledby="engagement-heading">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<h2 id="engagement-heading">{ data.T("engagement.title") }</h2>
-					if data.CanEditClients && data.Client.ArchivedAt == nil {
-						{{ createPath := "/workspaces/" + data.Workspace.ID.String() + "/engagements/new?client=" + data.Client.ID.String() + "&from_client=" + data.Client.ID.String() }}
+					if data.CanEditClients && data.Client.ArchivedAt == nil && len(data.OpenEngagementStages) > 0 {
+						{{ createPath := clientContextURL("/workspaces/" + data.Workspace.ID.String() + "/engagements/new?client=" + data.Client.ID.String() + "&from_client=" + data.Client.ID.String(), data.ClientReturnQuery) }}
 						<a class="btn btn-primary" href={ templ.SafeURL(createPath) } hx-get={ createPath } hx-target="#engagement-create-modal" hx-swap="innerHTML" data-engagement-create>{ data.T("engagement.create") }</a>
 					}
 				</div>
@@ -128,7 +140,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 					<ul class="detail-engagements my-4 space-y-2">
 						for _, item := range data.Engagements {
 							<li>
-								<a class="card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200" href={ templ.SafeURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String()) }>
+								<a class="card card-border group block p-4 text-base-content no-underline hover:bg-base-200 focus-visible:bg-base-200" href={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/engagements/" + item.ID.String(), data.ClientReturnQuery)) }>
 									<span class="block break-words font-semibold group-hover:underline group-focus-visible:underline">{ item.Name }</span>
 									for _, stage := range data.EngagementStages {
 										if stage.ID == item.StageID {
@@ -156,7 +168,7 @@ templ clientDetailPage(data viewmodel.PageData) {	@templates.DashboardShell(data
 templ clientDetail(data viewmodel.PageData) {
 	<section id="client-detail" class="client-panel card my-4 p-6" aria-labelledby="client-heading">
 		<h2 id="client-heading" class="sr-only">{ data.T("clients.client") }</h2>
-		if data.ErrorKey != "" && data.ClientInlineField == "" {
+		if data.ErrorKey != "" && data.ErrorKey != "clients.archive_confirm" && data.ErrorKey != "clients.timeline_browse" && data.ClientInlineField == "" {
 			if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
 				<div data-timeline-error-summary>
 					@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -183,7 +195,7 @@ templ clientDetail(data viewmodel.PageData) {
 						ID: "inline-notes", Name: "value", Label: data.T("clients.notes")+" "+data.T("ui.optional"),
 						EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"), RetryLabel: data.T("ui.retry"),
 						EmptyText: data.T("clients.value_none"), Saved: data.Client.Notes, Value: value,
-						Action: data.CurrentPath + "/" + data.Client.ID.String() + "/field", CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-detail",
+						Action: clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/field", data.ClientReturnQuery), CancelURL: clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1", data.ClientReturnQuery) + "#client-detail",
 						CSRF: data.CSRF, Version: version, Field: "notes", Error: data.T(data.ErrorKey), Warning: data.T("notes.source_warning"),
 						BoldLabel: data.T("engagement.bold"), ItalicLabel: data.T("engagement.italic"), ListLabel: data.T("engagement.bulleted_list"), SourceLabel: data.T("notes.source"), MaxLength: "5000",
 						LinkLabel: data.T("notes.link"), LinkURLLabel: data.T("notes.link_url"), LinkApplyLabel: data.T("notes.link_apply"), LinkCancelLabel: data.T("notes.link_cancel"), LinkInvalidLabel: data.T("notes.link_invalid"),
@@ -203,7 +215,7 @@ templ clientDetail(data viewmodel.PageData) {
 					<div class="modal-box">
 						<h2 id="client-edit-dialog-title">{ data.T("ui.edit") } { data.T("clients.client") }</h2>
 						@molecules.ErrorAlert(data.T(data.ErrorKey))
-						<form action={ data.CurrentPath + "/" + data.Client.ID.String() } method="post">
+						<form action={ templ.SafeURL(clientDetailHref(data, data.Client.ID.String())) } method="post">
 							<input type="hidden" name="csrf" value={ data.CSRF }/>
 							<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 							@molecules.EntryField(molecules.EntryFieldProps{ID: "client-display-name", Label: data.T("clients.display_name"), Value: data.ClientDraft.DisplayName}) {
@@ -219,7 +231,7 @@ templ clientDetail(data viewmodel.PageData) {
 								<textarea id="client-notes" name="notes" maxlength="5000">{ data.ClientDraft.Notes }</textarea>
 							}
 							<div class="modal-action">
-								<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
+								<a class="btn" href={ templ.SafeURL(clientDetailHref(data, data.Client.ID.String())) } data-detail-fallback-cancel>{ data.T("common.cancel") }</a>
 								<button type="button" class="btn" data-detail-cancel hidden>{ data.T("common.cancel") }</button>
 								@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.save"), Attrs: templ.Attributes{"type": "submit"}})
 							</div>
@@ -232,6 +244,9 @@ templ clientDetail(data viewmodel.PageData) {
 			@molecules.StatusLine(data.T("clients.archived_status"), nil)
 		}
 	</section>
+		if data.CanEditClients {
+			@clientArchiveDialog(data)
+		}
 		if data.CanDeleteClients {
 			@clientDeleteDialog(data)
 		}
@@ -244,7 +259,7 @@ templ clientInlineField(data viewmodel.PageData, field, label, saved, inputType,
 			Saved: saved, Display: saved, Empty: saved == "", EmptyText: data.T("clients.value_none"), Value: value,
 			Label: label, InputLabel: inputLabel, EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"),
 			ID: "inline-" + field, Name: "value", InputType: inputType, MaxLength: maxLength, Required: required,
-			Action: data.CurrentPath + "/" + data.Client.ID.String() + "/field", CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-detail",
+			Action: clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/field", data.ClientReturnQuery), CancelURL: clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1", data.ClientReturnQuery) + "#client-detail",
 			CSRF: data.CSRF, Version: version, Field: field, Draft: hasDraft, FormDraft: hasDraft, Conflict: conflict,
 			Error: data.T(data.ErrorKey), RetryLabel: data.T("ui.retry"), Class: "min-w-0",
 		})
@@ -285,18 +300,14 @@ templ clientTimeline(data viewmodel.PageData) {
 							<p class="text-sm">{ data.T("clients.timeline_corrects") }:
 								if timelineContains(data.ClientTimeline, *entry.CorrectsID) {
 									<a class="rounded-field border border-base-300 px-1" href={ "#timeline-" + entry.CorrectsID.String() }>{ entry.CorrectsID.String() }</a>
+								} else if page, found := data.TimelineCorrectionPages[*entry.CorrectsID]; found {
+									<a class="link" href={ templ.SafeURL(clientTimelineURL(data, page) + "#timeline-" + entry.CorrectsID.String()) }>{ entry.CorrectsID.String() }</a>
 								} else {
 									{ entry.CorrectsID.String() }
 								}
 							</p>
 						}
-						<p class="text-sm">{ data.T("clients.timeline_author") }:
-							if entry.AuthorID != nil {
-								{ entry.AuthorID.String() }
-							} else {
-								{ data.T("clients.timeline_deleted_author") }
-							}
-						</p>
+						<p class="text-sm">{ data.T("clients.timeline_author") }: { timelineAuthor(data.EngagementMembers, entry.AuthorID, data.T("clients.timeline_deleted_author")) }</p>
 					</div>
 					<hr/>
 				</li>
@@ -304,49 +315,58 @@ templ clientTimeline(data viewmodel.PageData) {
 		</ol>
 		<nav aria-label={ data.T("clients.timeline_heading") }>
 			if data.TimelinePage > 1 {
-				<a class="btn btn-sm" href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage-1) + "#client-timeline-heading" }>{ data.T("ui.previous_page") }</a>
+				<a class="btn btn-sm" href={ templ.SafeURL(clientTimelineURL(data, data.TimelinePage-1) + "#client-timeline-heading") }>{ data.T("ui.previous_page") }</a>
 			}
 			if len(data.ClientTimeline) == 50 && data.TimelinePage < 1000000 {
-				<a class="btn btn-sm" href={ "?timeline_page=" + strconv.Itoa(data.TimelinePage+1) + "#client-timeline-heading" }>{ data.T("items.next_page") }</a>
+				<a class="btn btn-sm" href={ templ.SafeURL(clientTimelineURL(data, data.TimelinePage+1) + "#client-timeline-heading") }>{ data.T("items.next_page") }</a>
 			}
 		</nav>
 		if data.CanEditClients {
-			<div data-timeline-composer data-timeline-invalid?={ strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") }>
+			<div data-timeline-composer data-timeline-invalid?={ strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") || data.ErrorKey == "clients.timeline_browse" }>
 				<h3 id="timeline-form-heading" class="text-xl font-bold">{ data.T("clients.timeline_add") }</h3>
 				<p class="text-sm">{ data.Client.DisplayName }</p>
 				if strings.HasPrefix(data.ErrorKey, "clients.timeline_error_") {
 					@molecules.ErrorAlert(data.T(data.ErrorKey))
 				}
-				<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage) } method="post">
+				<form action={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/timeline?timeline_page=" + strconv.Itoa(data.TimelinePage), data.ClientReturnQuery)) } method="post" data-persist="timeline-create">
 					<input type="hidden" name="csrf" value={ data.CSRF }/>
 					@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-text", Label: data.T("clients.timeline_text"), Value: data.TimelineDraft.Text}) {
 						<textarea id="timeline-text" name="text" required class="w-full min-h-32">{ data.TimelineDraft.Text }</textarea>
 					}
 					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-type", Label: data.T("clients.timeline_type"), Value: data.TimelineDraft.Type, SearchLabel: data.T("ui.search")}) {
-							<select id="timeline-type" name="type" class="select w-full" data-entry-picker>
+							<select id="timeline-type" name="type" class="select w-full">
 								@atoms.SelectOptions(timelineOptions(data, "type", data.TimelineDraft.Type, []string{"note", "call", "visit", "document", "update", "change", "delay"}))
 							</select>
 						}
 						@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-channel", Label: data.T("clients.timeline_channel")+" "+data.T("ui.optional"), Value: data.TimelineDraft.Channel, SearchLabel: data.T("ui.search")}) {
-							<select id="timeline-channel" name="channel" class="select w-full" data-entry-picker>
+							<select id="timeline-channel" name="channel" class="select w-full">
 								@atoms.SelectOptions(timelineOptions(data, "channel", data.TimelineDraft.Channel, []string{"", "phone", "whatsapp", "email", "in_person", "other"}))
 							</select>
 						}
 					</div>
-					<details class="collapse collapse-arrow bg-base-200 mt-3" open?={ data.TimelineDraft.Corrects != "" }>
+					<details class="collapse collapse-arrow bg-base-200 mt-3" open?={ data.TimelineDraft.Corrects != "" || data.TimelineCorrectionQuery != "" || data.TimelineCorrectionPage > 1 }>
 						<summary class="collapse-title font-semibold">{ data.T("clients.timeline_corrects") } { data.T("ui.optional") }</summary>
 						<div class="collapse-content">
+							<label for="timeline-search">{ data.T("clients.timeline_search_corrections") }</label>
+							<input id="timeline-search" name="timeline_search" value={ data.TimelineCorrectionQuery } maxlength="200"/>
+							<button class="btn btn-sm" type="submit" name="timeline_browse" value="1" formnovalidate>{ data.T("clients.timeline_search") }</button>
 							@molecules.EntryField(molecules.EntryFieldProps{ID: "timeline-corrects", Label: data.T("clients.timeline_corrects")+" "+data.T("ui.optional"), Value: data.TimelineDraft.Corrects, SearchLabel: data.T("ui.search")}) {
-							<select id="timeline-corrects" name="corrects" class="select w-full" data-entry-picker>
+							<select id="timeline-corrects" name="corrects" class="select w-full" data-draft-allow-missing>
 								<option value="">{ data.T("clients.timeline_none") }</option>
-								if data.TimelineDraft.Corrects != "" && !timelineHasDraftCorrection(data.ClientTimeline, data.TimelineDraft.Corrects) {
+								if data.TimelineDraft.Corrects != "" && !timelineHasDraftCorrection(data.TimelineCorrectionResults, data.TimelineDraft.Corrects) {
 									<option value={ data.TimelineDraft.Corrects } selected>{ data.TimelineDraft.Corrects }</option>
 								}
-								for _, entry := range data.ClientTimeline {
+								for _, entry := range data.TimelineCorrectionResults {
 									<option value={ entry.ID.String() } selected?={ data.TimelineDraft.Corrects == entry.ID.String() }>{ entry.ID.String() } — { entry.Text }</option>
 								}
 							</select>
+							}
+							if data.TimelineCorrectionPage > 1 {
+								<button class="btn btn-sm" type="submit" name="timeline_browse" value={ strconv.Itoa(data.TimelineCorrectionPage - 1) } formnovalidate>{ data.T("ui.previous_page") }</button>
+							}
+							if data.TimelineCorrectionHasMore && data.TimelineCorrectionPage < 1000000 {
+								<button class="btn btn-sm" type="submit" name="timeline_browse" value={ strconv.Itoa(data.TimelineCorrectionPage + 1) } formnovalidate>{ data.T("items.next_page") }</button>
 							}
 						</div>
 					</details>
@@ -390,7 +410,7 @@ templ clientValues(data viewmodel.PageData) {
 }
 
 templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
-	{{ version := strconv.FormatInt(data.Client.Version, 10); hasDraft := data.ClientValueDraftField == value.FieldID.String(); saved := clientValueDisplayValue(value.Value); inputValue := saved; inputType := value.Type; if inputType != "number" && inputType != "date" { inputType = "text" }; action := data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(); clearURL := ""; if value.Value != nil { clearURL = action + "/clear" }; if hasDraft { inputValue = data.ClientValueDraft; inputType = "text" } }}
+	{{ version := strconv.FormatInt(data.Client.Version, 10); hasDraft := data.ClientValueDraftField == value.FieldID.String(); saved := clientValueDisplayValue(value.Value); inputValue := saved; inputType := value.Type; if inputType != "number" && inputType != "date" { inputType = "text" }; actionPath := data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(); action := clientContextURL(actionPath, data.ClientReturnQuery); clearURL := ""; if value.Value != nil { clearURL = clientContextURL(actionPath + "/clear", data.ClientReturnQuery) }; if hasDraft { inputValue = data.ClientValueDraft; inputType = "text" } }}
 	<div class="client-value min-w-0">
 		if hasDraft {
 			@molecules.ErrorAlert(data.T(data.ErrorKey))
@@ -399,7 +419,7 @@ templ clientTextValue(data viewmodel.PageData, value viewmodel.ClientValueRow) {
 			Saved: saved, Display: clientValueDisplay(data, value), Empty: value.Value == nil, EmptyText: data.T("clients.value_none"), Value: inputValue,
 			Label: value.Label, InputLabel: value.Label + " " + data.T("ui.optional"), EditLabel: data.T("ui.edit"), SaveLabel: data.T("clients.value_save"), CancelLabel: data.T("common.cancel"),
 			ID: "value-" + value.FieldID.String(), Name: "value", InputType: inputType, MaxLength: "500",
-			Action: action, CancelURL: data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values", ClearURL: clearURL, ClearLabel: data.T("clients.value_clear"),
+			Action: action, CancelURL: clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1", data.ClientReturnQuery) + "#client-values", ClearURL: clearURL, ClearLabel: data.T("clients.value_clear"),
 			CSRF: data.CSRF, Version: version, Draft: hasDraft, FormDraft: hasDraft, Class: "min-w-0",
 			Attrs: templ.Attributes{"data-entry-number": templ.KV("float", value.Type == "number")},
 		})
@@ -411,7 +431,7 @@ templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow)
 	if hasDraft {
 		@molecules.ErrorAlert(data.T(data.ErrorKey))
 	}
-	<form action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() } method="post" data-confirm-select?={ value.Type == "yes_no" || value.Type == "single_choice" } data-dirty-track data-unsaved-warning data-dirty-on-load?={ hasDraft }>
+	<form action={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String(), data.ClientReturnQuery)) } method="post" data-confirm-select?={ value.Type == "yes_no" || value.Type == "single_choice" } data-dirty-track data-unsaved-warning data-dirty-on-load?={ hasDraft }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 		@molecules.EntryField(molecules.EntryFieldProps{ID: "value-" + value.FieldID.String(), Label: value.Label + " " + data.T("ui.optional"), Value: inputValue, SearchLabel: data.T("ui.search")}) {
@@ -431,7 +451,7 @@ templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow)
 			</select>
 		}
 		<div class="actions" data-confirm-select-fallback>
-			<a class="btn" href={ data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1#client-values" }>{ data.T("common.cancel") }</a>
+			<a class="btn" href={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "?cancel=1", data.ClientReturnQuery) + "#client-values") }>{ data.T("common.cancel") }</a>
 			@atoms.Button(atoms.ButtonProps{Class: "btn-primary", Label: data.T("clients.value_save"), Attrs: templ.Attributes{"type": "submit"}})
 		</div>
 		if value.Type == "yes_no" || value.Type == "single_choice" {
@@ -439,7 +459,7 @@ templ clientValueEditor(data viewmodel.PageData, value viewmodel.ClientValueRow)
 		}
 	</form>
 	if value.Value != nil {
-		<form class="client-value-clear mt-2" action={ data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear" } method="post">
+		<form class="client-value-clear mt-2" action={ templ.SafeURL(clientContextURL(data.CurrentPath + "/" + data.Client.ID.String() + "/values/" + value.FieldID.String() + "/clear", data.ClientReturnQuery)) } method="post">
 			<input type="hidden" name="csrf" value={ data.CSRF }/>
 			<input type="hidden" name="version" value={ strconv.FormatInt(data.Client.Version, 10) }/>
 			@atoms.Button(atoms.ButtonProps{Class: "btn-outline", Label: data.T("clients.value_clear"), Attrs: templ.Attributes{"type": "submit"}})

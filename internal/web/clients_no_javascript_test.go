@@ -19,6 +19,16 @@ func TestNoJavaScriptClientsCreateEditArchiveAndValidation(t *testing.T) {
 			t.Fatalf("create page missing %q: %d", want, createPage.Code)
 		}
 	}
+	if !strings.Contains(createPage.Body.String(), `<details data-client-advanced>`) || !strings.Contains(createPage.Body.String(), `<summary>Advanced</summary>`) || !strings.Contains(createPage.Body.String(), `data-unsaved-warning`) {
+		t.Fatalf("create page must show optional fields in a closed Advanced section and protect changes: %s", createPage.Body.String())
+	}
+	rejected := request(env.routes, http.MethodPost, listPath+"/new", url.Values{
+		"csrf": {env.csrf}, "display_name": {"Ada"}, "email": {"invalid"}, "phone": {"123"}, "notes": {"Draft notes"},
+	}, env.cookies, nil)
+	if rejected.Code != http.StatusUnprocessableEntity || !strings.Contains(rejected.Body.String(), `<details data-client-advanced open>`) ||
+		!strings.Contains(rejected.Body.String(), `value="invalid"`) || !strings.Contains(rejected.Body.String(), `Draft notes`) {
+		t.Fatalf("rejected create must reopen Advanced with draft: %d %s", rejected.Code, rejected.Body.String())
+	}
 
 	blank := request(env.routes, http.MethodPost, listPath, url.Values{"csrf": {env.csrf}, "display_name": {"   "}}, env.cookies, nil)
 	if blank.Code != http.StatusUnprocessableEntity || !strings.Contains(blank.Body.String(), `role="alert"`) {
@@ -37,7 +47,7 @@ func TestNoJavaScriptClientsCreateEditArchiveAndValidation(t *testing.T) {
 	if !strings.Contains(detail.Body.String(), "Native client updated") {
 		t.Fatalf("client detail missing saved name: %s", detail.Body.String())
 	}
-	archived := request(env.routes, http.MethodPost, detailPath+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	archived := request(env.routes, http.MethodPost, detailPath+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
 	if archived.Code != http.StatusSeeOther {
 		t.Fatalf("client archive = %d: %s", archived.Code, archived.Body.String())
 	}

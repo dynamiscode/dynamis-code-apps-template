@@ -336,6 +336,41 @@ func copyTemplate(
 					!clients && record.Path == "internal/web/engagement.templ" && record.OpenTag == `<a class="link lg:hidden" href="#action-history">` {
 					continue
 				}
+				if record.Path == "internal/web/engagement.templ" && (!clients || !files || !catalog || !transactions) {
+					source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.Path)))
+					if err != nil {
+						return fmt.Errorf("read actioncheck exception source: %w", err)
+					}
+					transformed := source
+					if !clients {
+						transformed = disableClientsSource(record.Path, transformed)
+					}
+					if !files {
+						transformed = disableFilesSource(record.Path, transformed)
+					}
+					if !catalog {
+						transformed = disableCatalogSource(record.Path, transformed)
+					}
+					if !transactions {
+						transformed = disableTransactionsSource(record.Path, transformed)
+					}
+					content := string(transformed)
+					if !strings.Contains(content, record.OpenTag) {
+						continue
+					}
+					var fields map[string]json.RawMessage
+					if err := json.Unmarshal(exception, &fields); err != nil {
+						return fmt.Errorf("decode actioncheck exception: %w", err)
+					}
+					fields["Line"], err = json.Marshal(strings.Count(content[:strings.Index(content, record.OpenTag)], "\n") + 1)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception line: %w", err)
+					}
+					exception, err = json.Marshal(fields)
+					if err != nil {
+						return fmt.Errorf("encode actioncheck exception: %w", err)
+					}
+				}
 				if !transactions && record.Path == "internal/web/clients.templ" {
 					source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(record.Path)))
 					if err != nil {
@@ -734,6 +769,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/engagement/agreement.go" ||
 		relative == "internal/engagement/agreement_test.go" ||
 		relative == "internal/engagement/assignee.go" || relative == "internal/engagement/next_action.go" || relative == "internal/engagement/quote.go" ||
+		relative == "internal/engagement/stage_move_test.go" ||
 		relative == "internal/platform/database/migrations/000033_engagements.sql" ||
 		relative == "internal/platform/database/migrations/000039_engagement_agreement.sql" ||
 		relative == "internal/platform/database/migrations/000051_engagement_names.sql" ||
@@ -757,7 +793,7 @@ func clientsPath(relative string) bool {
 		relative == "internal/web/engagement_test.go" || relative == "internal/web/engagement_dashboard_test.go" || relative == "internal/web/action_queue_test.go" ||
 		relative == "internal/web/engagement_notes.go" || relative == "internal/web/engagement_notes_test.go" ||
 		relative == "internal/web/client_delete.go" || relative == "internal/web/client_delete.templ" || relative == "internal/web/client_delete_templ.go" || relative == "internal/web/client_inline_field_test.go" ||
-		relative == "internal/web/engagement_new.go" || relative == "internal/web/engagement_new.templ" || relative == "internal/web/engagement_new_templ.go" || relative == "internal/web/engagement_new_search_test.go" ||
+		relative == "internal/web/engagement_new.go" || relative == "internal/web/engagement_new.templ" || relative == "internal/web/engagement_new_templ.go" || relative == "internal/web/engagement_new_search_test.go" || relative == "internal/web/engagement_new_return_test.go" ||
 		relative == "internal/web/engagement_list.go" || relative == "internal/web/engagement_list_test.go" ||
 		relative == "internal/web/engagement_board.go" || relative == "internal/web/engagement_board_test.go" ||
 		relative == "internal/web/engagement_list.templ" || relative == "internal/web/engagement_list_templ.go" ||
@@ -921,6 +957,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"deleteClientField":`)
 		value = removeLinesContaining(value, `"archiveClient":`)
 		value = removeLinesContaining(value, `"deleteClient":`)
+		value = removeLinesContaining(value, "h.getClient")
+		value = removeLinesContaining(value, "h.updateClient")
 		value = removeLinesContaining(value, `"createEngagement":`)
 		value = removeLinesContaining(value, `"setEngagementNextAction":`)
 		value = removeLinesContaining(value, `"setEngagementQuote":`)
@@ -942,6 +980,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		if i := strings.Index(value, "\nfunc TestEngagementThroughREST("); i >= 0 {
 			value = value[:i] + "\n"
 		}
+	case "internal/engagement/stage_move.go":
+		value = strings.Replace(value, "(SELECT COUNT(*) FROM engagements e WHERE e.workspace_id = s.workspace_id AND e.stage_id = s.id)", "0", 1)
+		value = strings.Replace(value, "SELECT COUNT(*) FROM engagements WHERE workspace_id = ? AND stage_id = ?", "SELECT 0 WHERE ? IS NOT NULL AND ? IS NOT NULL", 1)
 	case "internal/engagement/service_test.go":
 		value = removeLinesContaining(value, `"encoding/json"`)
 		value = removeLinesContaining(value, `"strings"`)
@@ -982,6 +1023,7 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeBlockIncludingEnd(value, "type TimelineDraft struct {", "}\n")
 		value = removeLinesContaining(value, "TimelineDraft ")
 		value = removeLinesContaining(value, "clients.TimelineEntry")
+		value = removeLinesContaining(value, "EngagementQuoteDraft")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
@@ -1011,6 +1053,8 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "clients.FilterInput")
 		value = removeLinesContaining(value, "clients.Client")
 		value = removeLinesContaining(value, "clients.Input")
+		value = removeLinesContaining(value, "h.getClient")
+		value = removeLinesContaining(value, "h.updateClient")
 		value = removeLinesContaining(value, "h.clients != nil")
 		value = removeLinesContaining(value, "clients.Field")
 		value = removeLinesContaining(value, "clients.Option")
@@ -1030,6 +1074,9 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/due")
 		value = removeLinesContaining(value, "/workspaces/{workspaceId}/engagements/bulk-move")
 		value = removeLinesContaining(value, "h.changeQueuedAction")
+	case "internal/web/clients_scope.go":
+		value = removeLinesContaining(value, `"strconv"`)
+		value = removeText(value, "func clientTimelineURL(", "func clientReturnHref(")
 	case "internal/web/workspace.templ":
 		value = removeLinesContaining(value, `import "strconv"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
@@ -1045,18 +1092,17 @@ func disableClientsSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `"time"`)
 		value = removeLinesContaining(value, `"net/url"`)
-		value = removeLinesContaining(value, `"strconv"`)
 		value = removeText(value, "func (h *Handler) setEngagementAgreement(", "func (h *Handler) setEngagementAssignee(")
 		value = removeText(value, "func (h *Handler) setEngagementAssignee(", "func (h *Handler) EnableEngagement(")
 		value = removeText(value, "func (h *Handler) moveEngagement(", "func (h *Handler) setEngagementLabel(")
 		value = removeText(value, "func (h *Handler) createEngagement(", "func (h *Handler) engagementStages(")
 	case "internal/web/engagement.templ":
-		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `import "strings"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
 		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "templ engagementDetailPage(", "templ engagementStagesPage(")
 	case "internal/web/engagement_templ.go":
-		value = removeLinesContaining(value, `import "strconv"`)
+		value = removeLinesContaining(value, `import "strings"`)
 		value = removeLinesContaining(value, `/internal/identity"`)
 		value = removeLinesContaining(value, `/internal/web/components/actionattrs"`)
 		value = removeText(value, "func engagementDetailPage(", "func engagementStagesPage(")
@@ -1224,7 +1270,7 @@ func disableFilesSource(relative string, raw []byte) []byte {
 		value = removeImport(value, "appfiles")
 		value = removeLinesContaining(value, "var agreementFiles ")
 		value = removeLinesContaining(value, "var agreementFilesAvailable ")
-		value = removeText(value, "\t\tif principal.Permissions[identity.ResourcesWrite] {\n\t\t\tfilePage :=", "\t\tif errorKey == \"engagement.invalid_name\" {")
+		value = removeText(value, "\t\tif principal.Permissions[identity.ResourcesWrite] {\n\t\t\tfilePage :=", "\n\t}\n\th.renderClientPage(")
 		value = removeLinesContaining(value, "AgreementFiles: agreementFiles.Files")
 		value = removeLinesContaining(value, "AgreementFilesPager: newListPager")
 		value = removeText(value, "func (h *Handler) agreementFileChoices(", "func (h *Handler) setClientValue(")

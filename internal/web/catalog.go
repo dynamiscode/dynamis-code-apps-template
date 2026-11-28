@@ -142,10 +142,18 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	if request.PathValue("entryId") != "" && (status != http.StatusOK || request.FormValue("picker_action") == "currency") {
 		entryID = request.PathValue("entryId")
 	}
-	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, includeArchived || entryID != "")
+	entries, err := h.catalogService.List(request.Context(), principal, workspaceID, true)
 	if err != nil {
 		h.renderError(writer, http.StatusInternalServerError)
 		return
+	}
+	emptyCatalog := len(entries) == 0
+	hasArchived := false
+	for _, entry := range entries {
+		if entry.Archived {
+			hasArchived = true
+			break
+		}
 	}
 	filtered := make([]catalog.Entry, 0, len(entries))
 	for _, entry := range entries {
@@ -274,10 +282,10 @@ func (h *Handler) renderCatalog(writer http.ResponseWriter, request *http.Reques
 	}
 	inUse := status == http.StatusConflict && form.kind != "inline" && form.kind != "edit-entry"
 	if request.Header.Get("HX-Request") == "true" && request.Header.Get("HX-History-Restore-Request") != "true" && request.Method == http.MethodGet {
-		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, entryID, false, form).Render(request.Context(), writer)
+		_ = catalogContent(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, emptyCatalog, hasArchived, entryID, false, form).Render(request.Context(), writer)
 		return
 	}
-	_ = catalogPage(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, entryID, request.URL.Query().Get("create") == "true", form).Render(request.Context(), writer)
+	_ = catalogPage(data, entries, currencies, identity.CanWriteCatalog(principal), invalid, inUse, includeArchived, emptyCatalog, hasArchived, entryID, request.URL.Query().Get("create") == "true", form).Render(request.Context(), writer)
 }
 
 func catalogEntryHref(data viewmodel.PageData, entryID string) string {

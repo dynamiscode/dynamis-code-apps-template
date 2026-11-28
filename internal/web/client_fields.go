@@ -13,8 +13,14 @@ func (h *Handler) clientFieldsPath(workspaceID identity.WorkspaceID) string {
 	return "/workspaces/" + workspaceID.String() + "/client-fields"
 }
 
+type clientOptionError struct {
+	fieldID clients.FieldID
+	label   string
+	key     string
+}
+
 func (h *Handler) clientFieldList(writer http.ResponseWriter, request *http.Request) {
-	h.renderClientFieldList(writer, request, http.StatusOK, "", clients.FieldInput{})
+	h.renderClientFieldList(writer, request, http.StatusOK, "", clients.FieldInput{}, clientOptionError{})
 }
 
 // renderClientFieldList shows every field, archived ones included, so owners and
@@ -25,6 +31,7 @@ func (h *Handler) renderClientFieldList(
 	status int,
 	errorKey string,
 	draft clients.FieldInput,
+	optionError clientOptionError,
 ) {
 	if h.clients == nil {
 		h.renderError(writer, http.StatusNotFound)
@@ -46,6 +53,18 @@ func (h *Handler) renderClientFieldList(
 	if err != nil {
 		h.clientError(writer, request, err)
 		return
+	}
+	optionErrorMatched := false
+	for i := range rows {
+		if optionError.key != "" && rows[i].ID == optionError.fieldID {
+			rows[i].OptionDraft = optionError.label
+			rows[i].OptionErrorKey = optionError.key
+			optionErrorMatched = true
+			break
+		}
+	}
+	if optionError.key != "" && !optionErrorMatched {
+		errorKey = optionError.key
 	}
 	workspaces, err := h.identity.ListWorkspaces(request.Context(), session.UserID)
 	if err != nil {
@@ -90,11 +109,11 @@ func (h *Handler) createClientField(writer http.ResponseWriter, request *http.Re
 	_, err := h.clients.DefineField(request.Context(), principal, workspaceID, draft, auditContext(request))
 	if err != nil {
 		if errors.Is(err, clients.ErrLimit) {
-			h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_limit", draft)
+			h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_limit", draft, clientOptionError{})
 			return
 		}
 		if errors.Is(err, clients.ErrInvalidInput) {
-			h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "clients.error_field_label", draft)
+			h.renderClientFieldList(writer, request, http.StatusUnprocessableEntity, "clients.error_field_label", draft, clientOptionError{})
 			return
 		}
 		h.clientError(writer, request, err)
@@ -150,7 +169,7 @@ func (h *Handler) deleteClientField(writer http.ResponseWriter, request *http.Re
 	fieldID := clients.ParseFieldIDOrZero(request.PathValue("fieldId"))
 	err := h.clients.DeleteField(request.Context(), principal, workspaceID, fieldID, auditContext(request))
 	if errors.Is(err, clients.ErrFieldNotArchived) {
-		h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_not_archived", clients.FieldInput{})
+		h.renderClientFieldList(writer, request, http.StatusConflict, "clients.error_field_not_archived", clients.FieldInput{}, clientOptionError{})
 		return
 	}
 	if err != nil {

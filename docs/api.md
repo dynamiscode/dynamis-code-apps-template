@@ -174,7 +174,20 @@ secret. Session responses contain metadata only and never session or CSRF
 secrets. Problem details and logs exclude credentials, authorization headers,
 session values, invitation values, connection strings, and signed URLs.
 
-- Engagement stages: `GET` and `POST /api/v1/workspaces/{workspaceId}/engagement-stages` list and append stages. Reads require `resources:read`; mutations require `workspace:update` and an owner or admin role. Supply a nonblank name of at most 200 characters and kind `open`, `won`, or `lost`. New workspaces have no stages. Reorder with `POST .../engagement-stages/reorder` and an `ids` array containing every stage short ID exactly once; archive with `POST .../engagement-stages/{stageId}/archive`. Lists include archived stages and their archive state. Reordering does not change kind. Both mutations are audited.
+- Engagement stages: `GET` and `POST /api/v1/workspaces/{workspaceId}/engagement-stages` list and append stages. Reads require `resources:read`; mutations require `workspace:update` and an owner or admin role. Supply a nonblank name of at most 200 characters and kind `open`, `won`, or `lost`. New workspaces have no stages. Lists include archived stages and their archive state. Archive with `POST .../engagement-stages/{stageId}/archive`. Both archive and reorder mutations are audited.
+
+  `GET .../engagement-stages/{stageId}/engagement-count` requires `workspace:update` and returns `{"count": integer}`. A missing, archived, or foreign stage returns HTTP 400; an unauthorized request returns HTTP 403. Use this count as `expectedCount` when preparing a reorder.
+
+  `POST .../engagement-stages/reorder` requires all of these JSON fields:
+
+  - `ids`: every stage short ID exactly once, in the requested order.
+  - `snapshot`: every stage in the current list order, with its `id`, `name`, `kind`, and `archived` values.
+  - `movedId`: the short ID of the stage being moved.
+  - `newKind`: the destination kind, `open`, `won`, or `lost`.
+  - `expectedCount`: the number of engagements currently in the moved stage.
+  - `confirmed`: a boolean confirming a change of kind.
+
+  A stale snapshot or engagement count returns HTTP 409 `stale-stages`. A kind change without confirmation returns HTTP 409 `confirmation-required`. The server applies the stage kind, order, and audit event atomically without changing engagement or history rows. This is a breaking change to REST v1: an older request containing only `ids` returns HTTP 400. Upgrade clients together with the server.
 - Engagements: `POST /api/v1/workspaces/{workspaceId}/engagements` requires `resources:write`, a nonblank name (trimmed, at most 200 Unicode code points), a workspace client short ID, an unarchived open stage short ID, and optional notes. Clients omitting the name or stage ID must update their requests. `PUT .../engagements/{engagementId}/name` requires `resources:write` and a `name` with the same validation; an unchanged migrated name longer than 200 code points remains valid. Name changes are audited. Creation fails if the selected stage is missing, closed, archived, or belongs to another workspace. `GET .../engagements/{engagementId}` requires `resources:read` and includes stage history. `POST .../engagements/{engagementId}/stage` requires `resources:write` and a `stageId` belonging to an unarchived workspace stage. Each move records actor, time, and both stage IDs and writes an audit event. Closed engagements can be reopened. Client deletion also deletes its engagements, next actions, and stage history.
 - Engagement label: `GET` and `PUT /api/v1/workspaces/{workspaceId}/engagement-label` read and set the workspace label. An empty label resets it. Reading requires `resources:read`; changes require `workspace:update` and are audited. REST resource names remain canonical.
 - Next actions: `PUT .../engagements/{engagementId}/next-action` sets text, an optional `dueDate` (YYYY-MM-DD), and optional `ownerId` (a workspace member's user short ID); an empty object clears it. Changes require `resources:write` and are audited. `GET .../engagements/due` requires `resources:read` and lists open-stage engagements due on or before the current UTC date. Stage moves preserve the action.
