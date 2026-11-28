@@ -13,6 +13,12 @@ The check validates fields, commit identity, and link syntax, not the evidence,
 the exemption, the completeness of the path filter, or usability. Reviewers
 must judge those.
 
+The lightweight `ux-review` check runs on pull request creation, updates,
+reopening, and body edits without restarting CI. Configure branch protection to
+require `ux-review` before relying on it to enforce body edits. If the original
+CI accessibility job failed because the record was incomplete, rerun that job
+after correcting the record; the lightweight check does not replace it.
+
 1. **Inventory.** List affected journeys, entry and return paths, roles, and
    relevant states. Identify task, success, failure and realistic data, including
    multiple similar records. Note a state as not applicable only with a reason.
