@@ -75,4 +75,61 @@ if run missing-base > "$work/output" 2>&1; then
 	echo 'missing base unexpectedly passed' >&2; exit 1
 fi
 contains 'base commit not found' "$work/output"
+
+stage='pre-push hook setup'
+template=$(CDPATH= cd -- "$(dirname "$script")/.." && pwd)
+push_repo=$work/push-repo
+remote=$work/remote.git
+mkdir -p "$push_repo/scripts" "$push_repo/internal/web" "$push_repo/docs"
+cp "$template/Makefile" "$push_repo/Makefile"
+cp "$script" "$push_repo/scripts/profile-preflight.sh"
+printf 'base\n' > "$push_repo/internal/web/handler.go"
+printf 'base\n' > "$push_repo/docs/guide.md"
+git -C "$push_repo" init -q
+git -C "$push_repo" config user.name Test
+git -C "$push_repo" config user.email test@example.invalid
+git -C "$push_repo" add .
+git -C "$push_repo" -c core.hooksPath=/dev/null commit -qm base
+push_base=$(git -C "$push_repo" rev-parse HEAD)
+git -C "$push_repo" update-ref refs/remotes/origin/main "$push_base"
+git init -q --bare "$remote"
+unset BASE
+export GO_CALLS="$work/push-calls"
+
+stage='pre-push skips unrelated changes'
+printf 'docs\n' >> "$push_repo/docs/guide.md"
+git -C "$push_repo" add docs/guide.md
+git -C "$push_repo" -c core.hooksPath=/dev/null commit -qm docs
+git -C "$push_repo" -c core.hooksPath="$template/.githooks" push "$remote" HEAD:refs/heads/main > "$work/output" 2>&1
+contains 'skipped' "$work/output"
+if [ -e "$GO_CALLS" ]; then
+	echo 'unrelated push unexpectedly ran Go tests' >&2; exit 1
+fi
+
+stage='pre-push does not expose remote or stdin data'
+(cd "$push_repo" && printf 'secret-token\n' | sh "$template/.githooks/pre-push" origin 'https://secret-token@example.invalid/repo') > "$work/output" 2>&1
+if grep -q 'secret-token' "$work/output"; then
+	echo 'pre-push exposed hook data' >&2; exit 1
+fi
+
+stage='pre-push rejects matrix failure'
+printf 'changed\n' >> "$push_repo/internal/web/handler.go"
+git -C "$push_repo" add internal/web/handler.go
+git -C "$push_repo" -c core.hooksPath=/dev/null commit -qm code
+if (GO_EXIT=1; export GO_EXIT; git -C "$push_repo" -c core.hooksPath="$template/.githooks" push "$remote" HEAD:refs/heads/main) > "$work/output" 2>&1; then
+	echo 'push unexpectedly passed a failed matrix' >&2; exit 1
+fi
+contains 'TestGenerateCatalogProfile' "$GO_CALLS"
+
+stage='pre-push rejects missing base'
+git -C "$push_repo" update-ref -d refs/remotes/origin/main
+if git -C "$push_repo" -c core.hooksPath="$template/.githooks" push "$remote" HEAD:refs/heads/main > "$work/output" 2>&1; then
+	echo 'push unexpectedly passed without a base' >&2; exit 1
+fi
+contains 'base commit not found' "$work/output"
+git -C "$push_repo" update-ref refs/remotes/origin/main "$push_base"
+
+stage='pre-push accepts passing matrix'
+git -C "$push_repo" -c core.hooksPath="$template/.githooks" push "$remote" HEAD:refs/heads/main > "$work/output" 2>&1
+contains 'testing generated profile matrix' "$work/output"
 echo 'profile preflight checks passed'

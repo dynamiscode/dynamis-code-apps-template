@@ -16,12 +16,22 @@ For UI changes, CI requires either the reviewed fields below or an exemption:
 - Reason: Explain why this change has no usability impact.
 Use the current PR head commit SHA (or an unambiguous prefix of at least seven
 hex digits) for Revision. Update it after every new commit and repeat the drive
-as applicable. Do not claim reviewed if the required drive is blocked. Link
-durable evidence; links and completed fields do not establish its effectiveness. -->
+as applicable. For each journey, classify every listed state as exercised or
+not applicable with a reason. Each exercised state needs an action/outcome
+and a durable artifact HTTPS link. For not applicable, remove the final pipe
+and artifact field. Use blocked when a required state cannot be exercised;
+do not claim reviewed. Repeat the Journey and State lines for each journey.
+Links and completed fields do not establish usability. -->
 
 - Status:
 - Revision:
 - Journey:
+- State: empty | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
+- State: populated | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
+- State: error | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
+- State: success | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
+- State: permission | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
+- State: long-content | classification | action/outcome or N/A reason | artifact HTTPS link if exercised
 - Role:
 - Viewport:
 - Actions and outcomes:
