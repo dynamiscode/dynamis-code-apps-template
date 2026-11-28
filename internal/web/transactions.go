@@ -910,6 +910,7 @@ func (h *Handler) renderTransactions(w http.ResponseWriter, r *http.Request, sta
 	view := h.listViewState(viewRequest, principal, workspace, listviews.ListTransactions, false)
 	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "transactions", NavSection: "workspace", SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, FilesEnabled: h.filesEnabled, ClientsEnabled: h.clientsEnabled}
 	data.CurrentPath, data.ListColumns, data.ListTotal = path, columns, total
+	data.ClearClientFiltersPath = clientClearFiltersPath(path, stableQuery)
 	data.ListStart, data.ListPager = listStart(page, filter.Limit), newListPager(path, stableQuery, page, filter.Limit, total)
 	data.ClientQuery.Limit = filter.Limit
 	data.Filter, data.ListPreservedQuery = filterView, filterView.Preserved

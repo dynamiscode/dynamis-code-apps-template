@@ -78,6 +78,10 @@ func TestTransactionsFiltersAndClientHistory(t *testing.T) {
 	if searched.Code != http.StatusOK || !strings.Contains(searched.Body.String(), "First matching expense") || strings.Contains(searched.Body.String(), "Second receipt") || !strings.Contains(searched.Body.String(), `list-page-size`) {
 		t.Fatalf("searched transactions page: %d %s", searched.Code, searched.Body)
 	}
+	noMatches := request(routes, http.MethodGet, transactionsPath+"?q=absent&direction=out&limit=1", nil, cookies, nil)
+	if noMatches.Code != http.StatusOK || !strings.Contains(noMatches.Body.String(), `id="transactions-filter-empty-state"`) || !strings.Contains(noMatches.Body.String(), `href="`+transactionsPath+`?limit=1"`) {
+		t.Fatalf("filtered empty recovery: %d %s", noMatches.Code, noMatches.Body)
+	}
 	filters.Set("page", "2")
 	page := request(routes, http.MethodGet, transactionsPath+"?"+filters.Encode(), nil, cookies, nil)
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), url.QueryEscape("client_id:equals:"+first.ID.String())) || !strings.Contains(page.Body.String(), url.QueryEscape("category_id:equals:"+category.ID.String())) || !strings.Contains(page.Body.String(), "page=1") {
