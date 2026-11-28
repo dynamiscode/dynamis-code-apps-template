@@ -13,11 +13,27 @@ Running `make setup` configures `.githooks` (checking Go formatting and conflict
 Run `make ci-local` optionally to check locally before pushing. It runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `templ-check`, `css-check`, `build`, `secret-check`). CI-only targets are listed in the Makefile comment above `ci-local`.
 `make setup` also enables git rerere for this repo (`rerere.enabled`), which records conflict resolutions and replays them when the same conflict recurs, such as when rebasing stacked branches.
 
-Use Go 1.26 or newer; the module records the development toolchain. Use an
-isolated PostgreSQL database through `POSTGRES_TEST_URL` (for example,
-`postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`) for
-PostgreSQL compatibility tests across schema migrations, leasing locks, and
-queue claim transactions. `make test-postgres` runs the identity, files, and scheduling tests against fresh databases in a container on CI's pinned version (see the target in the [Makefile](../Makefile)).
+Use Go 1.26 or newer; the module records the development toolchain. Run
+`make test-postgres` for identity, files, and scheduling tests against fresh
+databases in a disposable container using CI's pinned PostgreSQL image. Docker
+is required. The container binds only to localhost and is removed on exit.
+
+For affected packages, pass whitespace-separated local Go package paths:
+
+```sh
+make test-postgres POSTGRES_PACKAGES='./internal/currency ./internal/catalog/... ./internal/transactions'
+```
+
+Paths must start with `./`, refer to existing directories, and may end in
+`/...`. The selected packages run serially with caching disabled against the
+disposable container, not an existing `POSTGRES_TEST_URL`. All their tests run,
+including tests that use PostgreSQL. Run `make test-postgres-routing` for the
+offline argument-routing and cleanup self-check.
+
+For manual Go test commands, set `POSTGRES_TEST_URL` to an isolated PostgreSQL
+database (for example,
+`postgres://postgres@127.0.0.1:5432/dynamis_code_test?sslmode=disable`).
+Never point tests at a database containing data to keep.
 
 The object-storage conformance suite in `internal/files` always runs against an
 in-process S3-compatible endpoint. Set `S3_CONFORMANCE_ENDPOINT` and
@@ -68,7 +84,7 @@ Run `make test-profile-preflight` for its offline deterministic self-check.
 1. Run `go test ./internal/catalog ./internal/httpapi ./internal/web ./api` for service invariants, authorization, REST, web, and contract behavior.
 2. Run `go test ./cmd/template-init -run Catalog -count=1` for included and omitted profiles.
 3. Run `make ci-local` for repository checks, then `make verify` for the full local verification gate.
-4. Run PostgreSQL catalog tests against an isolated migrated database with `POSTGRES_TEST_URL` set: `go test ./internal/catalog -run Postgres -count=1`.
+4. Run PostgreSQL catalog tests in a disposable container: `make test-postgres POSTGRES_PACKAGES=./internal/catalog`.
 5. Run browser and accessibility smoke checks when changing catalog forms; record unavailable environments rather than claiming a pass.
 
 ## Feature completeness

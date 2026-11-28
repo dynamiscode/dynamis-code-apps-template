@@ -2,7 +2,7 @@ GOVULNCHECK_VERSION ?= v1.7.0
 ACTIONLINT_VERSION ?= v1.7.12
 GITLEAKS_VERSION ?= v8.30.1
 
-.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke profile-preflight test-profile-preflight verify js-check test-unit test-postgres logger-injection commit-msg-hook
+.PHONY: setup setup-hooks fmt-check lint test ci-local vet race deps-check secret-check vuln-check workflow-check fuzz-smoke generate-check templ-generate templ-check test-templ-check css-build css-check build image docker-smoke accessibility-smoke browser-smoke webmcp-smoke template-smoke profile-preflight test-profile-preflight verify js-check test-unit test-postgres test-postgres-routing logger-injection commit-msg-hook
 
 setup: setup-hooks
 	test -f .env || cp .env.example .env
@@ -38,18 +38,13 @@ web-conformance:
 test-unit:
 	node --test internal/web/assets/*.test.mjs
 	node --test scripts/pr-security-inventory.test.mjs
+	sh scripts/test-postgres-routing.sh
 
 test-postgres:
-	set -e; \
-	name="dynamis-code-test-pg-$$$$"; \
-	trap 'docker rm -f "$$name" >/dev/null 2>&1 || true' EXIT; \
-	docker run -d --name "$$name" -e POSTGRES_DB=dynamis_code_test -e POSTGRES_USER=postgres -e POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 postgres:14.24-alpine3.24@sha256:727876d274666da0b92a445390ba093c84b8e9f8343e1c53cd4e9a7ab2d85310 >/dev/null; \
-	port="$$(docker port "$$name" 5432/tcp | head -n1 | sed 's/.*://')"; \
-	for i in $$(seq 1 60); do docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null 2>&1 && break; sleep 1; done; \
-	docker exec "$$name" pg_isready -h 127.0.0.1 -U postgres -d dynamis_code_test >/dev/null; \
-	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/dynamis_code_test?sslmode=disable" go test -p 1 ./internal/identity/... ./internal/files/... -count=1; \
-	docker exec "$$name" createdb -U postgres scheduling_test; \
-	POSTGRES_TEST_URL="postgres://postgres@127.0.0.1:$$port/scheduling_test?sslmode=disable" go test ./internal/scheduling/... -count=1
+	sh scripts/test-postgres.sh
+
+test-postgres-routing:
+	sh scripts/test-postgres-routing.sh
 
 lint: fmt-check vet js-check doc-links web-conformance logger-injection commit-msg-hook test-templ-check test-profile-preflight
 
