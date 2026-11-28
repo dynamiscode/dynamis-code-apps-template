@@ -1,0 +1,35 @@
+name: UX review edits
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ux-review:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: paths
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          ux=false
+          if git diff --name-only "origin/$BASE_REF...HEAD" | grep -E '^(internal/|cmd/(server|bootstrap-admin|browsersmoke|preview|template-init)/)' >/dev/null; then
+            ux=true
+          fi
+          echo "ux=$ux" >> "$GITHUB_OUTPUT"
+      - name: Require browser UX evidence
+        if: steps.paths.outputs.ux == 'true'
+        run: node scripts/check-pr-ux-review.mjs "$GITHUB_EVENT_PATH"
