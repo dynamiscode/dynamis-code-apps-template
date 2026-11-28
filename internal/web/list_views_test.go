@@ -28,6 +28,12 @@ func TestSavedClientViewOpensAsTheDefaultAndCanBeDeleted(t *testing.T) {
 	}
 	id := match[1]
 
+	for _, id := range []string{"list-view-save-name", "list-view-rename-" + id} {
+		if !strings.Contains(body, `for="`+id+`"`) || !strings.Contains(body, `id="`+id+`" name="name"`) {
+			t.Fatalf("saved view name field %q lacks an associated label", id)
+		}
+	}
+
 	if set := request(env.routes, http.MethodPost, viewsPath+"/"+id+"/default", url.Values{"csrf": {env.csrf}}, env.cookies, nil); set.Code != http.StatusSeeOther {
 		t.Fatalf("make default = %d: %s", set.Code, set.Body.String())
 	}
@@ -53,7 +59,7 @@ func TestSavedClientViewOpensAsTheDefaultAndCanBeDeleted(t *testing.T) {
 	}
 }
 
-func TestSavedClientViewAvailableOnEmptyList(t *testing.T) {
+func TestSavedClientViewHiddenOnEmptyList(t *testing.T) {
 	env := newClientsTestEnv(t)
 	viewsPath := "/workspaces/" + env.workspaceID.String() + "/lists/clients/views"
 	created := request(env.routes, http.MethodPost, viewsPath, url.Values{
@@ -63,15 +69,28 @@ func TestSavedClientViewAvailableOnEmptyList(t *testing.T) {
 		t.Fatalf("create view = %d: %s", created.Code, created.Body.String())
 	}
 	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	if strings.Contains(body, "Empty view") || clientViewApplyLink.MatchString(body) {
+		t.Fatal("empty client list must hide the views switcher")
+	}
+	env.seedClient(t, "Acme")
+	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
 	if !strings.Contains(body, "Empty view") || !clientViewApplyLink.MatchString(body) {
-		t.Fatal("saved view missing from empty client list")
+		t.Fatal("saved view missing after creating a client")
 	}
 }
 
 func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 	env := newClientsTestEnv(t)
-	// An archived scope with a filter still counts as content, so the views
-	// switcher renders and can explain why saving is unavailable.
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{
+		"csrf": {env.csrf}, "display_name": {"Acme"},
+	}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create client = %d", created.Code)
+	}
+	archived := request(env.routes, http.MethodPost, created.Header().Get("Location")+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
+	if archived.Code != http.StatusSeeOther {
+		t.Fatalf("archive client = %d", archived.Code)
+	}
 	body := request(env.routes, http.MethodGet, env.listPath()+"?archived=archived&all=1&filter=displayName:contains:Acme", nil, env.cookies, nil).Body.String()
 	if !strings.Contains(body, "Views are for active clients.") {
 		t.Fatalf("archived list does not explain why views cannot be saved: %s", body)
@@ -83,6 +102,7 @@ func TestArchivedClientsDoNotOfferToSaveAView(t *testing.T) {
 
 func TestSavedViewCannotBeUsedThroughAnotherList(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Acme")
 	base := "/workspaces/" + env.workspaceID.String() + "/lists/"
 	created := request(env.routes, http.MethodPost, base+"clients/views", url.Values{
 		"csrf": {env.csrf}, "name": {"Original"}, "query": {"sort=displayName"},

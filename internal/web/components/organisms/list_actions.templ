@@ -16,8 +16,16 @@ templ ListActionsCell(data viewmodel.PageData, actions []ListAction) {
 // ListActionsMenu is a row's actions behind a three-dot button. A card uses the vertical dots, a table row the
 // horizontal ones. A row with no actions shows nothing.
 templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bool) {
+	@ListActionsMenuNamed(data, actions, vertical, data.T("ui.row_actions"))
+}
+
+// ListActionsMenuNamed renders an actions menu with a caller-supplied accessible name.
+templ ListActionsMenuNamed(data viewmodel.PageData, actions []ListAction, vertical bool, label string) {
+	if label == "" {
+		{{ label = data.T("ui.row_actions") }}
+	}
 	if len(actions) > 0 {
-		@listActionsDropdown(data, vertical) {
+		@listActionsDropdown(vertical, label) {
 			for _, action := range actions {
 				@listActionItem(data, action)
 			}
@@ -25,9 +33,9 @@ templ ListActionsMenu(data viewmodel.PageData, actions []ListAction, vertical bo
 	}
 }
 
-templ listActionsDropdown(data viewmodel.PageData, vertical bool) {
+templ listActionsDropdown(vertical bool, label string) {
 	<details class="dropdown list-menu">
-		@listActionsSummary(data, vertical)
+		@listActionsSummary(vertical, label)
 		<ul class="menu dropdown-content list-action-items bg-base-100 rounded-box shadow-lg">
 			{ children... }
 		</ul>
@@ -37,7 +45,7 @@ templ listActionsDropdown(data viewmodel.PageData, vertical bool) {
 // ListActionsContentCell holds custom controls in the same table menu as standard actions.
 templ ListActionsContentCell(data viewmodel.PageData) {
 	<td class="list-actions-cell">
-		@listActionsDropdown(data, false) { <li>{ children... }</li> }
+		@listActionsDropdown(false, data.T("ui.row_actions")) { <li>{ children... }</li> }
 	</td>
 }
 
@@ -54,8 +62,8 @@ templ listActionItem(data viewmodel.PageData, action ListAction) {
 	</li>
 }
 
-templ listActionsSummary(data viewmodel.PageData, vertical bool) {
-	<summary class="btn m-1 btn btn-sm list-row-menu-button" aria-label={ data.T("ui.row_actions") } title={ data.T("ui.row_actions") }>{ " " }@molecules.RowMenuGlyph(vertical)</summary>{ " " }
+templ listActionsSummary(vertical bool, label string) {
+	<summary class="btn m-1 btn btn-sm list-row-menu-button" aria-label={ label } title={ label }>{ " " }@molecules.RowMenuGlyph(vertical)</summary>{ " " }
 }
 
 // listActionItemClass is the one class every menu entry wears, whichever element carries the action. A link and a
@@ -73,7 +81,12 @@ templ listActionForm(data viewmodel.PageData, action ListAction) {
 	<form class="list-action-form" method="post" action={ action.PostPath }>
 		<input type="hidden" name="csrf" value={ data.CSRF }/>
 		if action.ClientDeleteName != "" {
-			<button class="list-action-item is-danger" type="submit" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>
+			<button class={ listActionItemClass(action) } type="submit" data-client-delete data-client-name={ action.ClientDeleteName } data-confirm={ action.Confirm }>
+				@ListActionIcon(action.Icon)
+				<span>{ action.Label }</span>
+			</button>
+		} else if action.ClientArchiveName != "" {
+			<button class={ actionattrs.LinkClass(listActionItemClass(action)) } type="submit" data-client-archive data-client-name={ action.ClientArchiveName }>
 				@ListActionIcon(action.Icon)
 				<span>{ action.Label }</span>
 			</button>
@@ -102,7 +115,7 @@ templ listActionLink(action ListAction) {
 // ListRowMenuCard is a card's menu for the Members rows, whose actions are written in the page. It uses the vertical
 // dots.
 templ ListRowMenuCard(data viewmodel.PageData) {
-	@listActionsDropdown(data, true) { <li>{ children... }</li> }
+	@listActionsDropdown(true, data.T("ui.row_actions")) { <li>{ children... }</li> }
 }
 
 // ListActionIcon is the glyph of a row action. It is decorative: the label names the action.

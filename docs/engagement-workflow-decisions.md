@@ -25,6 +25,15 @@ current behavior. Existing behavior remains documented in [capabilities](capabil
   actions, action history, stage-change history, and available actor identities.
 - Upcoming, undated, and completed queue filters include engagements in won and
   lost stages. The default urgent queue includes only open-stage engagements.
+- Stage settings group stages in open, won, and lost order. Managers can drag
+  active stages within a group to reorder them or between groups to change their
+  type. Archived stages remain visible through the status filter and are not
+  draggable. Keyboard and no-JavaScript controls provide the same operations.
+  A type change requires server-validated confirmation showing the stage, old
+  and new types, and the count of all engagements in the stage.
+  The server checks the full stage snapshot and engagement count in the same
+  transaction as the change. It rejects a stale snapshot or count without
+  changing the order or type. The change preserves engagement and history rows.
 - The migration is forward-only. Recovery uses a pre-upgrade backup, consistent
   with the existing [upgrade procedure](operations.md#backup-and-restore).
 - Stage setup guidance is role-specific. The file picker decision is recorded
@@ -77,9 +86,9 @@ are not additional business-policy approvals or claims of implemented behavior.
   pagination, with deterministic ordering and links retaining filters; do not
   claim a performance target without measurement. Use a server-validated
   confirmation for archiving with consequences visible without JavaScript,
-  following `docs/web.md`. Use accessible stage controls first; omit optional
-  drag-and-drop until separately justified and reviewed. Detailed visual design
-  remains subject to the browser UX review.
+  following `docs/web.md`. Stage drag-and-drop must retain accessible controls
+  and a no-JavaScript fallback. Detailed visual design remains subject to the
+  browser UX review.
 
 ## Implementation gates
 
@@ -87,6 +96,14 @@ Requiring both `name` and `stageId` on the existing REST v1 create API is
 explicitly approved and breaks clients that omit either field. Do not make either
 field optional or claim those clients remain compatible. No additional REST
 policy choice is required.
+
+The stage reorder REST v1 request is also a breaking change. Existing clients
+that send only `ids` receive HTTP 400. Upgrade clients together with the server.
+The request requires `ids`, the ordered stage `snapshot`, `movedId`, `newKind`,
+`expectedCount`, and `confirmed`. A stale snapshot or count returns HTTP 409
+`stale-stages`; an unconfirmed type change returns HTTP 409
+`confirmation-required`. The snapshot contains each stage's `id`, `name`,
+`kind`, and `archived` values in the order returned by the stage list.
 
 Reopening a completed action conflicts with the one-active-action limit when
 another action occupies the slot. The rejection rule above preserves both the

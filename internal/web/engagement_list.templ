@@ -9,16 +9,14 @@ import molecules "example.com/dynamis-code/apps-template/internal/web/components
 import organisms "example.com/dynamis-code/apps-template/internal/web/components/organisms"
 import templates "example.com/dynamis-code/apps-template/internal/web/components/templates"
 
-templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string, columns []engagementBoardColumn, view string) {
+templ engagementListPage(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string, columns []engagementBoardColumn, view string, empty bool) {
  @templates.DashboardShell(data, templates.DashboardHome) {
-  @molecules.PageHeading(data.T("engagement.title"), "")
-  <p class="status-line">{ data.T("engagement.list_context") }</p>
-  @engagementListView(data, page, stages, members, search, selectedStage, selectedAssignee, prev, next, clientsPath, columns, view)
+  @engagementListView(data, page, stages, members, search, selectedStage, selectedAssignee, prev, next, clientsPath, columns, view, empty)
   <div id="engagement-create-modal"></div>
  }
 }
 
-templ engagementListView(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string, columns []engagementBoardColumn, view string) {
+templ engagementListView(data viewmodel.PageData, page engagement.Page, stages []engagement.Stage, members []identity.MemberSummary, search string, selectedStage string, selectedAssignee string, prev string, next string, clientsPath string, columns []engagementBoardColumn, view string, empty bool) {
  {{
   query := url.Values{}
   if search != "" { query.Set("q", search) }
@@ -34,9 +32,50 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
   listURL := data.CurrentPath + "?" + query.Encode()
   query.Set("view", "board")
   boardURL := data.CurrentPath + "?" + query.Encode()
+  query.Set("view", view)
+  query.Del("stage")
+  query.Del("assignee")
+  clearFiltersURL := data.CurrentPath + "?" + query.Encode()
+  query.Del("q")
+  clearAllURL := data.CurrentPath + "?" + query.Encode()
+  if search != "" { query.Set("q", search) }
+  if selectedAssignee != "" { query.Set("assignee", selectedAssignee) }
+  removeStageURL := data.CurrentPath + "?" + query.Encode()
+  query.Del("assignee")
+  if selectedStage != "" { query.Set("stage", selectedStage) }
+  removeAssigneeURL := data.CurrentPath + "?" + query.Encode()
+  originQuery := url.Values{"engagement_return": {data.CurrentPath + data.ClientQuerySuffix}}
+  createURL := data.CurrentPath + "/new?" + originQuery.Encode()
+  stageName := selectedStage
+  for _, stage := range stages { if stage.ID.String() == selectedStage { stageName = stage.Name } }
+  assigneeName := selectedAssignee
+  if selectedAssignee == "unassigned" { assigneeName = data.T("engagement.unassigned") }
+  for _, member := range members { if member.UserID.String() == selectedAssignee { assigneeName = member.Email } }
  }}
  <div id="engagement-view" x-data="listScreen">
-  <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="my-4" role="search" hx-get={ data.CurrentPath } hx-target="#engagement-view" hx-swap="outerHTML" hx-push-url="true">
+  <div class="feature-list-heading">
+   @molecules.PageHeading(data.T("engagement.title"), "")
+   if data.CanEditClients || data.CanManageFields {
+    <div class="feature-list-heading-actions">
+     if data.CanEditClients && !empty {
+      <div class="list-create"><a class="btn btn-primary" href={ templ.SafeURL(createURL) } hx-get={ createURL } hx-target="#engagement-create-modal" hx-swap="innerHTML" data-engagement-create>{ data.T("engagement.create") }</a></div>
+     }
+     if data.CanManageFields {
+      <details class="dropdown dropdown-end">
+       <summary class="btn btn-outline btn-square" aria-label={ data.T("navigation.settings") }><span aria-hidden="true">⋮</span></summary>
+       <div class="dropdown-content z-50 w-64 max-w-[90vw] rounded-box bg-base-100 p-2 shadow-lg">
+        <ul class="menu">
+         <li><a href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagement-stages#stages") }>{ data.T("engagement.manage_stages") }</a></li>
+         <li><a href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagement-stages#engagement-label") }>{ data.T("engagement.rename") }</a></li>
+        </ul>
+       </div>
+      </details>
+     }
+    </div>
+   }
+  </div>
+  <p class="status-line">{ data.T("engagement.list_context") }</p>
+  <form method="get" action={ templ.SafeURL(data.CurrentPath) } class="my-4" role="search" hx-get={ data.CurrentPath } hx-trigger="submit, input changed delay:300ms from:#engagement-search" hx-target="#engagement-view" hx-swap="outerHTML" hx-push-url="true" hx-sync="this:replace">
    <input type="hidden" name="view" value={ view }/>
    for _, column := range data.ListColumns {
     if column.SortDirection != "" {
@@ -49,11 +88,11 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
     }
    }
    <div class="list-toolbar">
-    if page.Total > 0 || search != "" || selectedStage != "" || selectedAssignee != "" {
+    if !empty {
     <div class="list-search flex flex-nowrap items-center gap-2">
      <label class="sr-only" for="engagement-search">{ data.T("engagement.search") } { data.T("ui.optional") }</label>
-     <input class="input flex-[0_1_22rem] w-auto min-w-0" id="engagement-search" name="q" type="search" value={ search } maxlength="200" placeholder={ data.T("engagement.search") }/>
-     <button class="btn btn-outline btn-sm" type="submit">{ data.T("ui.search") }</button>
+     <input class="input flex-[0_1_22rem] w-auto min-w-0" id="engagement-search" name="q" type="search" value={ search } maxlength="200" placeholder={ data.T("engagement.search") } hx-preserve="true"/>
+     <noscript><button class="btn btn-outline btn-sm" type="submit">{ data.T("ui.search") }</button></noscript>
     </div>
     <details class="dropdown list-menu">
      <summary class="btn m-1 btn-sm" aria-label={ data.T("views.title") }>{ data.T("views.title") }
@@ -91,56 +130,49 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
        }
       </select>
       <button class="btn btn-primary btn-sm" type="submit">{ data.T("clients.apply") }</button>
-      if view == "board" {
-       <a class="btn btn-sm" href={ templ.SafeURL(data.CurrentPath + "?view=board") }>{ data.T("clients.clear_filters") }</a>
-      } else {
-       <a class="btn btn-sm" href={ templ.SafeURL(data.CurrentPath) }>{ data.T("clients.clear_filters") }</a>
-      }
+      <a class="btn btn-sm" href={ templ.SafeURL(clearFiltersURL) }>{ data.T("clients.clear_filters") }</a>
      </div>
     </details>
     }
-    if data.CanEditClients || data.CanManageFields {
-     <div class="list-create ml-auto">
-      if data.CanEditClients {
-       <a class="btn btn-primary" href={ templ.SafeURL(data.CurrentPath + "/new") } hx-get={ data.CurrentPath + "/new" } hx-target="#engagement-create-modal" hx-swap="innerHTML" data-engagement-create>{ data.T("engagement.create") }</a>
-      }
-      if data.CanManageFields {
-       <details class="dropdown dropdown-end">
-        <summary class="btn btn-outline btn-square" aria-label={ data.T("navigation.settings") }><span aria-hidden="true">⋮</span></summary>
-        <div class="dropdown-content z-50 w-64 max-w-[90vw] rounded-box bg-base-100 p-2 shadow-lg">
-         <ul class="menu">
-          <li><a href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagement-stages#stages") }>{ data.T("engagement.manage_stages") }</a></li>
-          <li><a href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/engagement-stages#engagement-label") }>{ data.T("engagement.rename") }</a></li>
-         </ul>
-        </div>
-       </details>
-      }
-     </div>
-    }
    </div>
   </form>
-  if view == "board" && page.Total == 0 && search == "" && selectedStage == "" && selectedAssignee == "" {
-   <section class="card my-4 p-6">
-    @molecules.EmptyState(data.T("engagement.list_empty_unfiltered"))
+  if !empty && (selectedStage != "" || selectedAssignee != "") {
+   <div class="list-filter-strip"><ul class="list-filter-chips" aria-label={ data.T("clients.active_filters") }>
+    if selectedStage != "" {
+     <li class="list-filter-chip"><span class="list-filter-chip-label"><strong>{ data.T("engagement.stage") }</strong> <strong>{ stageName }</strong></span><a class="list-filter-chip-remove" href={ templ.SafeURL(removeStageURL) } aria-label={ data.T("clients.filter_remove") + ": " + data.T("engagement.stage") }>&times;</a></li>
+    }
+    if selectedAssignee != "" {
+     <li class="list-filter-chip"><span class="list-filter-chip-label"><strong>{ data.T("engagement.assignee") }</strong> <strong>{ assigneeName }</strong></span><a class="list-filter-chip-remove" href={ templ.SafeURL(removeAssigneeURL) } aria-label={ data.T("clients.filter_remove") + ": " + data.T("engagement.assignee") }>&times;</a></li>
+    }
+   </ul></div>
+  }
+  if empty {
+   <section class="my-4 p-6 min-h-80 flex flex-col items-center justify-center text-center">
+    <h2>{ data.T("engagement.empty_title") }</h2>
+    <p class="mb-4">{ data.T("engagement.empty_description") }</p>
+    if data.CanEditClients {
+     <a class="btn btn-primary" href={ templ.SafeURL(createURL) } hx-get={ createURL } hx-target="#engagement-create-modal" hx-swap="innerHTML" data-engagement-create>{ data.T("engagement.create") }</a>
+    }
    </section>
   } else if view == "board" {
-   @engagementBoardView(data, columns, stages, clientsPath, search, selectedStage, selectedAssignee)
+   if page.Total == 0 && (search != "" || selectedStage != "" || selectedAssignee != "") {
+    @molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{Message: data.T("engagement.list_empty"), Href: clearAllURL, Label: data.T("clients.clear_filters")})
+   }
+   @engagementBoardView(data, columns, stages, clientsPath, search, selectedStage, selectedAssignee, listURL)
   } else {
-   <section class="card my-4 p-6">
+   <section class="my-4">
    if len(page.Engagements) == 0 {
     if search != "" || selectedStage != "" || selectedAssignee != "" {
-     @molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{Message: data.T("engagement.list_empty"), Href: data.CurrentPath, Label: data.T("clients.clear_filters")})
+     @molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{Message: data.T("engagement.list_empty"), Href: clearAllURL, Label: data.T("clients.clear_filters")})
     } else {
      @molecules.EmptyState(data.T("engagement.list_empty_unfiltered"))
     }
    } else {
     if data.ListSelectable {
-     <form id="client-bulk" class="flex flex-wrap items-center gap-2 my-4" method="post" action={ templ.SafeURL(data.CurrentPath + "/bulk-move") }>
+     <form id="client-bulk" class="client-bulk" method="post" action={ templ.SafeURL(data.CurrentPath + "/bulk-move") }>
       <input type="hidden" name="csrf" value={ data.CSRF }/>
       <input type="hidden" name="return" value={ data.CurrentPath + data.ClientQuerySuffix }/>
-      for _, item := range page.Engagements {
-       <input type="hidden" name="page_id" value={ item.ID.String() }/>
-      }
+      <span class="client-bulk-count" aria-live="polite" data-count-template={ data.T("clients.bulk_selected", map[string]any{"count": "COUNT"}) }></span>
       <label for="bulk-engagement-stage">{ data.T("engagement.move") }</label>
       <select id="bulk-engagement-stage" name="stage" class="select select-bordered" required>
        <option value="">{ data.T("engagement.select_stage") }</option>
@@ -151,19 +183,40 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
        }
       </select>
       <label><input type="checkbox" class="checkbox" name="confirm" value="yes" required/> { data.T("engagement.bulk_confirm") }</label>
-      <button type="submit" class="btn btn-outline btn-sm">{ data.T("engagement.move") }</button>
-      <button type="submit" class="btn btn-outline btn-sm" name="selection" value="all">{ data.T("engagement.bulk_move_page") }</button>
+      <button type="submit" class="btn btn-outline btn-sm">{ data.T("engagement.bulk_move_selected") }</button>
      </form>
+     <details class="my-4">
+      <summary class="btn btn-outline btn-sm">{ data.T("engagement.bulk_move_page") } — { data.T("engagement.bulk_page_count", map[string]any{"count": len(page.Engagements)}) }</summary>
+      <form class="flex flex-wrap items-center gap-2 my-4" method="post" action={ templ.SafeURL(data.CurrentPath + "/bulk-move") }>
+       <input type="hidden" name="csrf" value={ data.CSRF }/>
+       <input type="hidden" name="return" value={ data.CurrentPath + data.ClientQuerySuffix }/>
+       <input type="hidden" name="selection" value="all"/>
+       for _, item := range page.Engagements {
+        <input type="hidden" name="page_id" value={ item.ID.String() }/>
+       }
+       <label for="bulk-page-stage">{ data.T("engagement.move") }</label>
+       <select id="bulk-page-stage" name="stage" class="select select-bordered" required>
+        <option value="">{ data.T("engagement.select_stage") }</option>
+        for _, stage := range stages {
+         if !stage.Archived {
+          <option value={ stage.ID.String() }>{ stage.Name }</option>
+         }
+        }
+       </select>
+       <label><input type="checkbox" class="checkbox" name="confirm" value="yes" required/> { data.T("engagement.bulk_confirm") }</label>
+       <button type="submit" class="btn btn-outline btn-sm">{ data.T("engagement.bulk_move_page") }</button>
+      </form>
+     </details>
     }
     @organisms.ListTable(data.T("engagement.title"), true) {
      @organisms.ListHeader(data, data.T("ui.row_actions"))
      <tbody>
       for _, item := range page.Engagements {
-       @organisms.ListRow(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) {
+       @organisms.ListRow(engagementListItemURL(data, item, clientsPath)) {
         if data.ListSelectable {
-         <td class="list-select-cell">@atoms.PlainCheckbox(atoms.CheckboxProps{Name: "engagement_id", Attrs: templ.Attributes{"form": "client-bulk", "value": item.ID.String(), "data-bulk-row": true, "aria-label": data.T("clients.bulk_select_row", map[string]any{"name": item.Name})}})</td>
+         <td class="list-select-cell">@atoms.PlainCheckbox(atoms.CheckboxProps{Name: "engagement_id", LabelClass: "list-select", Attrs: templ.Attributes{"form": "client-bulk", "value": item.ID.String(), "data-bulk-row": true, "aria-label": data.T("clients.bulk_select_row", map[string]any{"name": item.Name})}})</td>
         }
-        @organisms.ListLinkedCell(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String(), nil) { { item.Name } }
+        @organisms.ListLinkedCell(engagementListItemURL(data, item, clientsPath), nil) { { item.Name } }
         @organisms.ListLinkedCell(clientsPath + "/" + item.ClientID.String(), nil) { { item.ClientName } }
         <td>@engagementListStage(item, stages)</td>
         <td>@engagementListAssignee(data, item, members)</td>
@@ -176,7 +229,7 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
      for _, item := range page.Engagements {
       <li class="card relative p-4">
        <dl>
-        <dt>{ data.T("engagement.name") }</dt><dd>@engagementListLink(item, clientsPath)</dd>
+        <dt>{ data.T("engagement.name") }</dt><dd>@engagementListLink(data, item, clientsPath)</dd>
         <dt>{ data.T("engagement.client") }</dt><dd>@engagementClientLink(item, clientsPath)</dd>
         <dt>{ data.T("engagement.stage") }</dt><dd>@engagementListStage(item, stages)</dd>
         <dt>{ data.T("engagement.assignee") }</dt><dd>@engagementListAssignee(data, item, members)</dd>
@@ -202,8 +255,8 @@ templ engagementListView(data viewmodel.PageData, page engagement.Page, stages [
  </div>
 }
 
-templ engagementListLink(item engagement.ListItem, clientsPath string) {
- <a class="list-row-link" href={ templ.SafeURL(clientsPath + "/" + item.ClientID.String() + "/engagements/" + item.ID.String()) }>{ item.Name }</a>
+templ engagementListLink(data viewmodel.PageData, item engagement.ListItem, clientsPath string) {
+ <a class="list-row-link" href={ templ.SafeURL(engagementListItemURL(data, item, clientsPath)) }>{ item.Name }</a>
 }
 
 templ engagementClientLink(item engagement.ListItem, clientsPath string) {

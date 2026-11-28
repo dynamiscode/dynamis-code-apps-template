@@ -39,9 +39,8 @@ func TestEngagementSettingsMenu(t *testing.T) {
 					t.Fatalf("%s: create action missing or unauthorized", query)
 				}
 				if tc.manage {
-					create := strings.Index(body, `data-engagement-create`)
 					settings := strings.Index(body, `aria-label="Settings"`)
-					if create < 0 || settings <= create || !strings.Contains(body, `class="dropdown dropdown-end"`) || !strings.Contains(body, `max-w-[90vw]`) || !strings.Contains(body, `<span aria-hidden="true">⋮</span>`) {
+					if settings < 0 || !strings.Contains(body, `class="dropdown dropdown-end"`) || !strings.Contains(body, `max-w-[90vw]`) || !strings.Contains(body, `<span aria-hidden="true">⋮</span>`) {
 						t.Fatalf("%s: settings menu placement or accessibility", query)
 					}
 					if !strings.Contains(body, `<div class="dropdown-content z-50 w-64 max-w-[90vw] rounded-box bg-base-100 p-2 shadow-lg"><ul class="menu">`) {
@@ -76,16 +75,23 @@ func TestEngagementListRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/workspaces/" + env.workspaceID.String() + "/engagements"
-	for _, query := range []string{"", "?view=board"} {
-		response := request(env.routes, http.MethodGet, path+query, nil, env.cookies, nil)
-		body := response.Body.String()
-		if response.Code != http.StatusOK || !strings.Contains(body, "No work yet.") || strings.Contains(body, `id="engagement-search"`) || strings.Contains(body, `id="engagement-stage-filter"`) || strings.Contains(body, `class="dropdown list-menu"`) || strings.Contains(body, `<table`) {
-			t.Fatalf("empty engagement view %q: status %d", query, response.Code)
+	for _, query := range []string{"", "?view=board", "?q=missing", "?page=2"} {
+		for _, tc := range []struct {
+			cookies   []*http.Cookie
+			canCreate bool
+		}{{env.cookies, true}, {env.viewerCookies, false}} {
+			for _, headers := range []map[string]string{nil, {"HX-Request": "true"}} {
+				response := request(env.routes, http.MethodGet, path+query, nil, tc.cookies, headers)
+				body := response.Body.String()
+				if response.Code != http.StatusOK || !strings.Contains(body, "No engagements yet") || !strings.Contains(body, "Create an engagement to track work for a client.") ||
+					strings.Contains(body, `id="engagement-search"`) || strings.Contains(body, `id="engagement-stage-filter"`) ||
+					strings.Contains(body, `class="dropdown list-menu"`) || strings.Contains(body, `<table`) ||
+					strings.Count(body, `data-engagement-create`) != map[bool]int{true: 1, false: 0}[tc.canCreate] ||
+					!strings.Contains(body, `items-center justify-center text-center`) {
+					t.Fatalf("empty engagement view %q: status %d", query, response.Code)
+				}
+			}
 		}
-	}
-	filtered := request(env.routes, http.MethodGet, path+"?q=missing", nil, env.cookies, nil)
-	if filtered.Code != http.StatusOK || !strings.Contains(filtered.Body.String(), `id="engagement-search"`) || !strings.Contains(filtered.Body.String(), `id="engagement-stage-filter"`) {
-		t.Fatalf("filtered empty view: status %d", filtered.Code)
 	}
 	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, actor, env.workspaceID, clients.Input{DisplayName: "List client"}, identity.AuditContext{})
 	if err != nil {
@@ -100,12 +106,66 @@ func TestEngagementListRoute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, headers := range []map[string]string{nil, {"HX-Request": "true"}} {
+		response := request(env.routes, http.MethodGet, path, nil, env.cookies, headers)
+		body := response.Body.String()
+		heading := strings.Index(body, `class="feature-list-heading"`)
+		create := strings.Index(body, `data-engagement-create`)
+		menu := strings.Index(body, "/engagement-stages#stages")
+		toolbar := strings.Index(body, `class="list-toolbar"`)
+		if heading < 0 || create < heading || menu < create || toolbar < menu {
+			t.Fatalf("engagement heading actions must precede filters: %d", response.Code)
+		}
+	}
+	listWithBulk := request(env.routes, http.MethodGet, path, nil, env.cookies, nil)
+	for _, want := range []string{`On this page: 1`, `data-count-template="COUNT selected"`, `Move selected`, `Move all on this page`, `name="page_id"`} {
+		if !strings.Contains(listWithBulk.Body.String(), want) {
+			t.Fatalf("bulk scope missing %q", want)
+		}
+	}
+	for _, query := range []string{"?q=missing", "?q=missing&view=board"} {
+		response := request(env.routes, http.MethodGet, path+query, nil, env.cookies, nil)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `id="engagement-search"`) ||
+			!strings.Contains(response.Body.String(), `id="engagement-stage-filter"`) || strings.Contains(response.Body.String(), "No engagements yet") {
+			t.Fatalf("filtered engagement view %q: status %d", query, response.Code)
+		}
+	}
+	for _, headers := range []map[string]string{nil, {"HX-Request": "true"}} {
+		response := request(env.routes, http.MethodGet, path+"?q=List+engagement&view=board&stage="+stage.ID.String()+"&assignee=unassigned&sort=name&direction=asc", nil, env.viewerCookies, headers)
+		body := response.Body.String()
+		for _, want := range []string{
+			`method="get" action="` + path + `"`,
+			`hx-trigger="submit, input changed delay:300ms from:#engagement-search"`,
+			`hx-target="#engagement-view"`, `hx-sync="this:replace"`,
+			`<noscript><button class="btn btn-outline btn-sm" type="submit">Search</button></noscript>`,
+			`name="view" value="board"`, `name="sort" value="name"`, `name="direction" value="asc"`,
+			`value="` + stage.ID.String() + `" selected`, `value="unassigned" selected`,
+			`List engagement</a>`,
+		} {
+			if response.Code != http.StatusOK || !strings.Contains(body, want) {
+				t.Fatalf("search form: status %d, missing %q", response.Code, want)
+			}
+		}
+	}
+	filtered := request(env.routes, http.MethodGet, path+"?q=List+engagement&view=board&stage="+stage.ID.String()+"&assignee=unassigned&sort=name&direction=asc", nil, env.cookies, nil)
+	for _, want := range []string{
+		`<strong>Stage</strong> <strong>List stage</strong>`,
+		`<strong>Assignee</strong> <strong>Unassigned</strong>`,
+		`assignee=unassigned&amp;direction=asc&amp;q=List+engagement&amp;sort=name&amp;view=board`,
+		`direction=asc&amp;q=List+engagement&amp;sort=name&amp;view=board`,
+		`Switch to table view`,
+		`engagement_return=`,
+	} {
+		if !strings.Contains(filtered.Body.String(), want) {
+			t.Fatalf("filtered list missing %q", want)
+		}
+	}
 	query := url.Values{"q": {"List engagement"}, "stage": {stage.ID.String()}, "assignee": {"unassigned"}}
 	for _, cookies := range [][]*http.Cookie{env.cookies, env.viewerCookies} {
 		response := request(env.routes, http.MethodGet, path+"?"+query.Encode(), nil, cookies, nil)
 		clientsPath := "/workspaces/" + env.workspaceID.String() + "/clients/" + client.ID.String()
 		for _, want := range []string{
-			`<td class="list-linked-cell"><a class="list-row-link" href="` + clientsPath + `/engagements/` + item.ID.String() + `">List engagement</a></td>`,
+			`<td class="list-linked-cell"><a class="list-row-link" href="` + clientsPath + `/engagements/` + item.ID.String() + `?engagement_return=`,
 			`<td class="list-linked-cell"><a class="list-row-link" href="` + clientsPath + `">List client</a></td>`,
 			`<div class="list-view-table"><table`,
 			`<caption class="sr-only">Engagements</caption>`,
@@ -275,6 +335,37 @@ func TestEngagementListRoute(t *testing.T) {
 		moved, err := service.Get(ctx, actor, env.workspaceID, id)
 		if err != nil || moved.StageID != stage.ID {
 			t.Fatalf("page moved engagement: %+v %v", moved, err)
+		}
+	}
+}
+
+func TestEngagementListArchivedStageIsNotEmpty(t *testing.T) {
+	env := newClientsTestEnv(t)
+	ctx := context.Background()
+	actor, err := env.auth.Authorize(ctx, env.ownerID, env.workspaceID, identity.ResourcesWrite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := clients.NewService(env.db, config.SQLite, env.auth, 50).Create(ctx, actor, env.workspaceID, clients.Input{DisplayName: "Archived stage client"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := engagement.NewService(env.db, config.SQLite, env.auth)
+	stage, err := service.CreateStage(ctx, actor, env.workspaceID, engagement.StageInput{Name: "Archived stage", Kind: "open"}, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Create(ctx, actor, env.workspaceID, engagement.Input{Name: "Archived stage engagement", ClientID: client.ID, StageID: stage.ID}, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ArchiveStage(ctx, actor, env.workspaceID, stage.ID, identity.AuditContext{}); err != nil {
+		t.Fatal(err)
+	}
+	path := "/workspaces/" + env.workspaceID.String() + "/engagements"
+	for _, query := range []string{"", "?q=missing"} {
+		response := request(env.routes, http.MethodGet, path+query, nil, env.viewerCookies, nil)
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `id="engagement-search"`) || strings.Contains(response.Body.String(), "No engagements yet") {
+			t.Fatalf("archived stage view %q: status %d", query, response.Code)
 		}
 	}
 }

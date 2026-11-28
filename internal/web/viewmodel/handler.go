@@ -36,6 +36,7 @@ type PageData struct {
 	SingleWorkspace            bool
 	DefaultWorkspaceHref       string
 	Clients                    []clients.Client
+	ClientListEmpty            bool
 	Client                     clients.Client
 	Engagements                []engagement.Engagement
 	EngagementBookings         map[engagement.ID][]scheduling.Booking
@@ -55,6 +56,8 @@ type PageData struct {
 	EngagementAssignee         string
 	EngagementOwner            string
 	ActionConflictText         string
+	ActionDraftVersion         string
+	EngagementQuoteDraft       engagement.Quote
 	ActionConflictDueDate      string
 	ActionConflictClear        bool
 	EngagementOwnerError       bool
@@ -79,6 +82,11 @@ type PageData struct {
 	ClientValues               []ClientValueRow
 	ClientTimeline             []clients.TimelineEntry
 	TimelinePage               int
+	TimelineCorrectionPages    map[clients.TimelineEntryID]int
+	TimelineCorrectionResults  []clients.TimelineEntry
+	TimelineCorrectionQuery    string
+	TimelineCorrectionPage     int
+	TimelineCorrectionHasMore  bool
 	ClientTransactions         []transactions.Entry
 	ClientTransactionsPage     int
 	CanReadClientTransactions  bool
@@ -153,6 +161,7 @@ type PageData struct {
 	ClearClientFiltersPath           string
 	ClientQuerySuffix                string
 	ClientReturnQuery                string
+	EngagementReturn                 string
 	HiddenClientSort                 string
 	HiddenClientSortLabelKey         string
 	CreateKey                        string

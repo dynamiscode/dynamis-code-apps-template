@@ -234,10 +234,14 @@ func (h *Handler) languageSettings(request *http.Request) authPageOutput {
 	if err := h.identity.SetUserLocale(request.Context(), session.UserID, locale, auditContext(request)); err != nil {
 		return authPageOutput{status: http.StatusInternalServerError}
 	}
-	if locale == "" {
-		return authPageOutput{kind: authPageLocaleCleared}
+	target := "/settings/language?saved=1"
+	if returnTo := request.FormValue("return_to"); returnTo != "" {
+		target = safeReturnTo(returnTo)
 	}
-	return authPageOutput{kind: authPageRedirect, target: "/settings/language?saved=1"}
+	if locale == "" {
+		return authPageOutput{kind: authPageLocaleCleared, target: target}
+	}
+	return authPageOutput{kind: authPageRedirect, target: target}
 }
 
 func (h *Handler) generalSettingsPage(writer http.ResponseWriter, request *http.Request) {

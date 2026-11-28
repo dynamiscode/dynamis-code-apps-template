@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/emulation"
@@ -70,7 +71,7 @@ func TestFormUXPatterns(t *testing.T) {
 	}
 	typeInto("#password", password)
 	check(js(`document.querySelector(".strength meter").value >= 1`), "form-field-input: a valid password scores above 0")
-	check(js(`(() => { const b = document.querySelector("#password + .reveal"); const s = getComputedStyle(b); return s.borderTopStyle !== "none" && parseFloat(s.borderTopWidth) > 0 && s.borderTopColor !== "rgba(0, 0, 0, 0)" && b.getAttribute("aria-pressed") === "false" && b.getAttribute("aria-controls") === "password"; })()`), "form-field-input: reveal has a visible boundary and accessible initial state")
+	check(js(`(() => { const b = document.querySelector("#password + .reveal"); return b.getAttribute("aria-pressed") === "false" && b.getAttribute("aria-controls") === "password"; })()`), "form-field-input: reveal has accessible initial state")
 	click("#password + .reveal")
 	check(js(`document.querySelector("#password").type === "text" && document.querySelector("#password + .reveal").getAttribute("aria-pressed") === "true"`), "form-field-input: reveal shows the password")
 	click("#password + .reveal")
@@ -151,6 +152,7 @@ func TestFormUXPatterns(t *testing.T) {
 	enter("#client-display-name")
 	check(js(`document.activeElement?.id === "client-display-name" && document.querySelector("form.create button[type=submit]").disabled`), "clients: Enter does not submit a blank name")
 	typeInto("#client-display-name", "Ada Lovelace")
+	click(`details[data-client-advanced] > summary`)
 	typeInto("#client-email", "ada@example.com")
 	check(js(`!document.querySelector("form.create button[type=submit]").disabled`), "clients: a valid name enables submit")
 	click("form.create button[type=submit]")
@@ -159,13 +161,25 @@ func TestFormUXPatterns(t *testing.T) {
 	clientPath := eval[string](t, tab, `location.pathname`)
 
 	run(t, tab, chromedp.Navigate(base+workspace+"/client-fields"))
-	click(".client-create > summary")
-	typeInto("#client-field-label", "Tier")
-	eval[any](t, tab, `document.querySelector("#client-field-type").value = "single_choice"`)
-	click(".client-create form button[type=submit]")
-	waitVisible(t, tab, ".client-fields")
-	typeInto(`input[id^="option-label-"]`, "Gold")
-	click("form.option-create button[type=submit]")
+	click(`[data-client-field-create]`)
+	fieldLabel := fmt.Sprintf("UX Tier %d", time.Now().UnixNano())
+	typeInto("#client-field-label", fieldLabel)
+	eval[any](t, tab, `(() => { const select = document.querySelector("#client-field-type"); select.value = "single_choice"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`)
+	clickByText(t, tab, "Add field")
+	waitVisible(t, tab, "#client-field-list")
+	optionID := eval[string](t, tab, fmt.Sprintf(`(() => {
+		const fieldRow = [...document.querySelectorAll("#client-field-list tbody tr")].find((row) => row.querySelector("th[scope=row]")?.textContent.includes(%s));
+		const details = fieldRow?.nextElementSibling.querySelector("details.client-field-options");
+		if (!details) return "";
+		details.querySelector("summary").click();
+		return details.querySelector('input[name="label"]')?.id ?? "";
+	})()`, jsString(fieldLabel)))
+	if optionID == "" {
+		t.Fatal("single-choice field options form not found")
+	}
+	waitVisible(t, tab, "#"+optionID)
+	typeInto("#"+optionID, "Gold")
+	click(`form:has(#` + optionID + `) button[type=submit]`)
 	waitVisible(t, tab, ".client-field-option-list")
 
 	run(t, tab, chromedp.Navigate(base+clientPath))

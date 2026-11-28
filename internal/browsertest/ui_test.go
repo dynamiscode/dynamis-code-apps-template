@@ -20,23 +20,16 @@ func fillByExactLabel(t *testing.T, tab context.Context, name, value string) {
 	eventually(t, tab, fmt.Sprintf(`(() => { const label = [...document.querySelectorAll("label")].find((l) => l.textContent.trim() === %s); return Boolean(label && (label.htmlFor ? document.getElementById(label.htmlFor) : label.querySelector("input, select, textarea"))); })()`, jsString(name)), "no control labelled exactly "+name)
 	eval[any](t, tab, fmt.Sprintf(`(() => { const label = [...document.querySelectorAll("label")].find((l) => l.textContent.trim() === %s); const control = label.htmlFor ? document.getElementById(label.htmlFor) : label.querySelector("input, select, textarea"); control.value = %s; control.dispatchEvent(new Event("input", { bubbles: true })); })()`, jsString(name), jsString(value)))
 }
-
-// boxSize returns the rendered width and height of the first element matching selector.
-func boxSize(t *testing.T, tab context.Context, selector string) (float64, float64) {
-	t.Helper()
-	box := eval[struct {
-		Width  float64 `json:"width"`
-		Height float64 `json:"height"`
-	}](t, tab, fmt.Sprintf(`(() => { const r = document.querySelector(%s)?.getBoundingClientRect(); return { width: r ? r.width : 0, height: r ? r.height : 0 }; })()`, jsString(selector)))
-	return box.Width, box.Height
-}
-
-// expectMinimumTarget checks that a control is at least 24 CSS pixels in both directions.
 func expectMinimumTarget(t *testing.T, tab context.Context, selector string) {
 	t.Helper()
-	width, height := boxSize(t, tab, selector)
-	if width < 24 || height < 24 {
-		t.Fatalf("%s is %vx%v, want at least 24x24", selector, width, height)
+	visible := eval[bool](t, tab, fmt.Sprintf(`(() => {
+		const element = document.querySelector(%s);
+		if (!element) return false;
+		const rect = element.getBoundingClientRect();
+		return rect.width >= 24 && rect.height >= 24;
+	})()`, jsString(selector)))
+	if !visible {
+		t.Fatalf("%s is not a usable 24-by-24 CSS-pixel target", selector)
 	}
 }
 

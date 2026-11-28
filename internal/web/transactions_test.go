@@ -38,6 +38,13 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspace.String() + "/transactions"
+	for _, suffix := range []string{"", "?q=missing", "?page=2"} {
+		empty := request(h.Routes(), http.MethodGet, path+suffix, nil, cookies, nil)
+		body := empty.Body.String()
+		if empty.Code != http.StatusOK || !strings.Contains(body, "No entries yet.") || strings.Count(body, `data-transactions-create`) != 1 || strings.Contains(body, `class="list-toolbar"`) || strings.Contains(body, `id="list-search"`) {
+			t.Fatalf("empty transactions %s: %d %s", suffix, empty.Code, body)
+		}
+	}
 	form := url.Values{"csrf": {session.CSRFSecret}, "description": {"Walk-in payment"}, "direction": {"in"}, "amount_minor": {"125"}, "currency": {"USD"}, "payment_method": {"cash"}, "occurred_on": {"2026-01-02"}, "note": {"Walk-in payment"}, "client_id": {client.ID.String()}}
 	response := request(h.Routes(), http.MethodPost, path+"?direction=in&page=2", form, cookies, nil)
 	if response.Code != http.StatusSeeOther {
@@ -51,6 +58,18 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), value) {
 			t.Fatalf("list missing %q: %d %s", value, page.Code, page.Body)
 		}
+	}
+	body := page.Body.String()
+	heading := strings.Index(body, `class="feature-list-heading"`)
+	create := strings.Index(body, `data-transactions-create`)
+	menu := strings.Index(body, `/settings/transactions/methods`)
+	toolbar := strings.Index(body, `class="list-toolbar"`)
+	if heading < 0 || create < heading || menu < create || toolbar < menu {
+		t.Fatal("transaction heading actions must precede filters")
+	}
+	filteredEmpty := request(h.Routes(), http.MethodGet, path+"?q=missing", nil, cookies, nil)
+	if filteredEmpty.Code != http.StatusOK || !strings.Contains(filteredEmpty.Body.String(), `class="list-toolbar"`) || strings.Contains(filteredEmpty.Body.String(), "No entries yet.") || strings.Contains(filteredEmpty.Body.String(), "Walk-in payment") {
+		t.Fatalf("filtered transactions must retain controls: %d %s", filteredEmpty.Code, filteredEmpty.Body)
 	}
 	summaryStart := strings.Index(page.Body.String(), `class="list-row`)
 	if summaryStart < 0 {
@@ -365,7 +384,7 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 	if sourcePage.Code != http.StatusOK || !strings.Contains(sourcePage.Body.String(), "<dd>"+expenseID+"</dd>") {
 		t.Fatalf("source navigation: %d %s", sourcePage.Code, sourcePage.Body)
 	}
-	if !strings.Contains(sourcePage.Body.String(), `class="list-filter-chip-edit`) || !strings.Contains(sourcePage.Body.String(), "Entry ID") || !strings.Contains(sourcePage.Body.String(), expenseID) {
+	if !strings.Contains(sourcePage.Body.String(), `class="list-filter-chip"`) || !strings.Contains(sourcePage.Body.String(), `class="list-filter-chip-remove"`) || !strings.Contains(sourcePage.Body.String(), "Entry ID") || !strings.Contains(sourcePage.Body.String(), expenseID) {
 		t.Fatal("source entry filter capsule must be visible")
 	}
 	newEntry := url.Values{"csrf": {session.CSRFSecret}, "description": {"Recorded from source"}, "direction": {"in"}, "amount": {"1.00"}, "amount_mode": {"decimal"}, "amount_locale": {"en"}, "currency": {"USD"}, "payment_method": {"cash"}, "note": {"Recorded from source"}}
@@ -390,7 +409,7 @@ func TestTransactionsWebCreateAndValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	duplicateRename := request(h.Routes(), http.MethodPost, path+"/categories/"+later.ID.String(), url.Values{"csrf": {session.CSRFSecret}, "name": {"Office"}, "action": {"rename"}}, cookies, nil)
-	body := duplicateRename.Body.String()
+	body = duplicateRename.Body.String()
 	formStart := strings.Index(body, `action="`+path+`/categories/`+later.ID.String()+`"`)
 	if formStart < 0 {
 		t.Fatal("missing category edit form")

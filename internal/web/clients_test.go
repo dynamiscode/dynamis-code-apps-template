@@ -12,6 +12,7 @@ import (
 	"example.com/dynamis-code/apps-template/internal/platform/config"
 	"example.com/dynamis-code/apps-template/internal/platform/database"
 	"example.com/dynamis-code/apps-template/internal/platform/secretbox"
+	"html"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -127,11 +128,13 @@ func TestClientsListMatchAnyJoinsFilters(t *testing.T) {
 	}
 	// Ada matches the name filter, Cy matches the email filter, and nobody matches both.
 	code, body := list(t, "?filter=displayName:contains:Ada&filter=email:contains:cy@&match=any")
-	if code != http.StatusOK || !strings.Contains(body, ">Ada<") || !strings.Contains(body, ">Cy<") || strings.Contains(body, ">Bea<") {
+	results := strings.SplitN(body, `id="list-results"`, 2)
+	if code != http.StatusOK || len(results) != 2 || !strings.Contains(results[1], ">Ada<") || !strings.Contains(results[1], ">Cy<") || strings.Contains(results[1], ">Bea<") {
 		t.Fatalf("match=any = %d, want Ada and Cy: %s", code, body)
 	}
 	code, body = list(t, "?filter=displayName:contains:Ada&filter=email:contains:cy@&match=all")
-	if code != http.StatusOK || strings.Contains(body, ">Ada<") || strings.Contains(body, ">Cy<") {
+	results = strings.SplitN(body, `id="list-results"`, 2)
+	if code != http.StatusOK || len(results) != 2 || strings.Contains(results[1], ">Ada<") || strings.Contains(results[1], ">Cy<") || strings.Contains(results[1], ">Bea<") {
 		t.Fatalf("match=all = %d, want no clients: %s", code, body)
 	}
 	code, _ = list(t, "?filter=displayName:contains:Ada&match=sometimes")
@@ -151,6 +154,7 @@ func TestClientsListMatchAnyJoinsFilters(t *testing.T) {
 // step links each field, and the second step shows that field's conditions as radio buttons.
 func TestClientsAddFilterStepsChooseFieldThenCondition(t *testing.T) {
 	env := newClientsTestEnv(t)
+	env.seedClient(t, "Ada")
 	list := func(t *testing.T, query string) (int, string) {
 		t.Helper()
 		response := request(env.routes, http.MethodGet, env.listPath()+withAll(query), nil, env.viewerCookies, nil)
@@ -192,33 +196,78 @@ func TestClientsListShowsCreateFormOnlyToWriters(t *testing.T) {
 		t.Fatalf("owner list = %d, want a link to the create page: %s", owner.Code, owner.Body.String())
 	}
 	body := owner.Body.String()
-	// A pristine list keeps the create action in the toolbar.
 	emptyCard := strings.Index(body, `id="client-empty-state"`)
 	createLink := strings.Index(body, `href="`+env.listPath()+`/new"`)
-	if emptyCard < 0 || createLink < 0 || createLink > emptyCard {
-		t.Fatalf("pristine list must link to the create page from its toolbar: %s", body)
+	if emptyCard < 0 || createLink < emptyCard || strings.Count(body, `href="`+env.listPath()+`/new"`) != 1 ||
+		strings.Contains(body, `class="list-toolbar"`) || strings.Contains(body, `filter_field=archiveStatus`) ||
+		!strings.Contains(body, `data-client-dialog`) {
+		t.Fatalf("pristine list must show only the centered create action: %s", body)
 	}
-	if !strings.Contains(body, `data-client-dialog`) || !strings.Contains(body, `name="display_name"`) ||
-		!strings.Contains(body, `filter_field=archiveStatus`) {
-		t.Fatalf("pristine list lacks the create dialog or archive filter: %s", body)
+	viewerEmpty := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
+	if strings.Contains(viewerEmpty.Body.String(), `href="`+env.listPath()+`/new"`) || strings.Contains(viewerEmpty.Body.String(), `data-client-dialog`) {
+		t.Fatalf("viewer empty list must not offer create: %s", viewerEmpty.Body.String())
 	}
 
-	// With a row present the toolbar retains both controls before the results region.
+	// With a row present the create action and menu sit above the filter toolbar.
 	env.seedClient(t, "Ada")
 	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	heading := strings.Index(body, `class="feature-list-heading"`)
+	actions := strings.Index(body, `class="feature-list-heading-actions"`)
 	results := strings.Index(body, `id="client-results"`)
 	createControls := strings.Index(body, `class="btn btn-primary" href="`+env.listPath()+`/new"`)
+	menu := strings.Index(body, `aria-label="Manage"`)
 	filterControls := strings.Index(body, `aria-label="Filter"`)
 	listResults := strings.Index(body, `id="list-results"`)
-	if results < 0 || listResults <= results || createControls <= results || createControls >= listResults ||
-		filterControls <= results || filterControls >= listResults {
-		t.Fatalf("create control and filter menu must sit in the toolbar, before the list results: %s", body)
+	if heading < 0 || actions <= heading || createControls <= actions || menu <= createControls || results <= menu ||
+		filterControls <= results || listResults <= filterControls {
+		t.Fatalf("create and menu must be in the heading, before the filter toolbar: %s", body)
 	}
 	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil)
 	body = viewer.Body.String()
 	if viewer.Code != http.StatusOK || strings.Contains(body, `href="`+env.listPath()+`/new"`) ||
 		strings.Contains(body, `data-client-dialog`) {
 		t.Fatalf("viewer list = %d, want read-only without create controls: %s", viewer.Code, body)
+	}
+}
+
+func TestClientsArchivedFilterAndMenus(t *testing.T) {
+	env := newClientsTestEnv(t)
+	created := request(env.routes, http.MethodPost, env.listPath(), url.Values{"csrf": {env.csrf}, "display_name": {"Ada"}}, env.cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create client = %d", created.Code)
+	}
+	path := created.Header().Get("Location")
+	for _, page := range []string{env.listPath() + "?all=1", path} {
+		body := request(env.routes, http.MethodGet, page, nil, env.cookies, nil).Body.String()
+		for _, marker := range []string{`list-row-menu-button`, `list-action-items`, `list-action-item`, `action="` + path + `/delete"`, `name="csrf"`} {
+			if !strings.Contains(body, marker) {
+				t.Fatalf("%s menu missing %q: %s", page, marker, body)
+			}
+		}
+	}
+	active := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.cookies, nil).Body.String()
+	if !strings.Contains(active, `action="`+path+`/archive`) || strings.Contains(active, `<span>Edit</span>`) {
+		t.Fatal("active client menu must offer archive instead of duplicate edit")
+	}
+	viewer := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil).Body.String()
+	if strings.Contains(viewer, `action="`+path+`/archive`) {
+		t.Fatal("viewer must not be offered archive")
+	}
+	confirmation := request(env.routes, http.MethodPost, path+"/archive", url.Values{"csrf": {env.csrf}}, env.cookies, nil)
+	if !strings.Contains(confirmation.Body.String(), `name="confirm_archive"`) {
+		t.Fatal("archive without confirmation must show a confirmation form")
+	}
+	archived := request(env.routes, http.MethodPost, path+"/archive", url.Values{"csrf": {env.csrf}, "confirm_archive": {"yes"}}, env.cookies, nil)
+	if archived.Code != http.StatusSeeOther {
+		t.Fatalf("archive client = %d", archived.Code)
+	}
+	body := request(env.routes, http.MethodGet, env.listPath()+"?all=1", nil, env.viewerCookies, nil).Body.String()
+	if !strings.Contains(body, `filter_field=archiveStatus`) || !strings.Contains(body, `class="list-toolbar"`) {
+		t.Fatalf("archived client must keep filter controls available: %s", body)
+	}
+	body = request(env.routes, http.MethodGet, env.listPath()+"?all=1&filter=archiveStatus:equals:archived", nil, env.viewerCookies, nil).Body.String()
+	if !strings.Contains(body, ">Ada<") || strings.Contains(body, `action="`+path+`/delete"`) || strings.Contains(body, `action="`+path+`/unarchive"`) {
+		t.Fatalf("viewer archived list must show client without mutation actions: %s", body)
 	}
 }
 
@@ -316,7 +365,7 @@ func TestClientCreateRefusesBlankNameWithMessageAndRefusesViewer(t *testing.T) {
 		t.Fatalf("blank create = %d: %s", blank.Code, blank.Body.String())
 	}
 	if !strings.Contains(blank.Body.String(), `id="client-new-page"`) ||
-		!strings.Contains(blank.Body.String(), `class="create" action="`+env.listPath()+`/new"`) {
+		!strings.Contains(blank.Body.String(), `action="`+env.listPath()+`/new"`) {
 		t.Fatalf("blank create must return the form on the create page: %s", blank.Body.String())
 	}
 	badEmail := request(env.routes, http.MethodPost, env.listPath(), url.Values{
@@ -460,9 +509,9 @@ func TestClientsListFilterAndSortFromTheForm(t *testing.T) {
 		strings.Contains(body, ">Cy<") || !strings.Contains(body, `aria-label="Filter"`) {
 		t.Fatalf("filtered list = %d: %s", code, body)
 	}
-	// After a filter is applied the menu starts again at the field list, including archive status.
-	if !strings.Contains(body, `class="client-field-choices"`) || !strings.Contains(body, `filter_field=archiveStatus`) {
-		t.Fatalf("list lacks the field choices or archive filter: %s", body)
+	// Archive status is omitted until the workspace has archived clients.
+	if !strings.Contains(body, `class="client-field-choices"`) || strings.Contains(body, `filter_field=archiveStatus`) {
+		t.Fatalf("list must hide the archive filter when no clients are archived: %s", body)
 	}
 	code, body = list(t, "?filter_field=displayName&filter_op=before&filter_value=x")
 	if code != http.StatusBadRequest || !strings.Contains(body, "Choose a valid sort or filter.") {
@@ -606,7 +655,7 @@ func TestClientsListCombinesFiltersAndPreservesPageQuery(t *testing.T) {
 }
 
 // TestClientsListSameFieldConditionsAndConnectors checks two conditions on one field under both
-// modes, the connector text between chips, the edit link, and the 20-filter limit.
+// modes, the connector text between chips, removal links, and the 20-filter limit.
 func TestClientsListSameFieldConditionsAndConnectors(t *testing.T) {
 	env := newClientsTestEnv(t)
 	for _, name := range []string{"Ada", "Bea", "Cy"} {
@@ -634,9 +683,36 @@ func TestClientsListSameFieldConditionsAndConnectors(t *testing.T) {
 	if !strings.Contains(body, `class="list-filter-connector"`) || !strings.Contains(body, "or") {
 		t.Fatalf("any mode lacks the or connector: %s", body)
 	}
-	// The edit link takes the condition out of the list and reopens its field, operator, and value.
-	if !strings.Contains(body, `filter_field=displayName`) || !strings.Contains(body, `filter_value=d`) {
-		t.Fatalf("edit link does not reopen the condition: %s", body)
+	// Each remove link must remove only its own condition and preserve the other.
+	chips := strings.Split(body, `<li class="list-filter-chip">`)
+	if len(chips) != 3 {
+		t.Fatalf("want two filter chips: %s", body)
+	}
+	for i, want := range []struct {
+		removed, remaining string
+		bea                bool
+	}{{"a", "d", false}, {"d", "a", true}} {
+		chip := strings.SplitN(chips[i+1], `</li>`, 2)[0]
+		if !strings.Contains(chip, "<strong>"+want.removed+"</strong>") {
+			t.Fatalf("chip does not show condition %q: %s", want.removed, chip)
+		}
+		const prefix = `class="list-filter-chip-remove" href="`
+		start := strings.Index(chip, prefix)
+		if start < 0 {
+			t.Fatalf("chip lacks remove link: %s", chip)
+		}
+		href := strings.SplitN(chip[start+len(prefix):], `"`, 2)[0]
+		response := request(env.routes, http.MethodGet, html.UnescapeString(href), nil, env.viewerCookies, nil)
+		removedBody := response.Body.String()
+		removedResults := strings.SplitN(removedBody, `id="list-results"`, 2)
+		if response.Code != http.StatusOK || len(removedResults) != 2 ||
+			!strings.Contains(removedBody, "<strong>"+want.remaining+"</strong>") ||
+			strings.Contains(removedBody, "<strong>"+want.removed+"</strong>") ||
+			!strings.Contains(removedResults[1], ">Ada<") ||
+			strings.Contains(removedResults[1], ">Bea<") != want.bea ||
+			strings.Contains(removedResults[1], ">Cy<") {
+			t.Fatalf("removing %q did not preserve %q and its matching rows: %d %s", want.removed, want.remaining, response.Code, removedBody)
+		}
 	}
 	// Twenty conditions reach the limit: the add menu shows the notice and no field list.
 	var query strings.Builder

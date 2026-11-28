@@ -367,12 +367,64 @@ func TestCatalogMemberCannotCreate(t *testing.T) {
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
 	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), `name="name"`) {
+	if page.Code != http.StatusOK || strings.Contains(page.Body.String(), `name="name"`) || strings.Contains(page.Body.String(), `data-catalog-create`) || !strings.Contains(page.Body.String(), `id="catalog-empty-state"`) {
 		t.Fatalf("member list = %d %s", page.Code, page.Body.String())
 	}
 	response := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Denied"}}, cookies, nil)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("member create = %d", response.Code)
+	}
+}
+
+func TestCatalogEmptyAndArchivedStates(t *testing.T) {
+	routes, auth, workspaceID, owner := testWeb(t, 2)
+	ctx := context.Background()
+	session, err := auth.CreateSession(ctx, owner.UserID, "local", "", time.Hour, identity.AuditContext{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
+	path := "/workspaces/" + workspaceID.String() + "/catalog"
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	body := page.Body.String()
+	if page.Code != http.StatusOK || !strings.Contains(body, `id="catalog-empty-state"`) || strings.Count(body, `data-catalog-create`) != 1 || strings.Contains(body, `class="list-toolbar"`) {
+		t.Fatalf("empty catalog = %d %s", page.Code, body)
+	}
+	createPage := request(routes, http.MethodGet, path+"?create=true", nil, cookies, nil)
+	if !strings.Contains(createPage.Body.String(), `data-catalog-dialog open`) {
+		t.Fatal("empty-state create link does not open create dialog")
+	}
+	created := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Entry"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d", created.Code)
+	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	body = page.Body.String()
+	if strings.Contains(body, `id="catalog-empty-state"`) || strings.Contains(body, `id="catalog-status"`) || !strings.Contains(body, "Entry") {
+		t.Fatalf("active catalog = %s", body)
+	}
+	heading := strings.Index(body, `class="feature-list-heading"`)
+	create := strings.Index(body, `data-catalog-create`)
+	toolbar := strings.Index(body, `class="list-toolbar"`)
+	if heading < 0 || create < heading || toolbar < create {
+		t.Fatal("catalog create action must appear in heading before filters")
+	}
+	detail := request(routes, http.MethodGet, html.UnescapeString(catalogDetailLinks(t, body)[0]), nil, cookies, nil)
+	archive := regexp.MustCompile(`action="([^"]+/archive)"`).FindStringSubmatch(detail.Body.String())
+	if len(archive) != 2 {
+		t.Fatal("archive form missing")
+	}
+	if response := request(routes, http.MethodPost, archive[1], url.Values{"csrf": {session.CSRFSecret}}, cookies, nil); response.Code != http.StatusSeeOther {
+		t.Fatalf("archive = %d", response.Code)
+	}
+	page = request(routes, http.MethodGet, path, nil, cookies, nil)
+	body = page.Body.String()
+	if strings.Contains(body, `id="catalog-empty-state"`) || !strings.Contains(body, `id="catalog-status"`) || !strings.Contains(body, "No catalog entries yet.") {
+		t.Fatalf("archived-only catalog = %s", body)
+	}
+	page = request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), "Entry") || !strings.Contains(page.Body.String(), `id="catalog-status"`) {
+		t.Fatalf("archived catalog = %s", page.Body.String())
 	}
 }
 
@@ -674,13 +726,26 @@ func TestCatalogScopeSwapsAndFallsBackToFullPage(t *testing.T) {
 	}
 	cookies := []*http.Cookie{{Name: "session", Value: session.Secret}, {Name: "csrf", Value: session.CSRFSecret}}
 	path := "/workspaces/" + workspaceID.String() + "/catalog"
-	page := request(routes, http.MethodGet, path, nil, cookies, nil)
-	if !strings.Contains(page.Body.String(), `hx-target="#catalog-view"`) || !strings.Contains(page.Body.String(), `name="includeArchived"`) || !strings.Contains(page.Body.String(), `value="false" selected`) {
-		t.Fatal("catalog status filter lacks default or enhancement")
-	}
 	fragment := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, map[string]string{"HX-Request": "true"})
 	if fragment.Code != http.StatusOK || !strings.HasPrefix(fragment.Body.String(), `<div id="catalog-view">`) || strings.Contains(fragment.Body.String(), "<!doctype") || !strings.Contains(fragment.Body.String(), "No archived catalog entries.") {
 		t.Fatal("catalog scope did not return the archived fragment")
+	}
+	created := request(routes, http.MethodPost, path, url.Values{"csrf": {session.CSRFSecret}, "name": {"Archived entry"}, "mode": {"manual"}, "currency": {"USD"}, "variant": {"Initial"}}, cookies, nil)
+	if created.Code != http.StatusSeeOther {
+		t.Fatalf("create = %d", created.Code)
+	}
+	list := request(routes, http.MethodGet, path, nil, cookies, nil)
+	detail := request(routes, http.MethodGet, html.UnescapeString(catalogDetailLinks(t, list.Body.String())[0]), nil, cookies, nil)
+	archive := regexp.MustCompile(`action="([^"]+/archive)"`).FindStringSubmatch(detail.Body.String())
+	if len(archive) != 2 {
+		t.Fatal("archive form missing")
+	}
+	if response := request(routes, http.MethodPost, archive[1], url.Values{"csrf": {session.CSRFSecret}}, cookies, nil); response.Code != http.StatusSeeOther {
+		t.Fatalf("archive = %d", response.Code)
+	}
+	page := request(routes, http.MethodGet, path, nil, cookies, nil)
+	if !strings.Contains(page.Body.String(), `hx-target="#catalog-view"`) || !strings.Contains(page.Body.String(), `name="includeArchived"`) || !strings.Contains(page.Body.String(), `value="false" selected`) {
+		t.Fatal("catalog status filter lacks default or enhancement")
 	}
 	full := request(routes, http.MethodGet, path+"?includeArchived=true", nil, cookies, nil)
 	if !strings.Contains(full.Body.String(), "<!doctype html>") {

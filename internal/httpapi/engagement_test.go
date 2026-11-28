@@ -47,9 +47,21 @@ func TestStagesThroughREST(t *testing.T) {
 		t.Fatal(err)
 	}
 	reordered := serveAuthorized(handler, http.MethodPost, path+"/reorder", `{"ids":["`+second.ID+`","`+first.ID+`"]}`, token, nil)
-	if reordered.Code != http.StatusNoContent {
+	if reordered.Code != http.StatusBadRequest {
 		t.Fatalf("reorder = %d %s", reordered.Code, reordered.Body.String())
 	}
+	count := serveAuthorized(handler, http.MethodGet, path+"/"+first.ID+"/engagement-count", "", token, nil)
+	if count.Code != http.StatusOK || !strings.Contains(count.Body.String(), `"count":0`) {
+		t.Fatalf("count = %d %s", count.Code, count.Body.String())
+	}
+	snapshot := strings.TrimSpace(serveAuthorized(handler, http.MethodGet, path, "", token, nil).Body.String())
+	request := `{"ids":["` + second.ID + `","` + first.ID + `"],"snapshot":` + snapshot + `,"movedId":"` + first.ID + `","newKind":"won","expectedCount":0,"confirmed":false}`
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, path+"/reorder", request, token, nil), http.StatusConflict, "confirmation-required")
+	request = strings.Replace(request, `"confirmed":false`, `"confirmed":true`, 1)
+	if response := serveAuthorized(handler, http.MethodPost, path+"/reorder", request, token, nil); response.Code != http.StatusNoContent {
+		t.Fatalf("confirmed move = %d %s", response.Code, response.Body.String())
+	}
+	assertProblem(t, serveAuthorized(handler, http.MethodPost, path+"/reorder", request, token, nil), http.StatusConflict, "stale-stages")
 	archived := serveAuthorized(handler, http.MethodPost, path+"/"+first.ID+"/archive", "", token, nil)
 	if archived.Code != http.StatusNoContent {
 		t.Fatalf("archive = %d %s", archived.Code, archived.Body.String())

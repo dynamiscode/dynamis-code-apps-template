@@ -76,6 +76,11 @@ func (h *Handler) renderIntake(w http.ResponseWriter, r *http.Request, status in
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
+	action := r.FormValue("action")
+	if r.Method == http.MethodPost && message == "" && r.FormValue("confirmed") != "1" && (action == "rotate" || action == "disable") {
+		_ = intakeConfirmationPage(data, action, r.FormValue("consent")).Render(r.Context(), w)
+		return
+	}
 	_ = intakeSettingsPage(data, settings, message, link, linkMessage).Render(r.Context(), w)
 }
 
@@ -91,7 +96,12 @@ func (h *Handler) intakeMutation(w http.ResponseWriter, r *http.Request) {
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
 	var token string
 	var err error
-	switch r.FormValue("action") {
+	action := r.FormValue("action")
+	if (action == "rotate" || action == "disable") && r.FormValue("confirmed") != "1" {
+		h.renderIntake(w, r, http.StatusOK, "", "")
+		return
+	}
+	switch action {
 	case "create":
 		token, err = h.intake.Create(r.Context(), actor, workspace, r.FormValue("consent"), auditContext(r))
 	case "rotate":

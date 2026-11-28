@@ -163,6 +163,16 @@ func (h *Handler) renderClientList(
 		h.clientError(writer, request, err)
 		return
 	}
+	allClients, err := h.clients.List(request.Context(), principal, workspaceID, clients.ListInput{Page: 1, Limit: 1, Archived: clients.ArchivedAll})
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
+	archivedCount, err := h.clients.CountArchived(request.Context(), principal, workspaceID)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
 	columns := clientColumns(fields)
 	var orderErr error
 	columns, orderErr = h.orderListColumns(request, principal, workspaceID, listprefs.ListClients, columns)
@@ -198,6 +208,9 @@ func (h *Handler) renderClientList(
 		return
 	}
 	filterView := buildListFilterView(h.clientsPath(workspaceID), query, clientListFilterFields(fields, choices), form.Filter)
+	if archivedCount == 0 {
+		filterView.Fields = filterView.Fields[1:]
+	}
 	hiddenSort := ""
 	hiddenSortLabelKey := ""
 	for _, column := range columns {
@@ -224,11 +237,6 @@ func (h *Handler) renderClientList(
 		component = clientList
 	}
 	if h.openDefaultListView(writer, request, listviews.ListClients, principal, workspaceID) {
-		return
-	}
-	archivedCount, err := h.clients.CountArchived(request.Context(), principal, workspaceID)
-	if err != nil {
-		h.clientError(writer, request, err)
 		return
 	}
 	archived := form.Archived != "" && form.Archived != clients.ArchivedActive
@@ -262,6 +270,7 @@ func (h *Handler) renderClientList(
 		ListColumns: columns, ListRows: rows, ListTotal: page.Total, ListStart: listStart(pageNumber, limit), Filter: filterView,
 		ClientPreservedQuery: clientPreservedQuery(query), ListPreservedQuery: filterView.Preserved,
 		ListLive: true, ListSearch: form.Search, ListFragment: listResultsFragment(request), ListViews: view.Views, ListViewQuery: view.Query, ListViewBase: view.Base, ListViewRoute: view.Route, ListViewCanShare: view.CanShare, ListViewSaveReason: view.SaveReason, ArchivedClientCount: archivedCount,
+		ClientListEmpty:         allClients.Total == 0,
 		HasVisibleClientColumns: hasVisibleClientColumns(visible), HasClientFilters: len(form.Filter.Filters) > 0,
 		HiddenClientSort:       hiddenSort,
 		ClearClientFiltersPath: clearFilters, ClientQuerySuffix: querySuffix, ClientReturnQuery: cloneClientQuery(query).Encode(),
@@ -286,7 +295,11 @@ func (h *Handler) renderClientPage(writer http.ResponseWriter, request *http.Req
 	data.ClientsEnabled = h.clientsEnabled
 	data.SingleWorkspace = h.workspaceMode == config.WorkspaceModeSingle
 	h.localizePage(writer, &data)
-	data.Title = data.T("clients.title")
+	if request.PathValue("engagementId") != "" && data.Title != "" {
+		data.Title += " — " + data.T("engagement.list")
+	} else {
+		data.Title = data.T("clients.title")
+	}
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.WriteHeader(status)
@@ -493,6 +506,38 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		h.clientError(writer, request, err)
 		return
 	}
+	correctionPages := make(map[clients.TimelineEntryID]int)
+	for _, entry := range entries {
+		if entry.CorrectsID == nil || timelineContains(entries, *entry.CorrectsID) {
+			continue
+		}
+		if _, found := correctionPages[*entry.CorrectsID]; found {
+			continue
+		}
+		targetPage, lookupErr := h.clients.TimelineEntryNewestPage(request.Context(), principal, workspaceID, clientID, *entry.CorrectsID, 50)
+		if lookupErr != nil {
+			if errors.Is(lookupErr, clients.ErrNotFound) || errors.Is(lookupErr, clients.ErrInvalidInput) {
+				continue
+			}
+			h.clientError(writer, request, lookupErr)
+			return
+		}
+		correctionPages[*entry.CorrectsID] = targetPage
+	}
+	correctionQuery := request.FormValue("timeline_search")
+	correctionPage := 1
+	if rawPage := request.FormValue("timeline_browse"); rawPage != "" {
+		correctionPage, err = strconv.Atoi(rawPage)
+		if err != nil || correctionPage < 1 || correctionPage > 1000000 {
+			h.renderError(writer, http.StatusBadRequest)
+			return
+		}
+	}
+	correctionResults, correctionHasMore, err := h.clients.SearchTimelineEntries(request.Context(), principal, workspaceID, clientID, correctionQuery, correctionPage)
+	if err != nil {
+		h.clientError(writer, request, err)
+		return
+	}
 	values, err := h.clients.ListValues(request.Context(), principal, workspaceID, clientID)
 	if err != nil {
 		h.clientError(writer, request, err)
@@ -517,6 +562,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 	if strings.HasPrefix(errorKey, "engagement.") {
 		engagementNotes = request.FormValue("notes")
 	}
+	members, err = h.identity.ListMembers(request.Context(), principal)
+	if err != nil {
+		h.renderError(writer, http.StatusInternalServerError)
+		return
+	}
 	if h.engagement != nil {
 		engagements, err = h.engagement.ListForClient(request.Context(), principal, workspaceID, clientID)
 		if err != nil {
@@ -532,11 +582,6 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 			if stage.Kind == "open" && !stage.Archived {
 				openStages = append(openStages, stage)
 			}
-		}
-		members, err = h.identity.ListMembers(request.Context(), principal)
-		if err != nil {
-			h.renderError(writer, http.StatusInternalServerError)
-			return
 		}
 	}
 	if h.scheduling != nil && request.PathValue("engagementId") != "" && len(engagements) > 0 {
@@ -619,10 +664,10 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		}
 		historyPath := h.clientsPath(workspaceID) + "/" + clientID.String() + "/engagements/" + id.String()
 		if historyPage > 1 {
-			historyPrevious = historyPath + "?action_history_page=" + strconv.Itoa(historyPage-1) + "#action-history"
+			historyPrevious = engagementContextURL(clientContextURL(historyPath+"?action_history_page="+strconv.Itoa(historyPage-1), request.URL.Query().Get("return")), engagementReturnPath(workspaceID, request.URL.Query().Get("engagement_return"))) + "#action-history"
 		}
 		if hasMore {
-			historyNext = historyPath + "?action_history_page=" + strconv.Itoa(historyPage+1) + "#action-history"
+			historyNext = engagementContextURL(clientContextURL(historyPath+"?action_history_page="+strconv.Itoa(historyPage+1), request.URL.Query().Get("return")), engagementReturnPath(workspaceID, request.URL.Query().Get("engagement_return"))) + "#action-history"
 		}
 		if principal.Permissions[identity.ResourcesWrite] {
 			filePage := listPageNumber(request.URL.Query())
@@ -635,17 +680,6 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 				return
 			}
 		}
-		if errorKey == "engagement.invalid_name" {
-			engagements[0].Name = request.FormValue("name")
-		}
-		if errorKey == "engagement.invalid_quote" {
-			engagements[0].Quote = engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")}
-		}
-		if errorKey == "engagement.invalid_next_action" {
-			owner, _ := identity.ParseUserID(request.FormValue("owner_id"))
-			engagements[0].NextAction = engagement.NextAction{Text: request.FormValue("text"), DueDate: request.FormValue("due_date"), OwnerID: owner}
-			engagements[0].ActionVersion, _ = strconv.ParseInt(request.FormValue("version"), 10, 64)
-		}
 	}
 	h.renderClientPage(writer, request, status, component, viewmodel.PageData{
 		Title: title, ErrorKey: errorKey, CSRF: csrf,
@@ -654,9 +688,11 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		NavPage: "clients", NavSection: "clients",
 		CurrentPath:       h.clientsPath(workspaceID),
 		ClientReturnQuery: request.URL.Query().Get("return"),
+		EngagementReturn:  engagementReturnPath(workspaceID, request.URL.Query().Get("engagement_return")),
 		FieldsPath:        h.clientFieldsPath(workspaceID),
 		CanManageFields:   principal.Permissions[identity.WorkspaceUpdate],
-		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		Client:            client, ClientValues: rows, ClientTimeline: entries, TimelineCorrectionPages: correctionPages, TimelinePage: page, TimelineDraft: timelineDraft, CanEditClients: principal.Permissions[identity.ResourcesWrite],
+		TimelineCorrectionResults: correctionResults, TimelineCorrectionQuery: correctionQuery, TimelineCorrectionPage: correctionPage, TimelineCorrectionHasMore: correctionHasMore,
 		ClientTransactions: transactionsEntries, ClientTransactionsPage: transactionsPage, CanReadClientTransactions: canReadTransactions,
 		ClientDraft: editDraft, ClientEditRejected: draft != nil,
 		ClientInlineField: func() string {
@@ -683,7 +719,9 @@ func (h *Handler) renderClientDetailWithTimeline(writer http.ResponseWriter, req
 		EngagementNotes:     engagementNotes, EngagementNotesRevision: request.FormValue("notes_revision"), OpenEngagementStages: openStages,
 		EngagementName: request.FormValue("name"), EngagementStage: request.FormValue("stage"),
 		EngagementAssignee: request.FormValue("assignee_id"), EngagementOwner: request.FormValue("owner_id"), EngagementOwnerError: ownerError, EngagementOwnerUnavailable: ownerUnavailable,
-		ActionConflictText: request.FormValue("text"), ActionConflictDueDate: request.FormValue("due_date"), ActionConflictClear: errorKey == "engagement.action_conflict" && request.FormValue("clear") == "1",
+		ActionDraftVersion:   request.FormValue("version"),
+		EngagementQuoteDraft: engagement.Quote{Status: request.FormValue("status"), Amount: request.FormValue("amount"), DateSent: request.FormValue("date_sent")},
+		ActionConflictText:   request.FormValue("text"), ActionConflictDueDate: request.FormValue("due_date"), ActionConflictClear: errorKey == "engagement.action_conflict" && request.FormValue("clear") == "1",
 		EngagementQuoteStatusError: quoteStatusError, EngagementQuoteAmountError: quoteAmountError, EngagementQuoteDateError: quoteDateError,
 		EngagementActionTextError: actionTextError, EngagementActionDateError: actionDateError,
 	})
@@ -725,7 +763,7 @@ func (h *Handler) setClientValue(writer http.ResponseWriter, request *http.Reque
 		h.clientValueError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+	h.redirect(writer, request, clientContextURL(h.clientsPath(workspaceID)+"/"+clientID.String(), request.URL.Query().Get("return")))
 }
 
 func (h *Handler) clearClientValue(writer http.ResponseWriter, request *http.Request) {
@@ -747,7 +785,7 @@ func (h *Handler) clearClientValue(writer http.ResponseWriter, request *http.Req
 		h.clientValueError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+	h.redirect(writer, request, clientContextURL(h.clientsPath(workspaceID)+"/"+clientID.String(), request.URL.Query().Get("return")))
 }
 
 // clientValueError re-renders the detail page with the message for a refused
@@ -813,7 +851,7 @@ func (h *Handler) changeClientProperty(writer http.ResponseWriter, request *http
 	case err != nil:
 		h.clientError(writer, request, err)
 	default:
-		h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+		h.redirect(writer, request, clientContextURL(h.clientsPath(workspaceID)+"/"+clientID.String(), request.URL.Query().Get("return")))
 	}
 }
 
@@ -849,7 +887,7 @@ func (h *Handler) changeClient(writer http.ResponseWriter, request *http.Request
 		h.clientError(writer, request, err)
 		return
 	}
-	h.redirect(writer, request, h.clientsPath(workspaceID)+"/"+clientID.String())
+	h.redirect(writer, request, clientContextURL(h.clientsPath(workspaceID)+"/"+clientID.String(), request.URL.Query().Get("return")))
 }
 
 // clientErrorKey names the catalog message for a rejected client value.

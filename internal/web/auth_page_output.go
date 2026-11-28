@@ -188,7 +188,7 @@ func (h *Handler) serveAuthPage(view func(*http.Request) authPageOutput) http.Ha
 			h.render(writer, result.status, "language-page", result.data)
 		case authPageLocaleCleared:
 			h.clearCookie(writer, "locale")
-			h.redirect(writer, request, "/settings/language?saved=1")
+			h.redirect(writer, request, result.target)
 		case authPageSessions:
 			h.render(writer, http.StatusOK, "sessions-page", result.data)
 		case authPageSecurity:

@@ -3,11 +3,43 @@ package web
 import (
 	"errors"
 	"net/http"
+	"net/mail"
 	"strings"
+	"unicode/utf8"
 
 	"example.com/dynamis-code/apps-template/internal/intake"
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
+
+func publicIntakeErrors(data viewmodel.PageData, submission intake.Submission) map[string]string {
+	fields := make(map[string]string)
+	name := strings.TrimSpace(submission.DisplayName)
+	phone := strings.TrimSpace(submission.Phone)
+	email := strings.TrimSpace(submission.Email)
+	if name == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > 200 {
+		fields["name"] = data.T("public_intake.name_error")
+	}
+	if !utf8.ValidString(phone) || utf8.RuneCountInString(phone) > 50 {
+		fields["phone"] = data.T("public_intake.phone_error")
+	}
+	if email != "" {
+		address, err := mail.ParseAddress(email)
+		if len(email) > 254 || !utf8.ValidString(email) || err != nil || address.Address != email {
+			fields["email"] = data.T("public_intake.email_error")
+		}
+	}
+	if email == "" && phone == "" {
+		fields["phone"] = data.T("public_intake.contact_required")
+		fields["email"] = data.T("public_intake.contact_required")
+	}
+	if !utf8.ValidString(submission.Notes) || utf8.RuneCountInString(submission.Notes) > 2000 {
+		fields["notes"] = data.T("public_intake.notes_error")
+	}
+	if !submission.Consent {
+		fields["consent"] = data.T("public_intake.consent_error")
+	}
+	return fields
+}
 
 func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
@@ -31,6 +63,7 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 	var submission intake.Submission
 	status := http.StatusOK
 	message := ""
+	var fields map[string]string
 	complete := false
 	if r.Method == http.MethodPost {
 		r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
@@ -40,7 +73,7 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 		}
 		if r.FormValue("website") != "" {
 			w.WriteHeader(http.StatusOK)
-			_ = publicIntakePage(data, "", submission, "", true).Render(r.Context(), w)
+			_ = publicIntakePage(data, "", submission, "", nil, true).Render(r.Context(), w)
 			return
 		}
 		submission = intake.Submission{DisplayName: r.FormValue("name"), Phone: r.FormValue("phone"), Email: r.FormValue("email"), Notes: r.FormValue("notes"), Consent: r.FormValue("consent") == "on"}
@@ -51,6 +84,7 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 			return
 		case errors.Is(err, intake.ErrInvalidInput):
 			status, message = http.StatusUnprocessableEntity, data.T("public_intake.invalid")
+			fields = publicIntakeErrors(data, submission)
 			if strings.TrimSpace(submission.Email) == "" && strings.TrimSpace(submission.Phone) == "" {
 				message = data.T("public_intake.contact_required")
 			}
@@ -62,5 +96,5 @@ func (h *Handler) publicIntake(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(status)
-	_ = publicIntakePage(data, consent, submission, message, complete).Render(r.Context(), w)
+	_ = publicIntakePage(data, consent, submission, message, fields, complete).Render(r.Context(), w)
 }

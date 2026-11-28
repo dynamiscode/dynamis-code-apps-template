@@ -4,11 +4,27 @@ import atoms "example.com/dynamis-code/apps-template/internal/web/components/ato
 import molecules "example.com/dynamis-code/apps-template/internal/web/components/molecules"
 import "example.com/dynamis-code/apps-template/internal/web/viewmodel"
 
-// DashboardHeader is the top bar of workspace pages: the drawer toggle and the
-// workspace context as the lead, so the drawer opens from the same row as the
-// account avatar, and the workspace name works as the switcher title.
+// DashboardHeader is the top bar of workspace pages.
 templ DashboardHeader(data viewmodel.PageData) {
 	@sharedHeader(data, false)
+}
+
+templ LanguageMenu(data viewmodel.PageData) {
+	{{ method, action := "post", "/settings/language"; if data.CSRF == "" { method, action = "get", "/language" } }}
+	<details class="dropdown dropdown-end">
+		<summary class="btn btn-sm">{ data.T("common.language") }</summary>
+		<ul class="menu dropdown-content z-50 w-40 rounded-box bg-base-100 p-2 shadow-lg">
+			for _, language := range []struct{ locale, label string }{{"en", "common.english"}, {"es", "common.spanish"}} {
+				<li>
+					<form class="!flex w-full !p-0" method={ method } action={ action }>
+						<input type="hidden" name="csrf" value={ data.CSRF }/>
+						<input type="hidden" name="return_to" value={ data.ReturnPath }/>
+						<button class="btn btn-outline w-full justify-start" type="submit" name="locale" value={ language.locale } aria-current={ currentPage(data.Locale == language.locale) }>{ data.T(language.label) }</button>
+					</form>
+				</li>
+			}
+		</ul>
+	</details>
 }
 
 templ ThemeMenu(data viewmodel.PageData) {
@@ -29,14 +45,14 @@ templ ThemeMenu(data viewmodel.PageData) {
 }
 
 templ sharedHeader(data viewmodel.PageData, account bool) {
-	<header class="navbar sticky top-0 z-30 flex-nowrap gap-4 border-b border-base-200 bg-base-100 px-4">
-		<div class="navbar-start min-w-0 gap-3">
+	<header class="navbar sticky top-0 z-30 flex-nowrap gap-2 border-b border-base-200 bg-base-100 px-2 sm:px-4">
+		<div class="navbar-start min-w-0 flex-1 gap-2">
 			if account {
 				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-				<a class="workspace-name border border-base-300 rounded-field" href="/account">{ data.T("common.account") }</a>
+				<a class="workspace-name min-w-0 border border-base-300 rounded-field" href="/account"><span class="truncate">{ data.T("common.account") }</span></a>
 			} else if data.Workspace.ID != 0 {
 				<button type="button" class="btn btn-outline btn-square drawer-button lg:hidden" aria-label={ data.T("ui.open_navigation") } @click="toggleDrawer">&#9776;</button>
-				<a class="workspace-name border border-base-300 rounded-field" href={ "/workspaces/" + data.Workspace.ID.String() }>{ data.Workspace.Name }</a>
+				<a class="workspace-name min-w-0 border border-base-300 rounded-field [.drawer:has(>_.drawer-toggle:checked)_&]:hidden! lg:[.drawer_&]:hidden!" href={ "/workspaces/" + data.Workspace.ID.String() }><span class="truncate">{ data.Workspace.Name }</span></a>
 			} else {
 				<a class="brand inline-flex items-center gap-2 rounded-field border border-base-300 px-2 text-lg font-extrabold no-underline" href="/"><span class="brand-mark" aria-hidden="true"></span>{ data.T("common.product_name") }</a>
 				<div class="hidden min-w-0 items-center gap-2 text-base-content/70 sm:flex">
@@ -44,7 +60,8 @@ templ sharedHeader(data viewmodel.PageData, account bool) {
 				</div>
 			}
 		</div>
-		<div class="navbar-end">
+		<div class="navbar-end w-auto flex-none gap-2">
+			@LanguageMenu(data)
 			@ThemeMenu(data)
 			@AccountMenu(data)
 		</div>

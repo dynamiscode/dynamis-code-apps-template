@@ -9,9 +9,9 @@ import templates "example.com/dynamis-code/apps-template/internal/web/components
 templ engagementNewPage(data viewmodel.PageData, choices []clients.Client, selected clients.Client, stages []engagement.Stage, search string, prev string, next string, pickerOpen bool) {
  @templates.DashboardShell(data, templates.DashboardHome) {
   if data.Client.ID != 0 {
-   @molecules.BackLink("/workspaces/" + data.Workspace.ID.String() + "/clients/" + data.Client.ID.String(), data.T("clients.back"))
+   @molecules.BackLink(clientContextURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + data.Client.ID.String(), data.ClientReturnQuery), data.T("clients.back"))
   } else {
-   @molecules.BackLink(data.CurrentPath, data.T("engagement.back_to_list"))
+   @molecules.BackLink(engagementNewReturn(data), data.T("engagement.back_to_list"))
   }
   @molecules.PageHeading(data.T("engagement.create"), data.T("engagement.title"))
   @engagementNewContent(data, choices, selected, stages, search, prev, next, pickerOpen)
@@ -19,14 +19,14 @@ templ engagementNewPage(data viewmodel.PageData, choices []clients.Client, selec
 }
 
 templ engagementNewDialog(data viewmodel.PageData, choices []clients.Client, selected clients.Client, stages []engagement.Stage, search string, prev string, next string, pickerOpen bool) {
- <dialog class="modal" aria-labelledby="engagement-create-title" data-engagement-dialog>
+ <dialog class="modal" aria-labelledby="engagement-create-title" data-engagement-dialog data-engagement-discard-message={ data.T("ui.unsaved") }>
   <div class="modal-box max-w-4xl">
    <div class="flex items-start justify-between gap-3">
     <h2 id="engagement-create-title">{ data.T("engagement.create") }</h2>
     if data.Client.ID != 0 {
-     <a class="btn btn-outline btn-square" href={ templ.SafeURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + data.Client.ID.String()) } data-engagement-cancel aria-label={ data.T("ui.close") }><span aria-hidden="true">×</span></a>
+     <a class="btn btn-ghost btn-square shrink-0" href={ templ.SafeURL(clientContextURL("/workspaces/" + data.Workspace.ID.String() + "/clients/" + data.Client.ID.String(), data.ClientReturnQuery)) } data-engagement-cancel aria-label={ data.T("ui.close") }><span aria-hidden="true">×</span></a>
     } else {
-     <a class="btn btn-outline btn-square" href={ templ.SafeURL(data.CurrentPath) } data-engagement-cancel aria-label={ data.T("ui.close") }><span aria-hidden="true">×</span></a>
+     <a class="btn btn-ghost btn-square shrink-0" href={ templ.SafeURL(engagementNewReturn(data)) } data-engagement-cancel aria-label={ data.T("ui.close") }><span aria-hidden="true">×</span></a>
     }
    </div>
    @engagementNewContent(data, choices, selected, stages, search, prev, next, pickerOpen)
@@ -38,31 +38,39 @@ templ engagementNewContent(data viewmodel.PageData, choices []clients.Client, se
  if data.ErrorKey != "" {
   @molecules.ErrorAlert(data.T(data.ErrorKey))
  }
- if len(stages) == 0 && (len(choices) > 0 || selected.ID != 0) {
+ if len(stages) == 0 {
   @engagementNoStages(data)
- } else {
+ }
   <div class="card my-4 p-6">
-   <form method="post" action={ templ.SafeURL(data.CurrentPath + "/new") } x-data="engagementClientPicker">
+   <form method="post" action={ templ.SafeURL(engagementContextURL(clientContextURL(data.CurrentPath + "/new", data.ClientReturnQuery), data.EngagementReturn)) } x-data="engagementClientPicker" data-dirty-track data-unsaved-warning data-dirty-on-load?={ data.EngagementName != "" || data.EngagementNotes != "" || data.EngagementStage != "" }>
     <input type="hidden" name="csrf" value={ data.CSRF }/>
     if data.Client.ID != 0 {
      <input type="hidden" name="from_client" value={ data.Client.ID.String() }/>
     }
     <input type="hidden" name="client" value={ selected.ID.String() } data-selected-client data-entry-required/>
     <div class="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)]">
-     <div class="min-w-0">
+     <div class="min-w-0 flex flex-col gap-3">
       @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-name", Label: data.T("engagement.name"), Value: data.EngagementName}) {
        <input id="engagement-name" name="name" value={ data.EngagementName } required maxlength="200" { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_name"), "aria-describedby": templ.KV("engagement-name-error", data.ErrorKey == "engagement.invalid_name")}... }/>
       }
       if data.ErrorKey == "engagement.invalid_name" {
        <p id="engagement-name-error">{ data.T(data.ErrorKey) }</p>
       }
-      @engagementNotesEditor(data, data.EngagementNotes)
+      {{ notesError := ""; if data.ErrorKey == "engagement.invalid_notes" { notesError = data.T(data.ErrorKey) } }}
+      @molecules.NotesEditor(molecules.NotesEditorProps{
+       Inline: true, ID: "engagement-notes", Name: "notes", Label: data.T("engagement.notes")+" "+data.T("ui.optional"),
+       Value: data.EngagementNotes, MaxLength: "5000", Draft: data.ErrorKey == "engagement.invalid_notes", Error: notesError,
+       Warning: data.T("notes.source_warning"), BoldLabel: data.T("engagement.bold"), ItalicLabel: data.T("engagement.italic"),
+       ListLabel: data.T("engagement.bulleted_list"), SourceLabel: data.T("notes.source"),
+       LinkLabel: data.T("notes.link"), LinkURLLabel: data.T("notes.link_url"), LinkApplyLabel: data.T("notes.link_apply"),
+       LinkCancelLabel: data.T("notes.link_cancel"), LinkInvalidLabel: data.T("notes.link_invalid"),
+      })
      </div>
-     <div class="min-w-0">
+     <div class="min-w-0 flex flex-col gap-3">
       @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-client-picker", Value: selected.DisplayName}) {
       <span id="engagement-client-label" class="entry-field-label">{ data.T("engagement.client") }</span>
       <details class="w-full" data-client-picker open?={ pickerOpen }>
-       <summary id="engagement-client-picker" class="select select-bordered flex w-full items-center justify-between" aria-labelledby="engagement-client-label engagement-client-current">
+       <summary id="engagement-client-picker" class="select select-bordered flex w-full items-center justify-between" aria-labelledby="engagement-client-label engagement-client-current" aria-describedby="engagement-create-requirements engagement-client-error" { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_client")}... }>
         <span id="engagement-client-current" data-client-current>
          if selected.ID == 0 {
           { data.T("engagement.choose_client") }
@@ -87,6 +95,11 @@ templ engagementNewContent(data viewmodel.PageData, choices []clients.Client, se
        </div>
       </details>
       }
+      <p id="engagement-client-error">
+       if data.ErrorKey == "engagement.invalid_client" {
+        { data.T(data.ErrorKey) }
+       }
+      </p>
       @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-stage", Label: data.T("engagement.stage"), Value: data.EngagementStage, SearchLabel: data.T("ui.search")}) {
       <select id="engagement-stage" name="stage" class="select select-bordered" data-entry-picker required { templ.Attributes{"aria-invalid": templ.KV("true", data.ErrorKey == "engagement.invalid_stage"), "aria-describedby": templ.KV("engagement-stage-error", data.ErrorKey == "engagement.invalid_stage")}... }>
        <option value="">{ data.T("engagement.select_stage") }</option>
@@ -100,10 +113,10 @@ templ engagementNewContent(data viewmodel.PageData, choices []clients.Client, se
       }
      </div>
     </div>
-    <button class="btn btn-primary" type="submit">{ data.T("engagement.create") }</button>
+    <p id="engagement-create-requirements">{ data.T("engagement.create_requirements") }</p>
+    <div class="modal-action flex-wrap"><button class="btn btn-primary" type="submit" aria-describedby="engagement-create-requirements">{ data.T("engagement.create") }</button></div>
    </form>
   </div>
- }
 }
 
 templ engagementNoStages(data viewmodel.PageData) {
@@ -142,33 +155,3 @@ templ engagementClientResults(data viewmodel.PageData, choices []clients.Client,
  </nav>
 }
 
-templ engagementNotesEditor(data viewmodel.PageData, notes string) {
- <div class="form-control flex w-full flex-col gap-2" x-data="engagementNotesEditor" data-preview-url={ "/workspaces/" + data.Workspace.ID.String() + "/engagements/notes-preview" } data-preview-failed={ data.T("engagement.preview_failed") } data-preview-loading={ data.T("ui.loading") } data-preview-empty={ data.T("engagement.preview_empty") } data-count-label={ data.T("engagement.characters") }>
-  @molecules.EntryField(molecules.EntryFieldProps{ID: "engagement-notes", Label: data.T("engagement.notes")+" "+data.T("ui.optional"), Value: notes}) {
-  <div class="rounded-box border border-base-300 bg-base-100 text-base-content">
-   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-base-300 px-2" data-notes-controls hidden>
-    <div role="tablist" aria-label={ data.T("engagement.notes") } class="tabs tabs-border">
-     <button id="engagement-notes-write-tab" type="button" role="tab" class="tab tab-active" aria-selected="true" aria-controls="engagement-notes-write-panel" data-notes-write>{ data.T("engagement.write") }</button>
-     <button id="engagement-notes-preview-tab" type="button" role="tab" class="tab" aria-selected="false" aria-controls="engagement-notes-preview-panel" tabindex="-1" data-notes-preview>{ data.T("engagement.preview") }</button>
-    </div>
-    <div class="flex flex-wrap items-center" role="group" aria-label={ data.T("engagement.formatting") } data-notes-tools>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.bold") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="bold" aria-label={ data.T("engagement.bold") } title={ data.T("engagement.bold") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zm0 7h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button></span>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.italic") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="italic" aria-label={ data.T("engagement.italic") } title={ data.T("engagement.italic") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M14 5h5M5 19h5M15 5 9 19"/></svg></button></span>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.heading") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="heading" aria-label={ data.T("engagement.heading") } title={ data.T("engagement.heading") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M5 5v14M15 5v14M5 12h10M18 10l2-1v10M18 19h4"/></svg></button></span>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.bulleted_list") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="list" aria-label={ data.T("engagement.bulleted_list") } title={ data.T("engagement.bulleted_list") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></button></span>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.link") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="link" aria-label={ data.T("engagement.link") } title={ data.T("engagement.link") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 13a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 4.3l-1.7 1.7M14 11a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 19.7l1.7-1.7"/></svg></button></span>
-     <span class="tooltip tooltip-bottom" data-tip={ data.T("engagement.code") }><button class="btn btn-outline btn-sm btn-square" type="button" data-markdown="code" aria-label={ data.T("engagement.code") } title={ data.T("engagement.code") }><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-12-2 14"/></svg></button></span>
-    </div>
-   </div>
-   <div id="engagement-notes-write-panel" data-notes-write-panel>
-    <textarea id="engagement-notes" name="notes" maxlength="5000" rows="10" class="textarea textarea-ghost w-full" placeholder={ data.T("engagement.notes_placeholder") } aria-describedby="engagement-notes-help">{ notes }</textarea>
-   </div>
-   <div id="engagement-notes-preview-panel" class="engagement-markdown min-h-40 p-4" role="tabpanel" aria-labelledby="engagement-notes-preview-tab" tabindex="0" aria-live="polite" data-notes-output hidden></div>
-   <div class="flex flex-wrap items-center justify-between gap-2 border-t border-base-300 px-3 py-2">
-    <p id="engagement-notes-help">{ data.T("engagement.markdown_help") }</p>
-    <span data-notes-count hidden></span>
-   </div>
-  </div>
-  }
- </div>
-}

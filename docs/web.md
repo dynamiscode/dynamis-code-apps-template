@@ -70,6 +70,15 @@ Owners and admins can add, reorder,
 and archive stages; workspace readers see their order and archive state. Archiving
 requires explicit confirmation, explains that existing work stays in the stage,
 and prevents moves into it. The forms work without JavaScript.
+The approved stage-settings redesign groups stages in open, won, and lost order,
+including empty drop targets. Active stages can be dragged within a group or
+between groups; archived stages appear through the status filter and cannot be
+dragged. Keyboard and no-JavaScript controls provide the same operations. A
+cross-group move requires a server-rendered confirmation showing the stage, its
+old and new types, and the count of all engagements in that stage. The server
+rejects a stale stage snapshot or engagement count without applying the move.
+The change preserves engagement and history rows. See the
+[approved workflow decisions](engagement-workflow-decisions.md).
 On a client detail page, full-width engagement tiles show the stage and link to each
 engagement. Writers can open creation with that client preselected, with a
 full-page fallback when JavaScript is unavailable. Engagement details combine
@@ -106,6 +115,10 @@ client relationship, and produce an audit event.
 Creation requires a selected unarchived open stage. When none exists, administrators
 can open stage setup; other writers are directed to an administrator. Client deletion warns that its
 engagements and their history are permanently deleted too.
+Archiving a client requires confirmation and can be cancelled without JavaScript.
+Client creation keeps optional contact details under Advanced and warns before
+discarding a dirty dialog. Timeline correction search and paging preserve the
+composer draft without placing its text in the URL.
 Owners and admins can set or reset the workspace work item label on the stages
 page. The sidebar, engagement list, and client pages use that workspace's label;
 the localized default is engagement.

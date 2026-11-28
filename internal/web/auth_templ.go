@@ -238,14 +238,14 @@ func authLogin(data viewmodel.PageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</form><p><a class=\"auth-recovery-link btn btn-outline btn-sm\" href=\"/password-reset\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</form><p class=\"mt-4\"><a class=\"auth-recovery-link btn btn-outline btn-sm\" href=\"/password-reset\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.T("account.forgot_password"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 58, Col: 116}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `auth.templ`, Line: 58, Col: 129}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

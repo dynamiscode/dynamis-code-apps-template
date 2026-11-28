@@ -136,3 +136,60 @@ func TestForwardedTemplateInputsRejectMutationAndOpaqueSources(t *testing.T) {
 		t.Fatalf("checked %d calls, want 7", count)
 	}
 }
+
+func TestComponentContainerOriginsFollowLocalAppend(t *testing.T) {
+	const source = `package fixture
+	type Component interface { Render() }
+	type body struct{}
+	func (body) Render() {}
+	type Item struct { Child Component }
+	func checked() Component { return body{} }
+	func unchecked() Component { return body{} }
+	func consume([]Item) {}
+	func valid() {
+		items := []Item{{Child: checked()}}
+		items = append(items, Item{Child: checked()})
+		consume(items)
+	}
+	func invalid() {
+		items := []Item{{Child: checked()}}
+		items = append(items, Item{Child: unchecked()})
+		consume(items)
+	}`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "fixture.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info := &types.Info{Types: map[ast.Expr]types.TypeAndValue{}, Uses: map[*ast.Ident]types.Object{}, Defs: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}}
+	pkg, err := (&types.Config{}).Check("fixture", fset, []*ast.File{file}, info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	component := pkg.Scope().Lookup("Component").Type().Underlying().(*types.Interface).Complete()
+	index := indexRenderOrigins([]*packages.Package{{Syntax: []*ast.File{file}, TypesInfo: info}}, map[string]map[string]bool{"fixture": {"checked": true}})
+	index.component = component
+	index.closed = func(function *types.Func) bool { return function != nil && function.Name() == "checked" }
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Name.Name == "checked" || function.Name.Name == "unchecked" {
+			continue
+		}
+		want := function.Name.Name == "valid"
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := callIdentifier(call.Fun)
+			if name == nil || name.Name != "consume" {
+				return true
+			}
+			got := typedComponentArgumentSafe(call.Args[0], info, component, index.known, true, index.closed, nil, index.containerInputs)
+			if got != want {
+				t.Errorf("%s: got %v, want %v", function.Name.Name, got, want)
+			}
+			return true
+		})
+	}
+}

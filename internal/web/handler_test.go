@@ -873,11 +873,40 @@ func TestWebLanguageSettingsRoutes(t *testing.T) {
 	reset := request(handler, http.MethodPost, "/settings/language", url.Values{
 		"csrf": {session.CSRFSecret}, "locale": {""},
 	}, cookies, nil)
-	if reset.Code != http.StatusSeeOther || responseCookie(reset, "locale").MaxAge >= 0 {
-		t.Fatalf("reset language = %d, cookie %+v", reset.Code, responseCookie(reset, "locale"))
+	if reset.Code != http.StatusSeeOther || reset.Header().Get("Location") != "/settings/language?saved=1" || responseCookie(reset, "locale").MaxAge >= 0 {
+		t.Fatalf("reset language = %d, location %q, cookie %+v", reset.Code, reset.Header().Get("Location"), responseCookie(reset, "locale"))
 	}
 	if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != "" {
 		t.Fatalf("reset user locale = %q, %v", locale, err)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		locale   string
+		returnTo string
+		want     string
+	}{
+		{"local path and query", "es", "/account?tab=profile", "/account?tab=profile"},
+		{"automatic language", "", "/notifications?filter=unread", "/notifications?filter=unread"},
+		{"external URL", "es", "https://example.com", "/"},
+		{"network path", "", "//example.com", "/"},
+		{"backslash path", "es", "/\\example.com", "/"},
+		{"encoded backslash path", "es", "/%5cexample.com", "/"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := request(handler, http.MethodPost, "/settings/language", url.Values{
+				"csrf": {session.CSRFSecret}, "locale": {tc.locale}, "return_to": {tc.returnTo},
+			}, cookies, nil)
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != tc.want {
+				t.Fatalf("save language = %d, location %q; want %q", response.Code, response.Header().Get("Location"), tc.want)
+			}
+			if locale, err := auth.GetUserLocale(context.Background(), owner.UserID); err != nil || locale != tc.locale {
+				t.Fatalf("saved user locale = %q, %v; want %q", locale, err, tc.locale)
+			}
+			if tc.locale == "" && responseCookie(response, "locale").MaxAge >= 0 {
+				t.Fatalf("automatic language did not clear locale cookie: %+v", responseCookie(response, "locale"))
+			}
+		})
 	}
 
 	general := request(handler, http.MethodPost, "/workspaces/"+workspaceID.String()+"/settings/general", url.Values{
@@ -2146,8 +2175,8 @@ func TestSingleModeHidesWorkspaceListNavigation(t *testing.T) {
 	}
 	for _, path := range []string{workspaceRoot, workspaceRoot + "/settings/members"} {
 		body := request(handler, http.MethodGet, path+"?all=1", nil, cookies, nil).Body.String()
-		if !strings.Contains(body, `<span class="truncate font-bold">`) {
-			t.Errorf("%s lacks plain-text workspace name in single mode", path)
+		if !strings.Contains(body, `href="`+workspaceRoot+`"`) {
+			t.Errorf("%s lacks accessible workspace home link in single mode", path)
 		}
 	}
 	for _, path := range []string{"/account", workspaceRoot + "/settings/audit", workspaceRoot + "/settings/export"} {

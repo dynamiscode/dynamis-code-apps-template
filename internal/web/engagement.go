@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -59,7 +60,7 @@ func (h *Handler) setEngagementAgreement(w http.ResponseWriter, r *http.Request)
 	if r.FormValue("return_to") == "detail" {
 		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
-	h.redirect(w, r, path)
+	h.redirect(w, r, engagementContextURL(clientContextURL(path, r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 }
 
 func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +120,7 @@ func (h *Handler) setEngagementAssignee(w http.ResponseWriter, r *http.Request) 
 	if r.FormValue("return_to") == "detail" {
 		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
-	h.redirect(w, r, path)
+	h.redirect(w, r, engagementContextURL(clientContextURL(path, r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 }
 
 func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +161,7 @@ func (h *Handler) setEngagementQuote(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("return_to") == "detail" {
 		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
-	h.redirect(w, r, path)
+	h.redirect(w, r, engagementContextURL(clientContextURL(path, r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 }
 
 func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +233,7 @@ func (h *Handler) setEngagementNextAction(w http.ResponseWriter, r *http.Request
 	if r.FormValue("return_to") == "detail" {
 		path += "/engagements/" + r.PathValue("engagementId") + "?saved=1"
 	}
-	h.redirect(w, r, path)
+	h.redirect(w, r, engagementContextURL(clientContextURL(path, r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 }
 
 func (h *Handler) engagementMatchesClient(w http.ResponseWriter, r *http.Request, actor identity.Principal, workspace identity.WorkspaceID) bool {
@@ -276,7 +277,7 @@ func (h *Handler) setEngagementName(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		h.renderError(w, http.StatusInternalServerError)
 	default:
-		h.redirect(w, r, h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId")+"?saved=1")
+		h.redirect(w, r, engagementContextURL(clientContextURL(h.clientsPath(workspace)+"/"+r.PathValue("clientId")+"/engagements/"+r.PathValue("engagementId")+"?saved=1", r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 	}
 }
 
@@ -386,7 +387,7 @@ func (h *Handler) dueEngagements(w http.ResponseWriter, r *http.Request) {
 	if items.HasMore && page < 1000000 {
 		next = pageURL(page + 1)
 	}
-	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, status, previous, next, h.clientsPath(workspace)).Render(r.Context(), w)
+	_ = dueEngagementsPage(data, items, stages, members, string(options.Filter), owner, status, previous, next, h.clientsPath(workspace), pageURL(page)).Render(r.Context(), w)
 }
 
 func (h *Handler) renderRescheduleRecovery(w http.ResponseWriter, r *http.Request, workspace identity.WorkspaceID, id engagement.ID, queuePath string, values url.Values, status int, key string) {
@@ -572,7 +573,7 @@ func (h *Handler) moveEngagement(w http.ResponseWriter, r *http.Request) {
 		}
 		path = "/workspaces/" + workspace.String() + "/engagements?" + values.Encode()
 	}
-	h.redirect(w, r, path)
+	h.redirect(w, r, engagementContextURL(clientContextURL(path, r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 }
 
 func (h *Handler) setEngagementLabel(w http.ResponseWriter, r *http.Request) {
@@ -658,6 +659,19 @@ func (h *Handler) renderEngagementStages(w http.ResponseWriter, r *http.Request,
 		h.renderError(w, http.StatusInternalServerError)
 		return
 	}
+	snapshotBytes, err := json.Marshal(stages)
+	if err != nil {
+		h.renderError(w, http.StatusInternalServerError)
+		return
+	}
+	snapshot := string(snapshotBytes)
+	hasArchived := false
+	for _, stage := range stages {
+		if stage.Archived {
+			hasArchived = true
+			break
+		}
+	}
 	archived := r.URL.Query().Get("status") == "archived"
 	visibleStages := stages[:0]
 	for _, stage := range stages {
@@ -695,7 +709,7 @@ func (h *Handler) renderEngagementStages(w http.ResponseWriter, r *http.Request,
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
-	_ = engagementStagesPage(data, stages, actor.Permissions[identity.WorkspaceUpdate]).Render(r.Context(), w)
+	_ = engagementStagesPage(data, stages, actor.Permissions[identity.WorkspaceUpdate], hasArchived, snapshot).Render(r.Context(), w)
 }
 
 func stageFilterQuery(archived bool) string {
@@ -734,6 +748,34 @@ func (h *Handler) createEngagementStage(w http.ResponseWriter, r *http.Request) 
 	h.redirect(w, r, "/workspaces/"+workspace.String()+"/engagement-stages")
 }
 
+func stagesOfKind(stages []engagement.Stage, kind string) []engagement.Stage {
+	var group []engagement.Stage
+	for _, stage := range stages {
+		if stage.Kind == kind {
+			group = append(group, stage)
+		}
+	}
+	return group
+}
+
+func stageBefore(group []engagement.Stage, index, direction int) string {
+	target := index - 1
+	if direction > 0 {
+		target = index + 2
+	}
+	if target < 0 || target >= len(group) {
+		return ""
+	}
+	return group[target].ID.String()
+}
+
+type stageSnapshotEntry struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Archived bool   `json:"archived"`
+}
+
 func (h *Handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil {
 		h.renderError(w, http.StatusNotFound)
@@ -744,44 +786,115 @@ func (h *Handler) reorderEngagementStages(w http.ResponseWriter, r *http.Request
 		return
 	}
 	workspace := identity.ParseWorkspaceIDOrZero(r.PathValue("workspaceId"))
-	stages, err := h.engagement.ListStages(r.Context(), actor, workspace)
-	if err == nil {
-		ids := make([]engagement.StageID, len(stages))
-		for i, stage := range stages {
-			ids[i] = stage.ID
+	_, session, csrf, ok := h.workspaceSession(w, r, workspace, identity.WorkspaceUpdate)
+	if !ok {
+		return
+	}
+	var entries []stageSnapshotEntry
+	if json.Unmarshal([]byte(r.FormValue("snapshot")), &entries) != nil || len(entries) == 0 {
+		h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+		return
+	}
+	snapshot := make([]engagement.Stage, len(entries))
+	for i, entry := range entries {
+		snapshot[i] = engagement.Stage{ID: engagement.ParseStageID(entry.ID), Name: entry.Name, Kind: entry.Kind, Archived: entry.Archived}
+	}
+	stageID := engagement.ParseStageID(r.FormValue("stage_id"))
+	kind := r.FormValue("kind")
+	beforeValue := r.FormValue("before_id")
+	beforeID := engagement.ParseStageID(beforeValue)
+	if beforeValue != "" && beforeID == 0 {
+		h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+		return
+	}
+	if kind != "open" && kind != "won" && kind != "lost" {
+		h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+		return
+	}
+	var moved engagement.Stage
+	ids := make([]engagement.StageID, 0, len(snapshot))
+	for _, stage := range snapshot {
+		if stage.ID == stageID {
+			moved = stage
+		} else {
+			ids = append(ids, stage.ID)
 		}
-		stageID := engagement.ParseStageID(r.FormValue("stage"))
-		found := false
-		for i, stage := range stages {
-			if stage.ID == stageID {
-				j := i
-				step := 0
-				if r.FormValue("direction") == "up" {
-					step = -1
-				} else if r.FormValue("direction") == "down" {
-					step = 1
+	}
+	if moved.ID == 0 || moved.Archived || beforeID == stageID {
+		h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+		return
+	}
+	insert := len(ids)
+	if beforeID != 0 {
+		insert = -1
+		for i, id := range ids {
+			for _, stage := range snapshot {
+				if stage.ID == id && id == beforeID && !stage.Archived && stage.Kind == kind {
+					insert = i
 				}
-				if step != 0 {
-					j += step
-					for j >= 0 && j < len(stages) && stages[j].Archived != stage.Archived {
-						j += step
-					}
-				} else {
-					j = -1
+			}
+		}
+		if insert < 0 {
+			h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+			return
+		}
+	} else {
+		rank := map[string]int{"open": 0, "won": 1, "lost": 2}
+		for i, id := range ids {
+			for _, stage := range snapshot {
+				if stage.ID == id && rank[stage.Kind] > rank[kind] {
+					insert = i
+					break
 				}
-				if j >= 0 && j < len(ids) {
-					ids[i], ids[j] = ids[j], ids[i]
-					found = true
-				}
+			}
+			if insert == i {
 				break
 			}
 		}
-		if !found {
-			err = engagement.ErrInvalidInput
-		} else {
-			err = h.engagement.ReorderStages(r.Context(), actor, workspace, ids, auditContext(r))
+	}
+	ids = append(ids, 0)
+	copy(ids[insert+1:], ids[insert:])
+	ids[insert] = stageID
+	confirmed := r.FormValue("confirm_move") == "yes"
+	count := 0
+	if moved.Kind != kind && !confirmed {
+		current, err := h.engagement.ListStages(r.Context(), actor, workspace)
+		if err != nil {
+			h.finishStageMutation(w, r, workspace, err)
+			return
+		}
+		currentBytes, err := json.Marshal(current)
+		if err != nil || string(currentBytes) != r.FormValue("snapshot") {
+			h.renderEngagementStages(w, r, http.StatusConflict, "engagement.stages_stale")
+			return
+		}
+		count, err = h.engagement.StageEngagementCount(r.Context(), actor, workspace, stageID)
+		if err != nil {
+			h.finishStageMutation(w, r, workspace, err)
+			return
+		}
+		workspaces, err := h.identity.ListWorkspaces(r.Context(), session.UserID)
+		if err != nil {
+			h.renderError(w, http.StatusInternalServerError)
+			return
+		}
+		data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, CurrentPath: "/workspaces/" + workspace.String() + "/engagement-stages", NavPage: "clients", NavSection: "clients", FilesEnabled: h.filesEnabled, ClientsEnabled: h.clients != nil, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle}
+		h.localizePage(w, &data)
+		data.Title = data.T("engagement.confirm_stage_move")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = confirmStageMovePage(data, moved, kind, r.FormValue("before_id"), r.FormValue("snapshot"), count).Render(r.Context(), w)
+		return
+	}
+	if confirmed {
+		var err error
+		count, err = strconv.Atoi(r.FormValue("count"))
+		if err != nil || count < 0 {
+			h.finishStageMutation(w, r, workspace, engagement.ErrInvalidInput)
+			return
 		}
 	}
+	err := h.engagement.MoveStages(r.Context(), actor, workspace, snapshot, ids, stageID, kind, count, confirmed, auditContext(r))
 	h.finishStageMutation(w, r, workspace, err)
 }
 
@@ -811,8 +924,12 @@ func (h *Handler) finishStageMutation(w http.ResponseWriter, r *http.Request, wo
 		h.renderError(w, http.StatusForbidden)
 		return
 	}
-	if errors.Is(err, engagement.ErrInvalidInput) {
-		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid")
+	if errors.Is(err, engagement.ErrStaleStages) {
+		h.renderEngagementStages(w, r, http.StatusConflict, "engagement.stages_stale")
+		return
+	}
+	if errors.Is(err, engagement.ErrInvalidInput) || errors.Is(err, engagement.ErrConfirmationRequired) {
+		h.renderEngagementStages(w, r, http.StatusUnprocessableEntity, "engagement.invalid_stage_move")
 		return
 	}
 	if err != nil {

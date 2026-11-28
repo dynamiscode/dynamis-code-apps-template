@@ -114,7 +114,7 @@ templ transactionsInlineChoice(data viewmodel.PageData, row transactionsRow, dra
        <p>{ data.T("transactions.current_value") }: { display }</p>
       }
      }
-     <button class="btn btn-outline btn-square" type="submit" aria-label={ data.T("clients.value_save") }>✓</button><a class="btn btn-outline btn-square" href={ templ.SafeURL(cancel) } data-transaction-choice-cancel aria-label={ data.T("common.cancel") }>×</a>
+     <button class="btn btn-outline btn-square" type="submit" aria-label={ data.T("clients.value_save") }>✓</button><a class="btn btn-ghost btn-square" href={ templ.SafeURL(cancel) } data-transaction-choice-cancel aria-label={ data.T("common.cancel") }>×</a>
     </form>
    }
   }

@@ -13,6 +13,13 @@ import (
 	"example.com/dynamis-code/apps-template/internal/web/viewmodel"
 )
 
+func engagementNewReturn(data viewmodel.PageData) string {
+	if data.EngagementReturn != "" {
+		return data.EngagementReturn
+	}
+	return data.CurrentPath
+}
+
 func (h *Handler) newEngagement(w http.ResponseWriter, r *http.Request) {
 	if h.engagement == nil || h.clients == nil {
 		h.renderError(w, http.StatusNotFound)
@@ -42,7 +49,7 @@ func (h *Handler) newEngagement(w http.ResponseWriter, r *http.Request) {
 			created, err := h.engagement.Create(r.Context(), actor, workspace, engagement.Input{Name: r.FormValue("name"), ClientID: clientID, StageID: stageID, Notes: r.FormValue("notes")}, auditContext(r))
 			switch {
 			case err == nil:
-				h.redirect(w, r, h.clientsPath(workspace)+"/"+clientID.String()+"/engagements/"+created.ID.String())
+				h.redirect(w, r, engagementContextURL(clientContextURL(h.clientsPath(workspace)+"/"+clientID.String()+"/engagements/"+created.ID.String(), r.URL.Query().Get("return")), engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))))
 				return
 			case errors.Is(err, identity.ErrForbidden):
 				h.renderError(w, http.StatusForbidden)
@@ -86,7 +93,7 @@ func (h *Handler) newEngagement(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	var selected clients.Client
-	if clientValue != "" {
+	if clientValue != "" && clientValue != "0" {
 		selected, err = h.clients.Get(r.Context(), actor, workspace, clients.ParseClientIDOrZero(clientValue))
 		if err != nil && !errors.Is(err, clients.ErrNotFound) {
 			h.renderError(w, http.StatusInternalServerError)
@@ -127,18 +134,15 @@ func (h *Handler) newEngagement(w http.ResponseWriter, r *http.Request) {
 	if pageNumber < clients.MaxListPage && pageNumber*25 < page.Total {
 		next = strconv.Itoa(pageNumber + 1)
 	}
-	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, ClientsEnabled: true, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, CanManageFields: actor.Permissions[identity.WorkspaceUpdate], ErrorKey: errorKey, EngagementName: r.FormValue("name"), EngagementStage: r.FormValue("stage"), EngagementNotes: r.FormValue("notes"), Client: clients.Client{ID: clients.ParseClientIDOrZero(r.FormValue("from_client"))}}
+	data := viewmodel.PageData{CSRF: csrf, Workspace: workspaceByID(workspaces, workspace), Workspaces: workspaces, NavPage: "clients", NavSection: "clients", CurrentPath: path, ClientsEnabled: true, FilesEnabled: h.filesEnabled, SingleWorkspace: h.workspaceMode == config.WorkspaceModeSingle, CanManageFields: actor.Permissions[identity.WorkspaceUpdate], ErrorKey: errorKey, EngagementName: r.FormValue("name"), EngagementStage: r.FormValue("stage"), EngagementNotes: r.FormValue("notes"), Client: clients.Client{ID: clients.ParseClientIDOrZero(r.FormValue("from_client"))}, ClientReturnQuery: r.URL.Query().Get("return")}
+	data.EngagementReturn = engagementReturnPath(workspace, r.URL.Query().Get("engagement_return"))
 	h.localizePage(w, &data)
 	data.Title = data.T("engagement.create")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	if r.Header.Get("HX-Request") == "true" && r.Method == http.MethodGet && r.URL.Query().Get("part") == "client-results" {
-		if len(openStages) == 0 && len(page.Clients) > 0 {
-			_ = engagementNoStages(data).Render(r.Context(), w)
-		} else {
-			_ = engagementClientResults(data, page.Clients, search, prev, next).Render(r.Context(), w)
-		}
+		_ = engagementClientResults(data, page.Clients, search, prev, next).Render(r.Context(), w)
 	} else if r.Header.Get("HX-Request") == "true" && r.Method == http.MethodGet {
 		_ = engagementNewDialog(data, page.Clients, selected, openStages, search, prev, next, pickerAction != "" && !strings.HasPrefix(pickerAction, "select:")).Render(r.Context(), w)
 	} else {

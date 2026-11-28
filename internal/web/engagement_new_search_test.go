@@ -61,11 +61,18 @@ func TestEngagementClientSearchFragment(t *testing.T) {
 	}
 	for _, headers := range []map[string]string{nil, {"HX-Request": "true"}} {
 		form := request(env.routes, http.MethodGet, path+"?client="+client.ID.String(), nil, env.cookies, headers)
-		for _, want := range []string{`name="name"`, `name="notes"`, `name="stage"`, "Acme client", `data-notes-controls hidden`, `role="tab"`, `data-notes-preview`, `aria-label="Bold"`, `aria-label="Italic"`, `aria-label="Heading"`, `aria-label="Bulleted list"`, `aria-label="Link"`, `aria-label="Code"`, `aria-describedby="engagement-notes-help"`, "Markdown is supported.", `data-notes-count hidden`} {
+		for _, want := range []string{`name="name"`, `name="notes"`, `name="stage"`, "Acme client", `data-notes-editor data-notes-inline`, `data-notes-source`, `data-notes-rich`, `data-notes-toolbar hidden`, `aria-label="Bold"`, `aria-label="Italic"`, `aria-label="Bulleted list"`, `data-notes-link aria-expanded="false"`} {
 			if form.Code != http.StatusOK || !strings.Contains(form.Body.String(), want) {
 				t.Fatalf("create form missing %q: %d", want, form.Code)
 			}
 		}
+	}
+	if strings.Contains(request(env.routes, http.MethodGet, path, nil, env.cookies, nil).Body.String(), `<summary>Advanced</summary>`) {
+		t.Fatal("notes must be visible without opening Advanced")
+	}
+	unselected := request(env.routes, http.MethodPost, path, url.Values{"csrf": {env.csrf}, "client": {"0"}, "name": {"Draft"}, "notes": {"Draft notes"}, "q": {"Other"}, "picker_action": {"search"}}, env.cookies, nil)
+	if unselected.Code != http.StatusOK || strings.Contains(unselected.Body.String(), "Select an available client in this workspace.") || !strings.Contains(unselected.Body.String(), "Draft notes") {
+		t.Fatalf("unselected picker search lost draft: %d %s", unselected.Code, unselected.Body.String())
 	}
 	draft := url.Values{"csrf": {env.csrf}, "client": {client.ID.String()}, "name": {"Draft project"}, "notes": {"# Draft\n\nKeep this"}, "stage": {stage.ID.String()}, "q": {"Other"}, "picker_action": {"search"}}
 	searchResult := request(env.routes, http.MethodPost, path, draft, env.cookies, nil)
@@ -159,5 +166,18 @@ func TestEngagementClientPickerPaginationKeepsDraft(t *testing.T) {
 	fragment := request(env.routes, http.MethodGet, path+"?part=client-results&page=2&q=Client", nil, env.cookies, map[string]string{"HX-Request": "true"})
 	if fragment.Code != http.StatusOK || !strings.Contains(fragment.Body.String(), `value="page:1"`) || strings.Contains(fragment.Body.String(), "<dialog") {
 		t.Fatalf("pagination fragment: %d %s", fragment.Code, fragment.Body.String())
+	}
+}
+
+func TestEngagementCreateKeepsDraftWithoutOpenStage(t *testing.T) {
+	env := newClientsTestEnv(t)
+	path := "/workspaces/" + env.workspaceID.String() + "/engagements/new"
+	page := request(env.routes, http.MethodPost, path, url.Values{
+		"csrf": {env.csrf}, "client": {"0"}, "name": {"Draft name"}, "notes": {"Draft notes"}, "picker_action": {"search"},
+	}, env.cookies, nil)
+	for _, want := range []string{"no open stage", `value="Draft name"`, `>Draft notes</textarea>`, `data-notes-editor data-notes-inline`, `name="stage"`, `engagement-create-requirements`} {
+		if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), want) {
+			t.Fatalf("missing %q without stage: %d %s", want, page.Code, page.Body.String())
+		}
 	}
 }

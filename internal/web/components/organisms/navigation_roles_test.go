@@ -29,7 +29,7 @@ func TestNavigationDestinationsHaveVisibleBoundaries(t *testing.T) {
 	if err := atoms.Breadcrumbs(atoms.BreadcrumbsProps{Items: []atoms.BreadcrumbsProp{{Label: "Home", Href: "/"}, {Label: "Current"}}}).Render(context.Background(), &crumbs); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(crumbs.String(), `href="/"`) || !strings.Contains(crumbs.String(), `link-hover`) || !strings.Contains(crumbs.String(), `focus-visible:outline-2`) || !strings.Contains(crumbs.String(), `aria-current="page"`) || strings.Contains(crumbs.String(), `class="btn`) {
+	if !strings.Contains(crumbs.String(), `href="/"`) || !strings.Contains(crumbs.String(), `class="link inline-flex min-h-11`) || !strings.Contains(crumbs.String(), `focus-visible:outline-2`) || !strings.Contains(crumbs.String(), `<span aria-current="page" class="break-words font-semibold">Current</span>`) || strings.Contains(crumbs.String(), `border`) || strings.Contains(crumbs.String(), `class="btn`) {
 		t.Fatalf("breadcrumbs must use plain links with visible focus and a current page: %s", crumbs.String())
 	}
 }

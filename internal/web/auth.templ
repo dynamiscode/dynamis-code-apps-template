@@ -55,7 +55,7 @@ templ authLogin(data viewmodel.PageData) {
 			})
 			@molecules.SubmitButtonStyled(data.T("account.sign_in"), "w-full", nil)
 		</form>
-		<p><a class="auth-recovery-link btn btn-outline btn-sm" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
+		<p class="mt-4"><a class="auth-recovery-link btn btn-outline btn-sm" href="/password-reset">{ data.T("account.forgot_password") }</a></p>
 		if len(data.OIDCProviders) > 0 {
 			<section class="auth-method" aria-labelledby="auth-provider-heading">
 				<h2 id="auth-provider-heading">{ data.T("account.other_sign_in_methods") }</h2>

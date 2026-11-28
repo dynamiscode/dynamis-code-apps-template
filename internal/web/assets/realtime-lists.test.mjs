@@ -34,12 +34,14 @@ function loadRealtimeList(listID, events) {
   };
   let status = { textContent: "" };
   let editing = false;
+  let archiveOpen = false;
   const requests = [];
   let currentRequest;
   let swap;
   const ajaxCalls = [];
   const document = {
     querySelector: (selector) => selector === "#realtime-status" ? status
+      : selector === "[data-client-archive-dialog]:modal" ? (archiveOpen ? {} : null)
       : selector.includes("[data-events]") || selector === `#${listID}` ? list : null,
     addEventListener: (name, listener) => (documentListeners[name] ||= []).push(listener)
   };
@@ -65,6 +67,7 @@ function loadRealtimeList(listID, events) {
     documentListeners,
     fireDocument(name, event = {}) { for (const listener of documentListeners[name] || []) listener(event); },
     setEditing(value) { editing = value; },
+    setArchiveOpen(value) { archiveOpen = value; },
     replaceList(nextList, nextStatus) { list = nextList; status = nextStatus; },
     status() { return status; },
     beforeSwap(method = "get", ctx = currentRequest) {
@@ -157,6 +160,21 @@ test("delayed realtime response defers at swap when list became focused or dirty
   assert.equal(mutation.prevented, false, "list mutation response remains owned by route handler");
   live.finallyRequest("get", request);
   assert.equal(live.ajaxCalls.length, 1, "cancelled response does not trigger a timer retry");
+});
+
+test("archive confirmation defers list refreshes and late swaps until closed", async () => {
+  const live = loadRealtimeList("client-list", "/workspaces/w1/clients/events");
+  const [source] = live.sources;
+  fire(source, "client.changed");
+  live.setArchiveOpen(true);
+  assert.equal(live.beforeSwap().prevented, true);
+  live.finallyRequest();
+  fire(source, "resync");
+  assert.equal(live.ajaxCalls.length, 1);
+  live.setArchiveOpen(false);
+  live.fireDocument("close");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(live.ajaxCalls.length, 2);
 });
 
 test("client refresh waits for focus and dirty input to clear", async () => {
