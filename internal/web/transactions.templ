@@ -181,7 +181,7 @@ templ transactionsResults(data viewmodel.PageData, rows []transactionsRow, sourc
     </div>
    } else if !filterPicker.dateError && len(rows) == 0 {
     if data.HasClientFilters || data.ListSearch != "" {
-     <p>{ data.T("transactions.filter_empty") }</p>
+     @molecules.NoMatchesAlert(molecules.NoMatchesAlertProps{ID: "transactions-filter-empty-state", Message: data.T("transactions.filter_empty"), Href: data.ClearClientFiltersPath, Label: data.T("clients.clear_filters")})
     } else if page == 1 {
      <p>{ data.T("transactions.empty") }</p>
     } else {
