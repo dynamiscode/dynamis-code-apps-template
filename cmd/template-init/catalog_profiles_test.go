@@ -113,6 +113,9 @@ func TestSchedulingRESTProfileRewrites(t *testing.T) {
 					t.Errorf("profile output retains %q", removed)
 				}
 			}
+			if !tc.catalog && strings.Contains(text, "seed catalog =") {
+				t.Error("Catalog-off scheduling test retains catalog booking setup")
+			}
 			for _, kept := range []string{"func TestSchedulingResourcesREST(", "func TestSchedulingRESTReadOnlyRoles(", "denied writes changed resources"} {
 				if !strings.Contains(text, kept) {
 					t.Errorf("profile output lost %q", kept)

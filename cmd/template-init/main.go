@@ -643,7 +643,8 @@ func disableCatalogSource(relative string, raw []byte) []byte {
 		value = removeLinesContaining(value, `"encoding/json"`)
 	case "internal/httpapi/scheduling_test.go":
 		value = removeText(value, "func TestSchedulingBookingsREST(", "func TestSchedulingRESTReadOnlyRoles(")
-		value = removeText(value, "\tclient, err := clients.NewService", "\tfor _, role := range")
+		value = removeText(value, "\tclient, err := clients.NewService", "\tbase := \"/api/v1/workspaces/\" + workspace")
+		value = removeText(value, "\tbase := \"/api/v1/workspaces/\" + workspace", "\tfor _, role := range")
 		value = removeText(value, "\t\tif role == identity.Viewer {\n\t\t\tbefore := serveAuthorized", "\t\tafter := serveAuthorized(h, http.MethodGet, path,")
 		value = removeLinesContaining(value, `/internal/clients"`)
 		value = removeLinesContaining(value, `/internal/engagement"`)
