@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +34,10 @@ func TestCatalogNavigationBrowser(t *testing.T) {
 			atoms.Link(atoms.LinkProps{Href: "#variant", Text: "Supported link variant"}),
 		} {
 			if err := c.Render(r.Context(), w); err != nil {
-				t.Errorf("render fixture: %v", err)
+				if !errors.Is(err, context.Canceled) {
+					t.Errorf("render fixture: %v", err)
+				}
+				return
 			}
 		}
 		fmt.Fprint(w, `</main></body></html>`)

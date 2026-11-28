@@ -73,6 +73,7 @@ func TestTransactionsFiltersClientHistoryViewerSpanishKeyboard(t *testing.T) {
 	eval[any](t, owner, `window.transactionFilterDocument = document`)
 	run(t, owner, chromedp.Focus(`#list-filter-add a[href*="filter_field=client_id"]`), chromedp.KeyEvent("\r"))
 	waitVisible(t, owner, "#transactions-filter-search")
+	eventually(t, owner, `document.activeElement?.id === 'transactions-filter-search'`, "client filter search did not receive focus")
 	if !eval[bool](t, owner, `window.transactionFilterDocument === document && !new URLSearchParams(location.search).has('filter_field')`) {
 		t.Fatalf("choosing client filter navigated: %s", eval[string](t, owner, `location.href`))
 	}
@@ -84,7 +85,7 @@ func TestTransactionsFiltersClientHistoryViewerSpanishKeyboard(t *testing.T) {
 	waitVisible(t, owner, `#list-filter-add a[href*="filter_field=client_id"]`)
 	run(t, owner, chromedp.Focus(`#list-filter-add a[href*="filter_field=client_id"]`), chromedp.KeyEvent("\r"))
 	waitVisible(t, owner, "#transactions-filter-search")
-	run(t, owner, chromedp.Focus("#transactions-filter-search"))
+	eventually(t, owner, `document.activeElement?.id === 'transactions-filter-search'`, "client filter search did not receive focus")
 	assertTabFocus(t, owner, `form:has(#transactions-filter-search) button[type="submit"]`)
 	fill(t, owner, "#transactions-filter-search", clientName)
 	run(t, owner, chromedp.Focus(`form:has(#transactions-filter-search) button[type="submit"]`), chromedp.KeyEvent("\r"))
