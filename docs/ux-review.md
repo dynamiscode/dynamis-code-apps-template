@@ -9,9 +9,10 @@ For pull requests touching `internal/` or browser-related commands, CI requires
 a structured review record or a reasoned non-visual exemption. A reviewed
 record must name the current PR head SHA or an unambiguous prefix of at least
 seven hex digits. Update it after new commits and repeat the drive as applicable.
-The check validates fields, commit identity, and link syntax, not the evidence,
-the exemption, the completeness of the path filter, or usability. Reviewers
-must judge those.
+The check validates field shape, required state classifications, commit identity,
+and HTTPS link syntax. It does not fetch links or establish that artifacts are
+durable, accessible, or genuine; nor does it validate reasons, completeness of
+the journey inventory or path filter, or usability. Reviewers must judge those.
 
 1. **Inventory.** List affected journeys, entry and return paths, roles, and
    relevant states. Identify task, success, failure and realistic data, including
@@ -42,6 +43,29 @@ must judge those.
    viewport, role, journey and state, actions and outcomes, links to screenshots
    or other durable evidence, checks run, and unresolved findings. Use synthetic data;
    do not record credentials, personal data, or session values.
+
+For a reviewed pull request, list each affected journey with its own six state
+lines, using exactly these forms:
+
+```text
+- Journey: Record a transaction
+- State: empty | exercised | Opened history before adding a transaction | https://example.org/review/empty
+- State: populated | exercised | Found the new transaction in history | https://example.org/review/populated
+- State: error | not applicable | This journey does not expose an error state
+- State: success | exercised | Saved the transaction and saw confirmation | https://example.org/review/success
+- State: permission | exercised | A restricted role could not save | https://example.org/review/permission
+- State: long-content | exercised | Read a long transaction description on a narrow screen | https://example.org/review/long-content
+```
+
+Replace the examples with actual observations and review-accessible durable
+artifact links. The same artifact may cover multiple states. An exercised state
+needs its action and outcome plus a link; a not applicable state needs a
+specific reason and no artifact field. Use `blocked` for a state that applies
+but cannot be exercised; a reviewed record cannot contain a blocked state.
+Do not relabel a blocked state as not applicable to pass the gate. A reason is
+necessary but reviewers must decide whether it is valid. Repeat the journey and
+all six state lines for every affected journey. The exemption form remains
+`Status: exempt` with a reason.
 
 ## Capture and retain evidence
 
