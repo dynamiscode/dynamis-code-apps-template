@@ -8,7 +8,7 @@ set -a; . ./.env; set +a
 go run ./cmd/server
 ```
 
-Running `make setup` configures `.githooks` (checking Go formatting and conflict markers on commit) and installs dependencies. Refresh only the hook path with `make setup-hooks`. The `commit-msg` hook rejects AI attribution trailers (`Co-Authored-By: Claude` and `Generated with Claude Code`), and `make lint` tests that hook via `scripts/test-commit-msg-hook.sh`.
+Running `make setup` configures `.githooks` and installs dependencies. Refresh only the hook path with `make setup-hooks`. The hooks check Go formatting and conflict markers on commit, reject AI attribution trailers in commit messages, and run the profile preflight before push. `make lint` tests the commit-message hook and profile preflight.
 
 Run `make ci-local` optionally to check locally before pushing. It runs the CI checks that work without Docker, Postgres, or browser smoke (`lint`, `test-unit`, `race`, `deps-check`, `generate-check`, `templ-check`, `css-check`, `build`, `secret-check`). CI-only targets are listed in the Makefile comment above `ci-local`.
 `make setup` also enables git rerere for this repo (`rerere.enabled`), which records conflict resolutions and replays them when the same conflict recurs, such as when rebasing stacked branches.
@@ -52,16 +52,22 @@ New browser journeys and meaningful interaction or visual changes require
 [rendered UX review](ux-review.md). Report missing browser evidence as blocked;
 a passing automated check does not substitute for the review.
 
-Before pushing or integrating template changes, run `make profile-preflight`.
-It compares committed, staged, unstaged, and untracked application code against
-`origin/main` and runs the existing generated-profile matrix when affected.
-Shared code can affect any profile, so the complete matrix runs rather than
-guessing individual profiles. For another integration base, use
-`make profile-preflight BASE=<commit>`. Fetch the intended base first. The
-tests use the current working tree, including uncommitted files; rerun after
-changes. Documentation-only and other unrelated changes skip the matrix.
-This optional preflight does not install a hook or replace `make verify`.
-Run `make test-profile-preflight` for its offline deterministic self-check.
+The checked-in pre-push hook runs `make profile-preflight` after `make setup`
+or `make setup-hooks` configures Git to use `.githooks`. It compares committed,
+staged, unstaged, and untracked application code against `origin/main` and
+runs the existing generated-profile matrix when affected. Shared code can
+affect any profile, so the complete matrix runs rather than guessing individual
+profiles. Documentation-only and other unrelated changes skip the matrix.
+
+Fetch the intended base first; a missing base blocks the push. For another
+integration base, use `BASE=<commit> git push` or run
+`make profile-preflight BASE=<commit>` manually. The tests use the current
+working tree, including uncommitted files, not the exact pushed commits; rerun
+after changes and check other pushed branches separately. The hook does not
+replace `make verify` or CI. Git hooks execute code from the checkout: enable
+them only for trusted checkouts, and note that `git push --no-verify` bypasses
+the local gate. Run `make test-profile-preflight` for its offline deterministic
+self-check, including the push hook.
 
 ## Catalog verification ladder
 
